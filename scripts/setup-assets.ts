@@ -1,123 +1,157 @@
-import { ethers } from "hardhat";
-import { parseEther } from "viem";
-
-// Configuration for supported assets
-const ASSET_CONFIGS = {
-  "ETH.ARBI": {
-    collateralFactor: parseEther("0.8"),  // 80%
-    liquidationThreshold: parseEther("0.85"), // 85%
-    liquidationBonus: parseEther("0.05"), // 5%
-    price: 2000 // $2000
-  },
-  "USDC.ARBI": {
-    collateralFactor: parseEther("0.9"),  // 90%
-    liquidationThreshold: parseEther("0.9"), // 90%
-    liquidationBonus: parseEther("0.05"), // 5%
-    price: 1 // $1
-  },
-  "USDT.BASE": {
-    collateralFactor: parseEther("0.9"),  // 90%
-    liquidationThreshold: parseEther("0.9"), // 90%
-    liquidationBonus: parseEther("0.05"), // 5%
-    price: 1 // $1
-  },
-  "ZETA": {
-    collateralFactor: parseEther("0.75"), // 75%
-    liquidationThreshold: parseEther("0.8"), // 80%
-    liquidationBonus: parseEther("0.1"), // 10%
-    price: 0.5 // $0.5
-  }
-};
+import { viem } from "hardhat";
+import { parseEther, formatEther } from "viem";
+import { 
+  getDeployment, 
+  getContractAddress, 
+  getAllTokenAddresses,
+  validateDeployment,
+  ASSET_CONFIGS,
+  type Address,
+  type TokenAddresses
+} from "../deployments";
 
 async function main() {
-  const [deployer] = await ethers.getSigners();
+  const [deployer] = await viem.getWalletClients();
   
-  // Replace with your deployed contract addresses
-  const LENDING_PROTOCOL_ADDRESS = "0x..."; // Replace with actual address
-  const PRICE_ORACLE_ADDRESS = "0x...";     // Replace with actual address
+  // Get network name from environment or default to localnet
+  const networkName = process.env.NETWORK || "localnet";
+  console.log(`Setting up assets for network: ${networkName}`);
+  console.log("Deployer account:", deployer.account.address);
   
-  console.log("Setting up assets with account:", deployer.address);
-  
-  if (LENDING_PROTOCOL_ADDRESS === "0x..." || PRICE_ORACLE_ADDRESS === "0x...") {
-    console.error("Please update contract addresses in the script");
+  try {
+    // Get deployment configuration
+    const deployment = getDeployment(networkName);
+    console.log("Network info:", {
+      name: deployment.name,
+      chainId: deployment.chainId,
+      isTestnet: deployment.isTestnet
+    });
+    
+    // Validate deployment has all required addresses
+    const validation = validateDeployment(networkName);
+    if (!validation.isValid) {
+      console.error("❌ Deployment validation failed:");
+      if (validation.missingContracts.length > 0) {
+        console.error("Missing contracts:", validation.missingContracts);
+      }
+      if (validation.missingTokens.length > 0) {
+        console.error("Missing tokens:", validation.missingTokens);
+      }
+      console.error("\n💡 Please deploy contracts first or update addresses in deployments.ts");
+      process.exit(1);
+    }
+    
+    console.log("✅ Deployment validation passed");
+    
+    // Get contract instances
+    const lendingProtocolAddress = getContractAddress(networkName, "LendingProtocol");
+    const priceOracleAddress = getContractAddress(networkName, "PriceOracle");
+    
+    console.log("Contract addresses:");
+    console.log("  LendingProtocol:", lendingProtocolAddress);
+    console.log("  PriceOracle:", priceOracleAddress);
+    
+    const lendingProtocol = await viem.getContractAt("LendingProtocol", lendingProtocolAddress);
+    const priceOracle = await viem.getContractAt("PriceOracle", priceOracleAddress);
+    
+    // Get all token addresses for this network
+    const tokenAddresses = getAllTokenAddresses(networkName);
+    
+    console.log("\n🔧 Configuring assets...");
+    
+    // Configure each asset
+    for (const [symbol, address] of Object.entries(tokenAddresses) as [keyof TokenAddresses, Address][]) {
+      const config = ASSET_CONFIGS[symbol];
+      
+      console.log(`\n📝 Configuring ${symbol}...`);
+      console.log(`  Address: ${address}`);
+      console.log(`  Collateral Factor: ${(config.collateralFactor * 100).toFixed(1)}%`);
+      console.log(`  Liquidation Threshold: ${(config.liquidationThreshold * 100).toFixed(1)}%`);
+      console.log(`  Price: $${config.priceInUSD}`);
+      
+      try {
+        // Check if asset is already supported
+        const assetConfig = await lendingProtocol.read.getAssetConfig([address]);
+        
+        if (assetConfig.isSupported) {
+          console.log(`  ✅ ${symbol} is already supported in lending protocol`);
+        } else {
+          // Add asset to lending protocol
+          console.log(`  ➕ Adding ${symbol} to lending protocol...`);
+          await lendingProtocol.write.addAsset([
+            address,
+            parseEther(config.collateralFactor.toString()),
+            parseEther(config.liquidationThreshold.toString()),
+            parseEther(config.liquidationBonus.toString())
+          ], { account: deployer.account });
+          console.log(`  ✅ ${symbol} added to lending protocol`);
+        }
+        
+        // Set price in oracle
+        console.log(`  💰 Setting ${symbol} price to $${config.priceInUSD}...`);
+        await priceOracle.write.setPriceInUSD([address, BigInt(config.priceInUSD)], { account: deployer.account });
+        console.log(`  ✅ ${symbol} price updated`);
+        
+      } catch (error) {
+        console.error(`  ❌ Failed to configure ${symbol}:`, error);
+      }
+    }
+    
+    console.log("\n🎉 Asset setup completed!");
+    
+    // Verification
+    console.log("\n🔍 Verification Report:");
+    console.log("=" .repeat(50));
+    
+    for (const [symbol, address] of Object.entries(tokenAddresses) as [keyof TokenAddresses, Address][]) {
+      try {
+        const assetConfig = await lendingProtocol.read.getAssetConfig([address]);
+        const price = await priceOracle.read.getPrice([address]);
+        
+        console.log(`\n${symbol}:`);
+        console.log(`  📍 Address: ${address}`);
+        console.log(`  ✅ Supported: ${assetConfig.isSupported}`);
+        console.log(`  🏦 Collateral Factor: ${formatEther(assetConfig.collateralFactor)}`);
+        console.log(`  ⚠️  Liquidation Threshold: ${formatEther(assetConfig.liquidationThreshold)}`);
+        console.log(`  🎁 Liquidation Bonus: ${formatEther(assetConfig.liquidationBonus)}`);
+        console.log(`  💵 Price: $${formatEther(price)}`);
+        
+      } catch (error) {
+        console.error(`  ❌ Failed to verify ${symbol}:`, error);
+      }
+    }
+    
+    console.log("\n" + "=".repeat(50));
+    console.log("✅ Setup verification completed!");
+    console.log(`🌐 Network: ${deployment.name}`);
+    console.log(`🔗 Explorer: ${deployment.explorer}`);
+    
+  } catch (error) {
+    console.error("❌ Setup failed:", error);
     process.exit(1);
   }
+}
+
+// Helper function to deploy and update addresses
+export async function updateDeploymentAddresses(
+  networkName: string, 
+  contracts: { [K in keyof import("../deployments").CoreContracts]: Address },
+  tokens?: { [K in keyof TokenAddresses]: Address }
+) {
+  console.log(`📝 Updating deployment addresses for ${networkName}...`);
   
-  // Get contract instances
-  const lendingProtocol = await ethers.getContractAt("LendingProtocol", LENDING_PROTOCOL_ADDRESS);
-  const priceOracle = await ethers.getContractAt("MockPriceOracle", PRICE_ORACLE_ADDRESS);
+  // This would update the deployments.ts file
+  // For now, just log the addresses that should be updated
+  console.log("Contract addresses to update in deployments.ts:");
+  Object.entries(contracts).forEach(([name, address]) => {
+    console.log(`  ${name}: "${address}",`);
+  });
   
-  console.log("LendingProtocol address:", await lendingProtocol.getAddress());
-  console.log("PriceOracle address:", await priceOracle.getAddress());
-  
-  // Asset addresses (replace with actual ZRC-20 addresses on ZetaChain)
-  const assetAddresses = {
-    "ETH.ARBI": "0x...", // Replace with actual ZRC-20 ETH.ARBI address
-    "USDC.ARBI": "0x...", // Replace with actual ZRC-20 USDC.ARBI address
-    "USDT.BASE": "0x...", // Replace with actual ZRC-20 USDT.BASE address
-    "ZETA": "0x..." // Replace with actual ZETA token address
-  };
-  
-  // Configure each asset
-  for (const [symbol, address] of Object.entries(assetAddresses)) {
-    if (address === "0x...") {
-      console.log(`Skipping ${symbol} - address not provided`);
-      continue;
-    }
-    
-    const config = ASSET_CONFIGS[symbol as keyof typeof ASSET_CONFIGS];
-    
-    console.log(`\nConfiguring ${symbol}...`);
-    
-    try {
-      // Check if asset is already supported
-      const assetConfig = await lendingProtocol.getAssetConfig(address);
-      
-      if (assetConfig.isSupported) {
-        console.log(`${symbol} is already supported`);
-      } else {
-        // Add asset to lending protocol
-        const tx = await lendingProtocol.addAsset(
-          address,
-          config.collateralFactor,
-          config.liquidationThreshold,
-          config.liquidationBonus
-        );
-        await tx.wait();
-        console.log(`${symbol} added to lending protocol`);
-      }
-      
-      // Set price in oracle
-      const priceTx = await priceOracle.setPriceInUSD(address, config.price);
-      await priceTx.wait();
-      console.log(`${symbol} price set to $${config.price}`);
-      
-    } catch (error) {
-      console.error(`Failed to configure ${symbol}:`, error);
-    }
-  }
-  
-  console.log("\nAsset setup completed!");
-  
-  // Verify configuration
-  console.log("\n=== VERIFICATION ===");
-  for (const [symbol, address] of Object.entries(assetAddresses)) {
-    if (address === "0x...") continue;
-    
-    try {
-      const assetConfig = await lendingProtocol.getAssetConfig(address);
-      const price = await priceOracle.getPrice(address);
-      
-      console.log(`${symbol}:`);
-      console.log(`  Address: ${address}`);
-      console.log(`  Supported: ${assetConfig.isSupported}`);
-      console.log(`  Collateral Factor: ${ethers.formatEther(assetConfig.collateralFactor)}%`);
-      console.log(`  Liquidation Threshold: ${ethers.formatEther(assetConfig.liquidationThreshold)}%`);
-      console.log(`  Price: $${ethers.formatEther(price)}`);
-      
-    } catch (error) {
-      console.error(`Failed to verify ${symbol}:`, error);
-    }
+  if (tokens) {
+    console.log("Token addresses to update in deployments.ts:");
+    Object.entries(tokens).forEach(([symbol, address]) => {
+      console.log(`  "${symbol}": "${address}",`);
+    });
   }
 }
 

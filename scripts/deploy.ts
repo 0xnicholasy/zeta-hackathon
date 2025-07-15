@@ -1,121 +1,114 @@
-import { ethers } from "hardhat";
-import { parseEther, parseUnits } from "viem";
+import { viem } from "hardhat";
+import { parseEther, parseUnits, formatEther } from "viem";
 
 async function main() {
-  const [deployer] = await ethers.getSigners();
+  const publicClient = await viem.getPublicClient();
+  const [deployer] = await viem.getWalletClients();
   
-  console.log("Deploying contracts with account:", deployer.address);
-  console.log("Account balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)));
+  console.log("Deploying contracts with account:", deployer.account.address);
+  console.log("Account balance:", formatEther(await publicClient.getBalance({ address: deployer.account.address })));
 
-  // Deploy MockPriceOracle (for testnet)
-  console.log("\nDeploying MockPriceOracle...");
-  const MockPriceOracle = await ethers.getContractFactory("MockPriceOracle");
-  const priceOracle = await MockPriceOracle.deploy();
-  await priceOracle.waitForDeployment();
-  console.log("MockPriceOracle deployed to:", await priceOracle.getAddress());
+  // Deploy PriceOracle (simplified version)
+  console.log("\nDeploying PriceOracle...");
+  const priceOracle = await viem.deployContract("PriceOracle", [deployer.account.address]);
+  console.log("PriceOracle deployed to:", priceOracle.address);
 
   // Deploy LendingProtocol
   console.log("\nDeploying LendingProtocol...");
-  const LendingProtocol = await ethers.getContractFactory("LendingProtocol");
-  const lendingProtocol = await LendingProtocol.deploy(
-    await priceOracle.getAddress(),
-    deployer.address
-  );
-  await lendingProtocol.waitForDeployment();
-  console.log("LendingProtocol deployed to:", await lendingProtocol.getAddress());
+  const lendingProtocol = await viem.deployContract("LendingProtocol", [
+    priceOracle.address,
+    deployer.account.address
+  ]);
+  console.log("LendingProtocol deployed to:", lendingProtocol.address);
 
   // Deploy Mock ZRC20 tokens for testing
   console.log("\nDeploying Mock ZRC20 tokens...");
-  const MockZRC20 = await ethers.getContractFactory("MockZRC20");
   
   // Deploy ETH.ARBI token
-  const ethToken = await MockZRC20.deploy(
+  const ethToken = await viem.deployContract("MockZRC20", [
     "Ethereum Arbitrum",
     "ETH.ARBI",
     18,
     parseEther("1000000") // 1M supply
-  );
-  await ethToken.waitForDeployment();
-  console.log("ETH.ARBI token deployed to:", await ethToken.getAddress());
+  ]);
+  console.log("ETH.ARBI token deployed to:", ethToken.address);
 
   // Deploy USDC.ARBI token
-  const usdcToken = await MockZRC20.deploy(
+  const usdcToken = await viem.deployContract("MockZRC20", [
     "USD Coin Arbitrum",
     "USDC.ARBI",
     6,
     parseUnits("1000000", 6) // 1M supply
-  );
-  await usdcToken.waitForDeployment();
-  console.log("USDC.ARBI token deployed to:", await usdcToken.getAddress());
+  ]);
+  console.log("USDC.ARBI token deployed to:", usdcToken.address);
 
   // Deploy USDT.BASE token
-  const usdtToken = await MockZRC20.deploy(
+  const usdtToken = await viem.deployContract("MockZRC20", [
     "Tether Base",
     "USDT.BASE",
     6,
     parseUnits("1000000", 6) // 1M supply
-  );
-  await usdtToken.waitForDeployment();
-  console.log("USDT.BASE token deployed to:", await usdtToken.getAddress());
+  ]);
+  console.log("USDT.BASE token deployed to:", usdtToken.address);
 
   // Configure assets in lending protocol
   console.log("\nConfiguring assets...");
   
   // Add ETH.ARBI
-  await lendingProtocol.addAsset(
-    await ethToken.getAddress(),
+  await lendingProtocol.write.addAsset([
+    ethToken.address,
     parseEther("0.8"), // 80% collateral factor
     parseEther("0.85"), // 85% liquidation threshold
     parseEther("0.05")  // 5% liquidation bonus
-  );
+  ], { account: deployer.account });
   console.log("ETH.ARBI asset configured");
 
   // Add USDC.ARBI
-  await lendingProtocol.addAsset(
-    await usdcToken.getAddress(),
+  await lendingProtocol.write.addAsset([
+    usdcToken.address,
     parseEther("0.9"), // 90% collateral factor
     parseEther("0.9"),  // 90% liquidation threshold
     parseEther("0.05")  // 5% liquidation bonus
-  );
+  ], { account: deployer.account });
   console.log("USDC.ARBI asset configured");
 
   // Add USDT.BASE
-  await lendingProtocol.addAsset(
-    await usdtToken.getAddress(),
+  await lendingProtocol.write.addAsset([
+    usdtToken.address,
     parseEther("0.9"), // 90% collateral factor
     parseEther("0.9"),  // 90% liquidation threshold
     parseEther("0.05")  // 5% liquidation bonus
-  );
+  ], { account: deployer.account });
   console.log("USDT.BASE asset configured");
 
   // Set initial prices
   console.log("\nSetting initial prices...");
-  await priceOracle.setPriceInUSD(await ethToken.getAddress(), 2000); // $2000 per ETH
-  await priceOracle.setPriceInUSD(await usdcToken.getAddress(), 1);    // $1 per USDC
-  await priceOracle.setPriceInUSD(await usdtToken.getAddress(), 1);    // $1 per USDT
+  await priceOracle.write.setPriceInUSD([ethToken.address, 2000n], { account: deployer.account }); // $2000 per ETH
+  await priceOracle.write.setPriceInUSD([usdcToken.address, 1n], { account: deployer.account });    // $1 per USDC
+  await priceOracle.write.setPriceInUSD([usdtToken.address, 1n], { account: deployer.account });    // $1 per USDT
   console.log("Initial prices set");
 
   // Log deployment summary
   console.log("\n=== DEPLOYMENT SUMMARY ===");
-  console.log("Network:", (await ethers.provider.getNetwork()).name);
-  console.log("Deployer:", deployer.address);
-  console.log("LendingProtocol:", await lendingProtocol.getAddress());
-  console.log("MockPriceOracle:", await priceOracle.getAddress());
-  console.log("ETH.ARBI:", await ethToken.getAddress());
-  console.log("USDC.ARBI:", await usdcToken.getAddress());
-  console.log("USDT.BASE:", await usdtToken.getAddress());
+  console.log("Network:", await publicClient.getChainId());
+  console.log("Deployer:", deployer.account.address);
+  console.log("LendingProtocol:", lendingProtocol.address);
+  console.log("PriceOracle:", priceOracle.address);
+  console.log("ETH.ARBI:", ethToken.address);
+  console.log("USDC.ARBI:", usdcToken.address);
+  console.log("USDT.BASE:", usdtToken.address);
   
   // Save deployment addresses
   const deploymentInfo = {
-    network: (await ethers.provider.getNetwork()).name,
-    chainId: (await ethers.provider.getNetwork()).chainId,
-    deployer: deployer.address,
+    network: "testnet",
+    chainId: await publicClient.getChainId(),
+    deployer: deployer.account.address,
     contracts: {
-      LendingProtocol: await lendingProtocol.getAddress(),
-      MockPriceOracle: await priceOracle.getAddress(),
-      "ETH.ARBI": await ethToken.getAddress(),
-      "USDC.ARBI": await usdcToken.getAddress(),
-      "USDT.BASE": await usdtToken.getAddress()
+      LendingProtocol: lendingProtocol.address,
+      PriceOracle: priceOracle.address,
+      "ETH.ARBI": ethToken.address,
+      "USDC.ARBI": usdcToken.address,
+      "USDT.BASE": usdtToken.address
     },
     timestamp: new Date().toISOString()
   };
@@ -123,6 +116,18 @@ async function main() {
   console.log("\nDeployment completed successfully!");
   console.log("Save this information for frontend integration:");
   console.log(JSON.stringify(deploymentInfo, null, 2));
+  
+  // Test basic functionality
+  console.log("\n=== TESTING BASIC FUNCTIONALITY ===");
+  
+  // Check asset configuration
+  const ethAsset = await lendingProtocol.read.getAssetConfig([ethToken.address]);
+  console.log("ETH asset supported:", ethAsset.isSupported);
+  console.log("ETH collateral factor:", formatEther(ethAsset.collateralFactor));
+  
+  const usdcAsset = await lendingProtocol.read.getAssetConfig([usdcToken.address]);
+  console.log("USDC asset supported:", usdcAsset.isSupported);
+  console.log("USDC collateral factor:", formatEther(usdcAsset.collateralFactor));
 }
 
 main()
