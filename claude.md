@@ -267,26 +267,35 @@ describe("CrossChainLendingProtocol", () => {
 ### Project Structure for Lending Protocol
 ```
 /
-├── contracts/
-│   ├── LendingProtocol.sol         # Main lending contract
-│   ├── interfaces/
-│   │   ├── ILendingProtocol.sol    # Lending interface
-│   │   ├── IPriceOracle.sol        # Oracle interface
-│   │   └── IZRC20.sol              # ZRC-20 interface
-│   ├── libraries/
-│   │   ├── InterestRateModel.sol   # Interest calculation
-│   │   └── LiquidationLogic.sol    # Liquidation logic
-│   └── mocks/
-│       ├── MockPriceOracle.sol     # Price oracle mock
-│       └── MockZRC20.sol           # ZRC-20 token mock
-├── scripts/
-│   ├── deploy.ts                   # Deployment script
-│   └── setup-assets.ts             # Asset configuration
-├── test/
-│   ├── LendingProtocol.test.ts     # Core tests
-│   ├── Liquidation.test.ts         # Liquidation tests
-│   └── CrossChain.test.ts          # Gateway integration tests
-├── frontend/
+├── lending-zeta/                   # ZetaChain contract development
+│   ├── contracts/
+│   │   ├── LendingProtocol.sol         # Main lending contract
+│   │   ├── PriceOracle.sol            # Price oracle implementation
+│   │   ├── SimpleLendingProtocol.sol  # Simplified lending for testing
+│   │   ├── SimplePriceOracle.sol      # Simple oracle for testing
+│   │   ├── Universal.sol              # Universal contract template
+│   │   ├── interfaces/
+│   │   │   ├── ILendingProtocol.sol    # Lending interface
+│   │   │   ├── IPriceOracle.sol        # Oracle interface
+│   │   │   └── IZRC20.sol              # ZRC-20 interface
+│   │   ├── libraries/
+│   │   │   ├── InterestRateModel.sol   # Interest calculation
+│   │   │   └── LiquidationLogic.sol    # Liquidation logic
+│   │   └── mocks/
+│   │       ├── MockPriceOracle.sol     # Price oracle mock
+│   │       └── MockZRC20.sol           # ZRC-20 token mock
+│   ├── scripts/
+│   │   └── localnet.sh                # Local network setup
+│   ├── tasks/
+│   │   └── deploy.ts                  # Deployment tasks
+│   ├── test/
+│   │   └── Universal.t.sol            # Foundry tests
+│   ├── hardhat.config.ts              # Hardhat configuration
+│   ├── foundry.toml                   # Foundry configuration
+│   └── package.json                   # Dependencies
+├── deployments.ts                 # Deployment configuration (root level)
+├── package.json                   # Root package.json
+├── frontend/                      # Frontend application (future)
 │   ├── components/
 │   │   ├── SupplyModal.tsx         # Supply interface
 │   │   ├── BorrowModal.tsx         # Borrow interface
