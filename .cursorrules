@@ -1,0 +1,359 @@
+# ZetaChain Cross-Chain Lending Protocol - Cursor Rules
+
+## Project Context
+This is a **cross-chain lending protocol** built on ZetaChain that enables users to supply collateral and borrow assets across multiple EVM chains (Arbitrum, Base, ZetaChain). The protocol follows an Aave-inspired model with overcollateralization requirements and liquidation mechanisms.
+
+**Key Resource**: https://www.zetachain.com/docs/
+
+## Tech Stack
+- **Smart Contracts**: Hardhat + TypeScript, deployed on ZetaChain Universal EVM
+- **Frontend**: React 18+ + TailwindCSS + TypeScript  
+- **Package Manager**: Bun (NOT npm/yarn)
+- **Supported Chains**: Arbitrum (42161), Base (8453), ZetaChain (7000)
+- **Assets**: ETH, USDC (Arbitrum), USDT (Base) as ZRC-20 tokens
+
+## Core Rules
+
+### 1. SECURITY FIRST (Critical for Lending Protocol)
+- **Always validate health factors**: Never allow operations that put users below 1.5x collateralization
+- **Oracle price validation**: Check price staleness and implement circuit breakers
+- **Reentrancy protection**: Use `nonReentrant` modifier on all external calls
+- **Input validation**: Validate all parameters, especially asset addresses and amounts
+- **Liquidation safety**: Ensure liquidation is always profitable to prevent bad debt
+- **ZRC-20 asset whitelisting**: Only allow pre-approved ZRC-20 tokens
+
+### 2. Package Manager: BUN ONLY
+- **Always use `bun`** instead of npm, yarn, or pnpm
+- Commands: `bun install`, `bun run dev`, `bun test`, `bun hardhat compile`
+- Never suggest npm/yarn commands
+
+### 3. Lending Protocol Specifics
+- **Health Factor Calculation**: Core function must be gas-optimized and precise
+- **Collateralization Ratios**: 1.5x minimum, 1.2x liquidation threshold  
+- **Interest Rate Models**: Implement variable rates based on supply/demand
+- **Cross-Chain State**: Handle pending gateway transactions gracefully
+- **ZRC-20 Integration**: Each asset-chain combo is separate (ETH.ARBI vs ETH.BASE)
+
+### 4. Smart Contract Development
+
+#### File Structure
+```
+contracts/
+├── LendingProtocol.sol         # Main contract
+├── interfaces/
+│   ├── ILendingProtocol.sol    # Core interface
+│   ├── IPriceOracle.sol        # Oracle interface  
+│   └── IZRC20.sol              # ZRC-20 interface
+├── libraries/
+│   ├── InterestRateModel.sol   # Interest calculations
+│   └── LiquidationLogic.sol    # Liquidation logic
+└── mocks/                      # Test contracts
+```
+
+#### Code Style
+- **Solidity**: Use 0.8.19+, snake_case for internal functions, camelCase for external
+- **TypeScript**: Strict mode, explicit types, no `any`
+- **Function naming**: Descriptive names (e.g., `calculateHealthFactor`, not `calc`)
+- **Comments**: Document all public functions with NatSpec
+
+#### Required Imports
+```solidity
+import "@zetachain/protocol-contracts/contracts/zevm/interfaces/IZRC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+```
+
+#### Essential Modifiers
+```solidity
+modifier healthFactorCheck(address user) {
+    _;
+    require(calculateHealthFactor(user) >= MINIMUM_HEALTH_FACTOR, "Insufficient collateral");
+}
+
+modifier onlySupportedAsset(address asset) {
+    require(supportedAssets[asset], "Asset not supported");
+    _;
+}
+```
+
+### 5. Frontend Development
+
+#### React Patterns
+- **Hooks**: Use custom hooks for protocol interactions (`useLendingProtocol`, `useHealthFactor`)
+- **State Management**: Local state with useContext for global protocol state
+- **Error Handling**: Always implement try-catch for blockchain interactions
+- **Loading States**: Show loading for all cross-chain operations
+
+#### TypeScript Types
+```typescript
+type UserPosition = {
+  supplies: Record<string, bigint>;
+  borrows: Record<string, bigint>;
+  healthFactor: number;
+};
+
+type ZRC20Asset = {
+  address: string;
+  symbol: string; // "ETH.ARBI", "USDC.ARBI", "USDT.BASE"
+  chainId: number;
+  decimals: number;
+  collateralFactor: number;
+};
+```
+
+#### TailwindCSS
+- Use semantic color classes: `bg-green-500` for healthy, `bg-red-500` for danger
+- Responsive design: Always include mobile-first breakpoints
+- Component-based classes for reusability
+
+### 6. Cross-Chain Integration
+
+#### Gateway Pattern
+```typescript
+// Always handle gateway calls with proper error handling
+const depositToProtocol = async (chainId: number, asset: string, amount: bigint) => {
+  try {
+    const tx = await gatewayContract.depositAndCall(
+      chainId,
+      asset, 
+      amount,
+      lendingContractAddress,
+      encodeFunctionData("supply", [asset, amount, userAddress])
+    );
+    await tx.wait();
+  } catch (error) {
+    // Handle revert scenarios
+    console.error("Gateway deposit failed:", error);
+    throw new Error("Cross-chain deposit failed");
+  }
+};
+```
+
+#### ZRC-20 Token Handling
+- Each asset-chain combination is unique (ETH.ARBI ≠ ETH.BASE)
+- Always check asset address against whitelist
+- Handle different decimals (ETH: 18, USDC/USDT: 6)
+
+### 7. Testing Requirements
+
+#### Smart Contract Tests
+```typescript
+describe("LendingProtocol", () => {
+  describe("Supply and Borrow", () => {
+    it("should allow supplying USDC.ARBI as collateral");
+    it("should prevent borrowing with insufficient collateral");
+    it("should calculate health factor correctly");
+  });
+  
+  describe("Liquidation", () => {
+    it("should liquidate undercollateralized positions");
+    it("should prevent liquidation of healthy positions");
+  });
+  
+  describe("Cross-Chain", () => {
+    it("should handle gateway deposits correctly");
+    it("should handle withdrawal to different chains");
+  });
+});
+```
+
+#### Test Coverage Requirements
+- **100% coverage** for core lending functions
+- **Edge cases**: Zero amounts, unsupported assets, failed oracle calls
+- **Gas optimization**: Test gas usage for all operations
+- **Cross-chain scenarios**: Test with different chain combinations
+
+### 8. Git Commit Standards
+
+#### Commit Types
+- `lending`: Core lending functionality
+- `liquidation`: Liquidation mechanism updates  
+- `oracle`: Price oracle integration
+- `gateway`: Cross-chain gateway interactions
+- `zrc20`: ZRC-20 token handling
+- `ui`: Frontend/UI changes
+- `test`: Testing updates
+- `docs`: Documentation changes
+
+#### Commit Format
+```
+<type>(<scope>): <description>
+
+<body>
+
+<footer>
+```
+
+#### Examples
+```
+lending(contract): implement health factor calculation
+
+Add health factor calculation for user positions including:
+- Collateral value calculation using oracle prices
+- Borrow value calculation with interest accrual  
+- Liquidation threshold checks
+
+Implements requirements from README.md section 2.2
+
+feat(gateway): add cross-chain withdrawal to Base
+
+Enable users to withdraw USDC collateral to Base chain.
+
+- Add Base chain support (chain ID 8453)
+- Implement USDT.BASE withdrawal flow
+- Add error handling for failed withdrawals
+
+Closes #45
+```
+
+### 9. Configuration Constants
+
+#### Protocol Parameters
+```typescript
+export const LENDING_CONFIG = {
+  MINIMUM_HEALTH_FACTOR: 1.5,      // 150% collateralization
+  LIQUIDATION_THRESHOLD: 1.2,      // 120% liquidation trigger
+  LIQUIDATION_BONUS: 0.05,         // 5% liquidator bonus
+  MAX_BORROW_RATE: 0.5,            // 50% max interest rate
+  ORACLE_MAX_STALENESS: 3600,      // 1 hour
+} as const;
+```
+
+#### Supported Assets
+```typescript
+export const SUPPORTED_ASSETS = {
+  "ETH.ARBI": {
+    address: "0x...",
+    chainId: 42161,
+    decimals: 18,
+    collateralFactor: 0.8,
+  },
+  "USDC.ARBI": {
+    address: "0x...",
+    chainId: 42161, 
+    decimals: 6,
+    collateralFactor: 0.9,
+  },
+  "USDT.BASE": {
+    address: "0x...",
+    chainId: 8453,
+    decimals: 6,
+    collateralFactor: 0.9,
+  },
+} as const;
+```
+
+### 10. Performance Guidelines
+
+#### Gas Optimization
+- Pack struct variables to minimize storage slots
+- Use `unchecked` blocks for safe arithmetic operations
+- Minimize external contract calls in loops
+- Cache storage reads in memory
+
+#### Frontend Performance  
+- Use React.memo for expensive components
+- Implement proper loading states for async operations
+- Cache contract instances and configurations
+- Debounce user inputs for real-time calculations
+
+### 11. Error Handling
+
+#### Smart Contract Errors
+```solidity
+error InsufficientCollateral(uint256 healthFactor, uint256 required);
+error UnsupportedAsset(address asset);
+error StalePrice(address asset, uint256 lastUpdate);
+error LiquidationNotAllowed(address user, uint256 healthFactor);
+```
+
+#### Frontend Error Handling
+```typescript
+const handleLendingError = (error: any) => {
+  if (error.message.includes("InsufficientCollateral")) {
+    setError("Not enough collateral to borrow this amount");
+  } else if (error.message.includes("UnsupportedAsset")) {
+    setError("This asset is not supported");
+  } else {
+    setError("Transaction failed. Please try again.");
+  }
+};
+```
+
+### 12. Documentation Requirements
+
+#### Code Documentation
+- NatSpec comments for all public contract functions
+- TypeScript JSDoc for complex frontend functions  
+- README with setup and deployment instructions
+- API documentation for all contract interfaces
+
+#### User Documentation
+- Protocol overview and mechanics
+- Supported assets and chains
+- Liquidation process explanation
+- Cross-chain withdrawal guide
+
+### 13. Deployment Checklist
+
+#### Pre-Deployment
+- [ ] All tests passing with 100% coverage
+- [ ] Oracle price feeds configured
+- [ ] Liquidation mechanisms tested
+- [ ] Cross-chain flows validated
+- [ ] Security audit completed
+- [ ] Gas optimization completed
+
+#### Post-Deployment  
+- [ ] Monitor health factors across users
+- [ ] Track liquidation success rates
+- [ ] Monitor cross-chain transaction success
+- [ ] Verify interest rate dynamics
+- [ ] Update frontend with contract addresses
+
+### 14. ZetaChain Specific Rules
+
+#### Gateway Integration
+- Always use `depositAndCall` for cross-chain deposits
+- Handle gateway revert scenarios gracefully
+- Implement proper withdrawal flows to target chains
+- Test with multiple source/destination chain combinations
+
+#### ZRC-20 Best Practices
+- Validate ZRC-20 token addresses against whitelist
+- Handle different token decimals correctly
+- Implement proper approval patterns
+- Cache ZRC-20 contract instances
+
+### 15. Forbidden Patterns
+
+#### Never Do
+- ❌ Use npm/yarn instead of bun
+- ❌ Allow borrowing without health factor validation
+- ❌ Skip oracle price staleness checks
+- ❌ Use `any` type in TypeScript
+- ❌ Hard-code contract addresses in components
+- ❌ Skip error handling for cross-chain operations
+- ❌ Allow operations on unsupported assets
+- ❌ Implement custom math without SafeMath/overflow checks
+
+#### Always Do
+✅ Use bun for all package management
+✅ Validate health factors before borrowing
+✅ Check oracle price freshness
+✅ Use explicit TypeScript types
+✅ Handle cross-chain operation failures
+✅ Implement proper loading states
+✅ Use established security patterns
+✅ Test all lending scenarios thoroughly
+
+## Priority Focus Areas
+
+1. **Security**: All lending operations must be secure and validated
+2. **Health Factor Accuracy**: Core to protocol safety
+3. **Cross-Chain Reliability**: Gateway interactions must be robust  
+4. **User Experience**: Clear feedback for multi-chain operations
+5. **Gas Efficiency**: Optimize for cross-chain gas costs
+6. **Oracle Integration**: Accurate and timely price feeds
+
+Remember: This is a **lending protocol** handling real assets. Security and accuracy are paramount. Every code change should consider collateralization safety and user fund protection. 
