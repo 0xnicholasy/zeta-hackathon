@@ -7,6 +7,7 @@
       "contracts": {
         "LendingProtocol": "0x0000000000000000000000000000000000000000",
         "SimpleLendingProtocol": "0x0000000000000000000000000000000000000000",
+        "UniversalLendingProtocol": "0x0000000000000000000000000000000000000000",
         "PriceOracle": "0x0000000000000000000000000000000000000000",
         "MockPriceOracle": "0x0000000000000000000000000000000000000000",
         "SimplePriceOracle": "0x0000000000000000000000000000000000000000",
@@ -29,6 +30,7 @@
       "contracts": {
         "LendingProtocol": "0x0000000000000000000000000000000000000000",
         "SimpleLendingProtocol": "0x0000000000000000000000000000000000000000",
+        "UniversalLendingProtocol": "0x0000000000000000000000000000000000000000",
         "PriceOracle": "0x0000000000000000000000000000000000000000",
         "MockPriceOracle": "0x0000000000000000000000000000000000000000",
         "SimplePriceOracle": "0x4Ef36BC95b67d960B22a92AF1F0F4b52393C4Bec",
@@ -50,7 +52,7 @@
       "explorer": "https://sepolia.arbiscan.io",
       "contracts": {
         "DepositContract": "0x0000000000000000000000000000000000000000",
-        "Gateway": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
+        "Gateway": "0x0dA86Dc3F9B71F84a0E97B0e2291e50B7a5df10f"
       },
       "tokens": {
         "ETH": "0x1de70f3e971B62A0707dA18100392af14f7fB677",
@@ -66,7 +68,7 @@
       "explorer": "https://sepolia.etherscan.io",
       "contracts": {
         "DepositContract": "0x55E1Bd43F67BaB1E176E2A65608C151bC0d8F148",
-        "Gateway": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
+        "Gateway": "0x0c487a766110c85d301d96e33579c5b317fa4995"
       },
       "tokens": {
         "ETH": "0x05BA149A7bd6dC1F937fA9046A9e05C05f3b18b0",

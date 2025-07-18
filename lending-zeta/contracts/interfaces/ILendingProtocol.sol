@@ -74,4 +74,24 @@ interface ILendingProtocol {
             uint256 currentLiquidationThreshold,
             uint256 healthFactor
         );
+
+    // Cross-chain specific functions
+    function withdrawCrossChain(
+        address zrc20,
+        uint256 amount,
+        uint256 destinationChain,
+        address recipient
+    ) external;
+
+    function setAllowedSourceChain(uint256 chainId, bool allowed) external;
+
+    function mapZRC20Asset(
+        address zrc20,
+        uint256 chainId,
+        string calldata symbol
+    ) external;
+
+    function isChainAllowed(uint256 chainId) external view returns (bool);
+
+    function getZRC20ByChainAndSymbol(uint256 chainId, string calldata symbol) external view returns (address);
 }

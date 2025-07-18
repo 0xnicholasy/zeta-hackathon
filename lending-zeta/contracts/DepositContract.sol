@@ -96,12 +96,9 @@ contract DepositContract is ReentrancyGuard, Ownable {
         address ethAsset = address(0); // ETH represented as address(0)
         if (!supportedAssets[ethAsset].isSupported) revert UnsupportedAsset(ethAsset);
 
-        bytes memory message = abi.encodeWithSignature(
-            "supply(address,uint256,address)",
-            ethAsset,
-            msg.value,
-            onBehalfOf
-        );
+        // Encode message for UniversalLendingProtocol.onCall()
+        // Format: (address user, uint8 operation) where operation 0 = supply
+        bytes memory message = abi.encode(onBehalfOf, uint8(0));
 
         try gateway.depositAndCall{value: msg.value}(
             lendingProtocolAddress,
@@ -136,12 +133,9 @@ contract DepositContract is ReentrancyGuard, Ownable {
         IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
         IERC20(asset).forceApprove(address(gateway), amount);
 
-        bytes memory message = abi.encodeWithSignature(
-            "supply(address,uint256,address)",
-            asset,
-            amount,
-            onBehalfOf
-        );
+        // Encode message for UniversalLendingProtocol.onCall()
+        // Format: (address user, uint8 operation) where operation 0 = supply
+        bytes memory message = abi.encode(onBehalfOf, uint8(0));
 
         try gateway.depositAndCall(
             lendingProtocolAddress,
@@ -159,6 +153,74 @@ contract DepositContract is ReentrancyGuard, Ownable {
             emit DepositInitiated(msg.sender, asset, amount, onBehalfOf);
         } catch {
             IERC20(asset).safeTransfer(msg.sender, amount);
+            revert DepositFailed();
+        }
+    }
+
+    function repayToken(
+        address asset,
+        uint256 amount,
+        address onBehalfOf
+    ) external nonReentrant {
+        if (amount == 0) revert InvalidAmount();
+        if (onBehalfOf == address(0)) revert InvalidAddress();
+        if (asset == address(0)) revert InvalidAddress();
+        
+        SupportedAsset memory assetInfo = supportedAssets[asset];
+        if (!assetInfo.isSupported) revert UnsupportedAsset(asset);
+        if (assetInfo.isNative) revert UnsupportedAsset(asset); // Use repayEth for native ETH
+
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(asset).forceApprove(address(gateway), amount);
+
+        // Encode message for UniversalLendingProtocol.onCall()
+        // Format: (address user, uint8 operation) where operation 1 = repay
+        bytes memory message = abi.encode(onBehalfOf, uint8(1));
+
+        try gateway.depositAndCall(
+            lendingProtocolAddress,
+            amount,
+            asset,
+            message,
+            RevertOptions({
+                revertAddress: msg.sender,
+                callOnRevert: true,
+                abortAddress: address(0),
+                revertMessage: abi.encode("Token repay failed"),
+                onRevertGasLimit: GAS_LIMIT
+            })
+        ) {
+            emit DepositInitiated(msg.sender, asset, amount, onBehalfOf);
+        } catch {
+            IERC20(asset).safeTransfer(msg.sender, amount);
+            revert DepositFailed();
+        }
+    }
+
+    function repayEth(address onBehalfOf) external payable nonReentrant {
+        if (msg.value == 0) revert InvalidAmount();
+        if (onBehalfOf == address(0)) revert InvalidAddress();
+        
+        address ethAsset = address(0); // ETH represented as address(0)
+        if (!supportedAssets[ethAsset].isSupported) revert UnsupportedAsset(ethAsset);
+
+        // Encode message for UniversalLendingProtocol.onCall()
+        // Format: (address user, uint8 operation) where operation 1 = repay
+        bytes memory message = abi.encode(onBehalfOf, uint8(1));
+
+        try gateway.depositAndCall{value: msg.value}(
+            lendingProtocolAddress,
+            message,
+            RevertOptions({
+                revertAddress: msg.sender,
+                callOnRevert: true,
+                abortAddress: address(0),
+                revertMessage: abi.encode("ETH repay failed"),
+                onRevertGasLimit: GAS_LIMIT
+            })
+        ) {
+            emit DepositInitiated(msg.sender, ethAsset, msg.value, onBehalfOf);
+        } catch {
             revert DepositFailed();
         }
     }

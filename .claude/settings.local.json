@@ -7,7 +7,9 @@
       "Bash(ls:*)",
       "Bash(npx zetachain localnet start:*)",
       "Bash(npx hardhat run:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "WebFetch(domain:www.zetachain.com)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": []
   }
