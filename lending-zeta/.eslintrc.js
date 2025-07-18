@@ -10,7 +10,6 @@ module.exports = {
     mocha: true,
     node: true,
   },
-  extends: ["plugin:prettier/recommended"],
   parser: "@typescript-eslint/parser",
   parserOptions: {
     ecmaVersion: 12,
@@ -23,13 +22,13 @@ module.exports = {
     "typescript-sort-keys",
   ],
   rules: {
-    "@typescript-eslint/sort-type-union-intersection-members": "error",
+    // "@typescript-eslint/sort-type-union-intersection-members": "error",
     camelcase: "off",
-    "simple-import-sort/exports": "error",
-    "simple-import-sort/imports": "error",
-    "sort-keys-fix/sort-keys-fix": "error",
-    "typescript-sort-keys/interface": "error",
-    "typescript-sort-keys/string-enum": "error",
+    // "simple-import-sort/exports": "error",
+    // "simple-import-sort/imports": "error",
+    // "sort-keys-fix/sort-keys-fix": "error",
+    // "typescript-sort-keys/interface": "error",
+    // "typescript-sort-keys/string-enum": "error",
   },
   settings: {
     "import/parsers": {

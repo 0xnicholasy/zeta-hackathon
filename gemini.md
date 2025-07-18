@@ -1,7 +1,7 @@
 # Claude Context: ZetaChain Cross-Chain Lending Protocol
 
 ## Project Overview
-This is a **cross-chain lending protocol** built on ZetaChain that enables users to supply collateral and borrow assets across EVM chains including Arbitrum, Base, and ZetaChain. The protocol uses tokens such as ETH, USDC, and USDT, following an Aave-inspired model where users must supply collateral before borrowing, with liquidation mechanisms for undercollateralized positions.
+This is a **cross-chain lending protocol** built on ZetaChain that enables users to supply collateral and borrow assets across EVM chains including Arbitrum, Ethereum, and ZetaChain. The protocol uses ETH and USDC, following an Aave-inspired model where users must supply collateral before borrowing, with liquidation mechanisms for undercollateralized positions.
 
 **Official Documentation**: https://www.zetachain.com/docs/
 
@@ -17,9 +17,9 @@ This is a **cross-chain lending protocol** built on ZetaChain that enables users
 
 | **Chain** | **Chain ID** | **Assets** |
 |-----------|--------------|------------|
-| Arbitrum | 42161 | ETH (ZRC-20 ETH.ARBI), USDC (ZRC-20 USDC.ARBI) |
-| Base | 8453 | USDT (ZRC-20 USDT.BASE) |
-| ZetaChain | 7000 | Native ZETA |
+| Arbitrum Sepolia | 421614 | ETH (ZRC-20 ETH.ARBI), USDC (ZRC-20 USDC.ARBI) |
+| Ethereum Sepolia | 11155111 | ETH (ZRC-20 ETH.ETH), USDC (ZRC-20 USDC.ETH) |
+| ZetaChain Athens | 7001 | Native ZETA |
 
 ### Key Protocol Features
 1. **Supply Collateral**: Deposit assets from any supported chain via ZetaChain's EVM gateway
@@ -53,7 +53,7 @@ This is a **cross-chain lending protocol** built on ZetaChain that enables users
 ### Development Environment
 - **Node Package Manager**: Bun
 - **Testing**: Hardhat + Jest/Vitest for frontend
-- **Networks**: ZetaChain testnet, Arbitrum Sepolia, Base testnet
+- **Networks**: ZetaChain Athens testnet, Arbitrum Sepolia, Ethereum Sepolia
 - **Linting**: ESLint + Prettier
 - **Type Checking**: TypeScript strict mode
 
@@ -82,7 +82,7 @@ function withdraw(address asset, uint256 amount, address to) external;
 // ZRC-20 token interface for cross-chain assets
 type ZRC20Asset = {
   address: string;
-  symbol: string; // e.g., "ETH.ARBI", "USDC.ARBI", "USDT.BASE"
+  symbol: string; // e.g., "ETH.ARBI", "USDC.ARBI", "ETH.ETH", "USDC.ETH"
   chainId: number;
   decimals: number;
   isSupported: boolean;
@@ -317,10 +317,10 @@ describe("CrossChainLendingProtocol", () => {
 
 2. **Deployment**:
    - Deploy to ZetaChain testnet first
-   - Configure supported ZRC-20 assets (ETH.ARBI, USDC.ARBI, USDT.BASE)
+   - Configure supported ZRC-20 assets (ETH.ARBI, USDC.ARBI, ETH.ETH, USDC.ETH)
    - Set collateralization ratios (1.5x minimum, 1.2x liquidation)
    - Initialize interest rate models
-   - Test with Arbitrum Sepolia and Base testnet
+   - Test with Arbitrum Sepolia and Ethereum Sepolia testnet
 
 3. **Post-deployment**:
    - **Update DEPLOYMENTS config**: Update contract addresses in `deployments.ts` for the deployed network
@@ -348,8 +348,9 @@ After deploying to any network other than `localnet`, you **MUST** update the `d
   tokens: {
     "ETH.ARBI": "0x9876...5432",      // ← Update with actual ZRC-20 address
     "USDC.ARBI": "0x5678...9abc",     // ← Update with actual ZRC-20 address
-    "USDT.BASE": "0xdef0...1234",     // ← Update with actual ZRC-20 address
-    "ZETA": "0x3456...7890",          // ← Update with actual ZETA address
+    "ETH.ETH": "0xdef0...1234",       // ← Update with actual ZRC-20 address
+    "USDC.ETH": "0x3456...7890",      // ← Update with actual ZRC-20 address
+    "ZETA": "0xabcd...ef00",          // ← Update with actual ZETA address
   }
 }
 ```
@@ -424,26 +425,32 @@ export const LENDING_CONFIG = {
   LIQUIDATION_THRESHOLD: 1.2,      // 120% liquidation trigger
   LIQUIDATION_BONUS: 0.05,         // 5% liquidator bonus
   MAX_BORROW_RATE: 0.5,            // 50% max interest rate
-  SUPPORTED_CHAINS: [42161, 8453, 7000], // Arbitrum, Base, ZetaChain
+  SUPPORTED_CHAINS: [421614, 11155111, 7001], // Arbitrum Sepolia, Ethereum Sepolia, ZetaChain Athens
 } as const;
 
 // ZRC-20 asset configuration
 export const SUPPORTED_ASSETS = {
   "ETH.ARBI": {
     address: "0x...", // ZRC-20 ETH.ARBI address
-    chainId: 42161,
+    chainId: 421614,
     decimals: 18,
     collateralFactor: 0.8, // 80% collateral factor
   },
   "USDC.ARBI": {
     address: "0x...", // ZRC-20 USDC.ARBI address  
-    chainId: 42161,
+    chainId: 421614,
     decimals: 6,
     collateralFactor: 0.9, // 90% collateral factor
   },
-  "USDT.BASE": {
-    address: "0x...", // ZRC-20 USDT.BASE address
-    chainId: 8453,
+  "ETH.ETH": {
+    address: "0x...", // ZRC-20 ETH.ETH address
+    chainId: 11155111,
+    decimals: 18,
+    collateralFactor: 0.8, // 80% collateral factor
+  },
+  "USDC.ETH": {
+    address: "0x...", // ZRC-20 USDC.ETH address
+    chainId: 11155111,
     decimals: 6,
     collateralFactor: 0.9, // 90% collateral factor
   },

@@ -1,0 +1,6 @@
+{
+  "solidity.remappings": [
+    "forge-std/=dependencies/forge-std/src/",
+    "@zetachain/=node_modules/@zetachain/"
+  ]
+}

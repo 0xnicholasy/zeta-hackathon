@@ -1,0 +1,82 @@
+{
+  "networks": {
+    "1337": {
+      "name": "Local Hardhat",
+      "chainId": 1337,
+      "type": "local",
+      "contracts": {
+        "LendingProtocol": "0x0000000000000000000000000000000000000000",
+        "SimpleLendingProtocol": "0x0000000000000000000000000000000000000000",
+        "PriceOracle": "0x0000000000000000000000000000000000000000",
+        "MockPriceOracle": "0x0000000000000000000000000000000000000000",
+        "SimplePriceOracle": "0x0000000000000000000000000000000000000000",
+        "Universal": "0x0000000000000000000000000000000000000000"
+      },
+      "tokens": {
+        "ETH.ARBI": "0x0000000000000000000000000000000000000000",
+        "USDC.ARBI": "0x0000000000000000000000000000000000000000",
+        "ETH.ETH": "0x0000000000000000000000000000000000000000",
+        "USDC.ETH": "0x0000000000000000000000000000000000000000",
+        "ZETA": "0x0000000000000000000000000000000000000000"
+      }
+    },
+    "7001": {
+      "name": "ZetaChain Athens Testnet",
+      "chainId": 7001,
+      "type": "testnet",
+      "rpc": "https://zetachain-athens-evm.blockpi.network/v1/rpc/public",
+      "explorer": "https://athens.explorer.zetachain.com",
+      "contracts": {
+        "LendingProtocol": "0x0000000000000000000000000000000000000000",
+        "SimpleLendingProtocol": "0x0000000000000000000000000000000000000000",
+        "PriceOracle": "0x0000000000000000000000000000000000000000",
+        "MockPriceOracle": "0x0000000000000000000000000000000000000000",
+        "SimplePriceOracle": "0x4Ef36BC95b67d960B22a92AF1F0F4b52393C4Bec",
+        "Universal": "0x0000000000000000000000000000000000000000"
+      },
+      "tokens": {
+        "ETH.ARBI": "0x1de70f3e971B62A0707dA18100392af14f7fB677",
+        "USDC.ARBI": "0x4bC32034caCcc9B7e02536945eDbC286bACbA073",
+        "ETH.ETH": "0x05BA149A7bd6dC1F937fA9046A9e05C05f3b18b0",
+        "USDC.ETH": "0xcC683A782f4B30c138787CB5576a86AF66fdc31d",
+        "ZETA": "0x0000000000000000000000000000000000000000"
+      }
+    },
+    "421614": {
+      "name": "Arbitrum Sepolia",
+      "chainId": 421614,
+      "type": "testnet",
+      "rpc": "https://sepolia-rollup.arbitrum.io/rpc",
+      "explorer": "https://sepolia.arbiscan.io",
+      "contracts": {
+        "DepositContract": "0x0000000000000000000000000000000000000000",
+        "Gateway": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
+      },
+      "tokens": {
+        "ETH": "0x1de70f3e971B62A0707dA18100392af14f7fB677",
+        "USDC": "0x4bC32034caCcc9B7e02536945eDbC286bACbA073"
+      },
+      "lendingProtocolAddress": "0x4Ef36BC95b67d960B22a92AF1F0F4b52393C4Bec"
+    },
+    "11155111": {
+      "name": "Ethereum Sepolia",
+      "chainId": 11155111,
+      "type": "testnet",
+      "rpc": "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+      "explorer": "https://sepolia.etherscan.io",
+      "contracts": {
+        "DepositContract": "0x55E1Bd43F67BaB1E176E2A65608C151bC0d8F148",
+        "Gateway": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
+      },
+      "tokens": {
+        "ETH": "0x05BA149A7bd6dC1F937fA9046A9e05C05f3b18b0",
+        "USDC": "0xcC683A782f4B30c138787CB5576a86AF66fdc31d"
+      },
+      "lendingProtocolAddress": "0x4Ef36BC95b67d960B22a92AF1F0F4b52393C4Bec"
+    }
+  },
+  "deployments": {
+    "lastUpdated": "2025-07-18T03:40:41.338Z",
+    "deployer": "0x0000000000000000000000000000000000000000"
+  }
+}

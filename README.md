@@ -2,7 +2,7 @@
 
 ## Key Points
 
-- **Purpose**: A lending protocol on ZetaChain enabling users to supply collateral and borrow assets across EVM chains like Arbitrum, Base, and ZetaChain, using tokens such as ETH, USDC, and USDT.
+- **Purpose**: A lending protocol on ZetaChain enabling users to supply collateral and borrow assets across EVM chains like Arbitrum, Ethereum, and ZetaChain, using ETH and USDC.
 - **Aave-Inspired**: Users must supply collateral before borrowing, with liquidation possible if the collateral-to-borrow ratio falls below a threshold.
 - **Cross-Chain Flexibility**: Lenders can withdraw assets to any supported EVM chain, not limited to the deposit chain.
 - **Single Contract**: All lending and borrowing logic resides in one smart contract on ZetaChain, with cross-chain deposits handled via ZetaChain’s gateway contracts.
@@ -10,11 +10,11 @@
 
 ## Overview
 
-This protocol leverages ZetaChain’s Universal EVM and Omnichain Smart Contracts to create a seamless lending experience across multiple EVM-compatible chains. It allows users to deposit collateral (e.g., USDC from Arbitrum) and borrow assets (e.g., ETH from Base) without bridges or wrapped tokens. The design mimics Aave’s model, requiring collateral for borrowing and enabling liquidation for undercollateralized positions. Lenders can withdraw their supplied assets to any supported chain, enhancing flexibility.
+This protocol leverages ZetaChain's Universal EVM and Omnichain Smart Contracts to create a seamless lending experience across multiple EVM-compatible chains. It allows users to deposit collateral (e.g., USDC from Arbitrum) and borrow assets (e.g., ETH from Ethereum) without bridges or wrapped tokens. The design mimics Aave's model, requiring collateral for borrowing and enabling liquidation for undercollateralized positions. Lenders can withdraw their supplied assets to any supported chain, enhancing flexibility.
 
 ## How It Works
 
-- **Supplying Assets**: Users deposit assets from Arbitrum, Base, or ZetaChain using ZetaChain’s EVM gateway, which converts them to ZRC-20 tokens on ZetaChain. These are recorded as collateral in the lending contract.
+- **Supplying Assets**: Users deposit assets from Arbitrum, Ethereum, or ZetaChain using ZetaChain's EVM gateway, which converts them to ZRC-20 tokens on ZetaChain. These are recorded as collateral in the lending contract.
 - **Borrowing Assets**: Users borrow ZRC-20 tokens (e.g., ETH) from the contract, provided their collateral meets the required ratio.
 - **Repaying and Liquidating**: Borrowers repay with interest, and if their collateral value drops too low, others can liquidate their position to recover funds.
 - **Withdrawing Assets**: Lenders can withdraw their supplied assets to any supported EVM chain via the gateway, offering flexibility in asset management.
@@ -29,7 +29,7 @@ ZetaChain’s ability to handle native assets across chains without wrapping sim
 
 ## Overview
 
-This document outlines a comprehensive design for a cross-chain lending protocol built on ZetaChain for the ZetaChain hackathon. The protocol enables users to supply collateral and borrow assets across EVM-compatible chains, specifically Arbitrum, Base, and ZetaChain, using common tokens like ETH, USDC, and USDT. Inspired by Aave, the protocol requires users to supply collateral before borrowing, with a liquidation mechanism for undercollateralized positions. Lenders can withdraw their supplied assets to any supported EVM chain, not just the chain they deposited from. All lending and borrowing logic is implemented in a single smart contract deployed on ZetaChain, with cross-chain deposits facilitated through ZetaChain’s EVM gateway contracts.
+This document outlines a comprehensive design for a cross-chain lending protocol built on ZetaChain for the ZetaChain hackathon. The protocol enables users to supply collateral and borrow assets across EVM-compatible chains, specifically Arbitrum, Ethereum, and ZetaChain, using ETH and USDC. Inspired by Aave, the protocol requires users to supply collateral before borrowing, with a liquidation mechanism for undercollateralized positions. Lenders can withdraw their supplied assets to any supported EVM chain, not just the chain they deposited from. All lending and borrowing logic is implemented in a single smart contract deployed on ZetaChain, with cross-chain deposits facilitated through ZetaChain's EVM gateway contracts.
 
 The design leverages ZetaChain’s Universal EVM and Omnichain Smart Contracts to ensure seamless interoperability, unified liquidity, and trust-minimized operations. It is tailored for hackathon constraints, focusing on simplicity while demonstrating ZetaChain’s cross-chain capabilities, with extensibility for future enhancements.
 
@@ -39,19 +39,20 @@ The protocol limits support to EVM-compatible chains to streamline development a
 
 | **Chain** | **Chain ID** | **Description** |
 | --- | --- | --- |
-| Arbitrum (ARBI) | 42161 | A layer-2 scaling solution for Ethereum |
-| Base (BASE) | 8453 | Coinbase’s Ethereum layer-2 network |
-| ZetaChain (ZETA) | 7000 | Universal blockchain for cross-chain interoperability |
+| Arbitrum Sepolia (ARBI) | 421614 | Arbitrum testnet for development |
+| Ethereum Sepolia (ETH) | 11155111 | Ethereum testnet for development |
+| ZetaChain Athens (ZETA) | 7001 | ZetaChain testnet for cross-chain interoperability |
 
 **Supported Assets**: The protocol supports a curated list of ZRC-20 tokens, which are ZetaChain’s representation of assets from connected chains. ZRC-20 tokens function like ERC-20 tokens, enabling standard interactions within the smart contract.
 
 | **Asset** | **Source Chain** | **ZRC-20 Token** | **Description** |
 | --- | --- | --- | --- |
-| ETH | Arbitrum | ZRC-20 ETH.ARBI | Native gas token from Arbitrum |
-| USDC | Arbitrum | ZRC-20 USDC.ARBI | Stablecoin from Arbitrum |
-| USDT | Base | ZRC-20 USDT.BASE | Stablecoin from Base |
+| ETH | Arbitrum Sepolia | ZRC-20 ETH.ARBI | Native gas token from Arbitrum |
+| USDC | Arbitrum Sepolia | ZRC-20 USDC.ARBI | Stablecoin from Arbitrum |
+| ETH | Ethereum Sepolia | ZRC-20 ETH.ETH | Native gas token from Ethereum |
+| USDC | Ethereum Sepolia | ZRC-20 USDC.ETH | Stablecoin from Ethereum |
 
-**Note**: Additional assets (e.g., ETH from Base, USDC from Base) can be added by updating the contract’s supported token list. For simplicity, the initial design focuses on one asset per chain to demonstrate cross-chain functionality.
+**Note**: The protocol focuses on ETH and USDC across both supported chains to demonstrate cross-chain functionality while maintaining simplicity for the hackathon.
 
 ## Protocol Architecture
 
@@ -108,17 +109,17 @@ The protocol supports the following user interactions, all managed through the Z
 - **Process**:
   - Users call the `withdraw` function to retrieve their supplied ZRC-20 tokens (e.g., ZRC-20 USDC.ARBI).
   - The contract checks that the withdrawal doesn’t violate borrowing constraints (e.g., maintaining collateralization ratio).
-  - Users then use the gateway’s withdrawal function to send ZRC-20 tokens to any supported EVM chain (e.g., Base as native USDC) (ZetaChain Gateway Documentation).
-- **Example**: A user withdraws 100 ZRC-20 USDC.ARBI and sends it to Base, receiving 100 native USDC.
+  - Users then use the gateway's withdrawal function to send ZRC-20 tokens to any supported EVM chain (e.g., Ethereum as native USDC) (ZetaChain Gateway Documentation).
+- **Example**: A user withdraws 100 ZRC-20 USDC.ARBI and sends it to Ethereum, receiving 100 native USDC.
 
 ### 3. Cross-Chain Functionality
 
 - **Deposits**:
   - Handled via the EVM gateway’s `depositAndCall` function, which mints ZRC-20 tokens on ZetaChain and triggers the lending contract’s `supply` function.
-  - Example: Depositing USDT from Base results in ZRC-20 USDT.BASE on ZetaChain.
+  - Example: Depositing USDC from Ethereum results in ZRC-20 USDC.ETH on ZetaChain.
 - **Withdrawals**:
   - Users withdraw ZRC-20 tokens from the lending contract to their ZetaChain address.
-  - The gateway’s withdrawal function converts ZRC-20 tokens back to native assets on the user’s chosen EVM chain (e.g., ZRC-20 USDC.ARBI to USDC on Base).
+  - The gateway's withdrawal function converts ZRC-20 tokens back to native assets on the user's chosen EVM chain (e.g., ZRC-20 USDC.ARBI to USDC on Ethereum).
   - Supports flexible withdrawals to any supported chain, not limited to the deposit chain.
 
 ### 4. Security and Risk Management
@@ -134,7 +135,7 @@ The protocol supports the following user interactions, all managed through the Z
 
 ### 5. Extensibility
 
-- **Adding Assets**: The contract can include an admin function to add new ZRC-20 tokens (e.g., ZRC-20 ETH.BASE) to support additional assets or chains.
+- **Adding Assets**: The contract can include an admin function to add new ZRC-20 tokens to support additional assets or chains.
 - **Governance**: Future iterations can incorporate governance mechanisms for community-driven updates.
 - **Advanced Features**: Potential additions include flash loans, fixed interest rates, or integration with other DeFi protocols.
 
@@ -159,7 +160,7 @@ The protocol supports the following user interactions, all managed through the Z
 4. **Withdrawing Supply**:
 
    - The user calls `withdraw` to retrieve 100 ZRC-20 USDC.ARBI plus interest.
-   - The user uses the gateway to withdraw to Base, receiving 100 native USDC.
+   - The user uses the gateway to withdraw to Ethereum, receiving 100 native USDC.
 
 5. **Liquidation**:
 
@@ -168,11 +169,11 @@ The protocol supports the following user interactions, all managed through the Z
 
 ## Key Considerations
 
-- **ZRC-20 Tokens**: The protocol interacts with ZRC-20 tokens, which are distinct for each asset and chain (e.g., ZRC-20 USDC.ARBI vs. ZRC-20 USDC.BASE). For simplicity, the initial design treats each as a separate market, but future versions could integrate cross-chain swaps for unified liquidity (ZRC-20 Token Standard).
+- **ZRC-20 Tokens**: The protocol interacts with ZRC-20 tokens, which are distinct for each asset and chain (e.g., ZRC-20 USDC.ARBI vs. ZRC-20 USDC.ETH). For simplicity, the initial design treats each as a separate market, but future versions could integrate cross-chain swaps for unified liquidity (ZRC-20 Token Standard).
 - **Oracle Integration**: Use a reliable oracle (https://www.zetachain.com/docs/about/services/pyth/#pyth-entropy) to fetch real-time prices for collateral and borrowed assets to ensure accurate collateralization ratios.
 - **Gas Efficiency**: Optimize contract functions to minimize gas costs, especially for cross-chain operations.
 - **Hackathon Constraints**: The design prioritizes simplicity to fit hackathon timelines, focusing on core lending and cross-chain features. Advanced features like flash loans or multi-asset withdrawals can be added later.
-- **Testing**: Deploy and test on ZetaChain’s testnet (e.g., ZetaLabs) with connected chains like Arbitrum Sepolia or Base testnet.
+- **Testing**: Deploy and test on ZetaChain's testnet (Athens) with connected chains like Arbitrum Sepolia and Ethereum Sepolia testnet.
 
 ## References
 

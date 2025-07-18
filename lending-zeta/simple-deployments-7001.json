@@ -1,0 +1,11 @@
+{
+  "deployer": "0xe1C5Bf97A7Ffb50988DeF972E1E242072298a59C",
+  "network": {
+    "chainId": 7001,
+    "name": "zeta_testnet"
+  },
+  "timestamp": "2025-07-17T04:33:59.338Z",
+  "contracts": {
+    "SimpleLendingProtocol": "0x4Ef36BC95b67d960B22a92AF1F0F4b52393C4Bec"
+  }
+}

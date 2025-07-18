@@ -1,7 +1,7 @@
 # Claude Context: ZetaChain Cross-Chain Lending Protocol
 
 ## Project Overview
-This is a **cross-chain lending protocol** built on ZetaChain that enables users to supply collateral and borrow assets across EVM chains including Arbitrum, Base, and ZetaChain. The protocol uses tokens such as ETH, USDC, and USDT, following an Aave-inspired model where users must supply collateral before borrowing, with liquidation mechanisms for undercollateralized positions.
+This is a **cross-chain lending protocol** built on ZetaChain that enables users to supply collateral and borrow assets across EVM chains including Arbitrum, Ethereum, and ZetaChain. The protocol uses ETH and USDC, following an Aave-inspired model where users must supply collateral before borrowing, with liquidation mechanisms for undercollateralized positions.
 
 **Official Documentation**: https://www.zetachain.com/docs/
 
@@ -17,9 +17,9 @@ This is a **cross-chain lending protocol** built on ZetaChain that enables users
 
 | **Chain** | **Chain ID** | **Assets** |
 |-----------|--------------|------------|
-| Arbitrum | 42161 | ETH (ZRC-20 ETH.ARBI), USDC (ZRC-20 USDC.ARBI) |
-| Base | 8453 | USDT (ZRC-20 USDT.BASE) |
-| ZetaChain | 7000 | Native ZETA |
+| Arbitrum Sepolia | 421614 | ETH (ZRC-20 ETH.ARBI), USDC (ZRC-20 USDC.ARBI) |
+| Ethereum Sepolia | 11155111 | ETH (ZRC-20 ETH.ETH), USDC (ZRC-20 USDC.ETH) |
+| ZetaChain Athens | 7001 | Native ZETA |
 
 ### Key Protocol Features
 1. **Supply Collateral**: Deposit assets from any supported chain via ZetaChain's EVM gateway
@@ -53,7 +53,7 @@ This is a **cross-chain lending protocol** built on ZetaChain that enables users
 ### Development Environment
 - **Node Package Manager**: Bun
 - **Testing**: Hardhat + Jest/Vitest for frontend
-- **Networks**: ZetaChain testnet, Arbitrum Sepolia, Base testnet
+- **Networks**: ZetaChain Athens testnet, Arbitrum Sepolia, Ethereum Sepolia
 - **Linting**: ESLint + Prettier
 - **Type Checking**: TypeScript strict mode
 
@@ -97,27 +97,104 @@ type UserPosition = {
 ```
 
 ### Cross-Chain Gateway Integration
+
+The protocol uses **deposit contracts** on external chains (Arbitrum, Ethereum) to enable cross-chain deposits via ZetaChain's EVM Gateway. Users interact with these deposit contracts to supply collateral that gets forwarded to the lending protocol on ZetaChain.
+
+#### Deposit Contract Architecture
+```solidity
+// DepositContract.sol - Deployed on external chains (Arbitrum, Ethereum)
+contract DepositContract {
+    IGatewayEVM public immutable gateway;
+    address public immutable lendingProtocolAddress; // Address on ZetaChain
+    
+    // Deposit ETH from Arbitrum
+    function depositEth(address onBehalfOf) external payable {
+        bytes memory message = abi.encodeWithSignature(
+            "supply(address,uint256,address)",
+            address(0), // ETH represented as address(0)
+            msg.value,
+            onBehalfOf
+        );
+        
+        gateway.depositAndCall{value: msg.value}(
+            lendingProtocolAddress,
+            message,
+            RevertOptions({...})
+        );
+    }
+    
+    // Deposit ERC20 tokens (USDC on Arbitrum/Ethereum)
+    function depositToken(address asset, uint256 amount, address onBehalfOf) external {
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(asset).forceApprove(address(gateway), amount);
+        
+        bytes memory message = abi.encodeWithSignature(
+            "supply(address,uint256,address)",
+            asset,
+            amount,
+            onBehalfOf
+        );
+        
+        gateway.depositAndCall(
+            lendingProtocolAddress,
+            amount,
+            asset,
+            message,
+            RevertOptions({...})
+        );
+    }
+}
+```
+
+#### Gateway Integration Flow
 ```typescript
-// Gateway deposit handler
-const handleCrossChainDeposit = async (
-  sourceChain: number,
-  asset: string,
-  amount: bigint,
-  recipient: string
-) => {
-  // Called by gateway when user deposits from external chain
-  await lendingContract.supply(asset, amount, recipient);
+// 1. User deposits on external chain
+const depositFlow = async (chain: 'arbitrum' | 'ethereum', asset: string, amount: bigint) => {
+  // Get deposit contract for the chain
+  const depositContract = getDepositContract(chain);
+  
+  if (asset === 'ETH') {
+    // Deposit ETH on Arbitrum
+    await depositContract.depositEth(userAddress, { value: amount });
+  } else {
+    // Deposit ERC20 (USDC on Arbitrum/Ethereum)
+    await erc20Contract.approve(depositContract.address, amount);
+    await depositContract.depositToken(asset, amount, userAddress);
+  }
 };
 
-// Gateway withdrawal
+// 2. Gateway forwards to ZetaChain LendingProtocol
+// This happens automatically via ZetaChain's infrastructure
+
+// 3. Cross-chain withdrawal (from ZetaChain to external chain)
 const withdrawToChain = async (
   targetChain: number,
   asset: string,
   amount: bigint
 ) => {
-  // Withdraw ZRC-20 to external chain via gateway
-  await gatewayContract.withdraw(targetChain, asset, amount);
+  // Call withdraw on ZetaChain LendingProtocol
+  // This will use ZRC-20 gateway to send to external chain
+  await lendingContract.withdraw(asset, amount, targetChainAddress);
 };
+```
+
+#### Supported Assets per Chain
+```typescript
+// Asset validation in deposit contracts
+const SUPPORTED_ASSETS = {
+  arbitrum: {
+    ETH: { address: "0x0000000000000000000000000000000000000000", decimals: 18, isNative: true },
+    USDC: { address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d", decimals: 6, isNative: false },
+  },
+  ethereum: {
+    ETH: { address: "0x0000000000000000000000000000000000000000", decimals: 18, isNative: true },
+    USDC: { address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", decimals: 6, isNative: false },
+  },
+};
+
+// Only whitelisted assets can be deposited
+function addSupportedAsset(address asset, uint8 decimals, bool isNative) external onlyOwner;
+function removeSupportedAsset(address asset) external onlyOwner;
 ```
 
 ## Development Guidelines
@@ -270,6 +347,7 @@ describe("CrossChainLendingProtocol", () => {
 ├── lending-zeta/                   # ZetaChain contract development
 │   ├── contracts/
 │   │   ├── LendingProtocol.sol         # Main lending contract
+│   │   ├── DepositContract.sol         # Cross-chain deposit contract
 │   │   ├── PriceOracle.sol            # Price oracle implementation
 │   │   ├── SimpleLendingProtocol.sol  # Simplified lending for testing
 │   │   ├── SimplePriceOracle.sol      # Simple oracle for testing
@@ -285,6 +363,7 @@ describe("CrossChainLendingProtocol", () => {
 │   │       ├── MockPriceOracle.sol     # Price oracle mock
 │   │       └── MockZRC20.sol           # ZRC-20 token mock
 │   ├── scripts/
+│   │   ├── deploy-deposit-contracts.ts # Deploy deposit contracts to external chains
 │   │   └── localnet.sh                # Local network setup
 │   ├── tasks/
 │   │   └── deploy.ts                  # Deployment tasks
@@ -293,7 +372,8 @@ describe("CrossChainLendingProtocol", () => {
 │   ├── hardhat.config.ts              # Hardhat configuration
 │   ├── foundry.toml                   # Foundry configuration
 │   └── package.json                   # Dependencies
-├── deployments.ts                 # Deployment configuration (root level)
+├── deployments.ts                 # ZetaChain deployment configuration (root level)
+├── deposit-deployments.ts         # External chain deposit contract deployments  
 ├── package.json                   # Root package.json
 ├── frontend/                      # Frontend application (future)
 │   ├── components/
@@ -317,26 +397,40 @@ describe("CrossChainLendingProtocol", () => {
 
 ### Deployment Checklist for Lending Protocol
 
-1. **Pre-deployment**:
-   - Test all collateralization scenarios
-   - Verify oracle price feeds are working
-   - Test liquidation mechanisms thoroughly
-   - Validate cross-chain deposit/withdrawal flows
-   - Security audit for lending-specific risks
+#### 1. Pre-deployment
+- Test all collateralization scenarios
+- Verify oracle price feeds are working
+- Test liquidation mechanisms thoroughly
+- Validate cross-chain deposit/withdrawal flows
+- Security audit for lending-specific risks
 
-2. **Deployment**:
-   - Deploy to ZetaChain testnet first
-   - Configure supported ZRC-20 assets (ETH.ARBI, USDC.ARBI, USDT.BASE)
-   - Set collateralization ratios (1.5x minimum, 1.2x liquidation)
-   - Initialize interest rate models
-   - Test with Arbitrum Sepolia and Base testnet
+#### 2. ZetaChain Deployment (First)
+- Deploy to ZetaChain testnet first
+- Configure supported ZRC-20 assets (ETH.ARBI, USDC.ARBI, ETH.ETH, USDC.ETH)
+- Set collateralization ratios (1.5x minimum, 1.2x liquidation)
+- Initialize interest rate models
 
-3. **Post-deployment**:
-   - **Update DEPLOYMENTS config**: Update contract addresses in `deployments.ts` for the deployed network
-   - Monitor health factors across all users
-   - Track liquidation events and bad debt
-   - Verify cross-chain transaction success rates
-   - Update frontend with contract addresses
+#### 3. External Chain Deployments (Second)
+- **Deploy DepositContract to Arbitrum Sepolia**: Handle ETH and USDC deposits
+- **Deploy DepositContract to Ethereum Sepolia**: Handle ETH and USDC deposits
+- Configure gateway addresses for each network
+- Add supported assets for each chain
+- Test cross-chain deposits from each network
+
+#### 4. Cross-Chain Integration Testing
+- Test ETH deposits from Arbitrum → ZetaChain
+- Test USDC deposits from Arbitrum → ZetaChain  
+- Test ETH deposits from Ethereum → ZetaChain
+- Test USDC deposits from Ethereum → ZetaChain
+- Verify proper ZRC-20 minting on ZetaChain
+- Test cross-chain withdrawals from ZetaChain → external chains
+
+#### 5. Post-deployment
+- **Update DEPLOYMENTS config**: Update contract addresses in `deployments.ts` and `deposit-deployments.ts`
+- Monitor health factors across all users
+- Track liquidation events and bad debt
+- Verify cross-chain transaction success rates
+- Update frontend with all contract addresses
 
 ### Deployment Configuration Management
 
@@ -433,26 +527,32 @@ export const LENDING_CONFIG = {
   LIQUIDATION_THRESHOLD: 1.2,      // 120% liquidation trigger
   LIQUIDATION_BONUS: 0.05,         // 5% liquidator bonus
   MAX_BORROW_RATE: 0.5,            // 50% max interest rate
-  SUPPORTED_CHAINS: [42161, 8453, 7000], // Arbitrum, Base, ZetaChain
+  SUPPORTED_CHAINS: [421614, 11155111, 7001], // Arbitrum Sepolia, Ethereum Sepolia, ZetaChain
 } as const;
 
 // ZRC-20 asset configuration
 export const SUPPORTED_ASSETS = {
   "ETH.ARBI": {
     address: "0x...", // ZRC-20 ETH.ARBI address
-    chainId: 42161,
+    chainId: 421614,
     decimals: 18,
     collateralFactor: 0.8, // 80% collateral factor
   },
   "USDC.ARBI": {
     address: "0x...", // ZRC-20 USDC.ARBI address  
-    chainId: 42161,
+    chainId: 421614,
     decimals: 6,
     collateralFactor: 0.9, // 90% collateral factor
   },
-  "USDT.BASE": {
-    address: "0x...", // ZRC-20 USDT.BASE address
-    chainId: 8453,
+  "ETH.ETH": {
+    address: "0x...", // ZRC-20 ETH.ETH address
+    chainId: 11155111,
+    decimals: 18,
+    collateralFactor: 0.8, // 80% collateral factor
+  },
+  "USDC.ETH": {
+    address: "0x...", // ZRC-20 USDC.ETH address
+    chainId: 11155111,
     decimals: 6,
     collateralFactor: 0.9, // 90% collateral factor
   },

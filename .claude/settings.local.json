@@ -3,7 +3,11 @@
     "allow": [
       "Bash(mkdir:*)",
       "Bash(rm:*)",
-      "Bash(bun hardhat:*)"
+      "Bash(bun hardhat:*)",
+      "Bash(ls:*)",
+      "Bash(npx zetachain localnet start:*)",
+      "Bash(npx hardhat run:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

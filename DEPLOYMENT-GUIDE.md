@@ -27,7 +27,8 @@ type Address = `0x${string}`;
 interface TokenAddresses {
   "ETH.ARBI": Address;    // Ethereum from Arbitrum
   "USDC.ARBI": Address;   // USDC from Arbitrum  
-  "USDT.BASE": Address;   // USDT from Base
+  "ETH.ETH": Address;     // Ethereum from Ethereum
+  "USDC.ETH": Address;    // USDC from Ethereum
   "ZETA": Address;        // Native ZETA token
 }
 
@@ -42,8 +43,9 @@ interface CoreContracts {
 | Network | Chain ID | RPC URL | Explorer |
 |---------|----------|---------|----------|
 | **Local** | 1337 | http://127.0.0.1:8545 | http://localhost:8545 |
-| **ZetaChain Testnet** | 7001 | https://zetachain-athens-evm.blockpi.network/v1/rpc/public | https://athens.explorer.zetachain.com |
-| **ZetaChain Mainnet** | 7000 | https://zetachain-evm.blockpi.network/v1/rpc/public | https://explorer.zetachain.com |
+| **ZetaChain Athens Testnet** | 7001 | https://zetachain-athens-evm.blockpi.network/v1/rpc/public | https://athens.explorer.zetachain.com |
+| **Arbitrum Sepolia** | 421614 | https://sepolia-rollup.arbitrum.io/rpc | https://sepolia.arbiscan.io |
+| **Ethereum Sepolia** | 11155111 | https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161 | https://sepolia.etherscan.io |
 
 ## 🚀 Deployment Commands
 
@@ -65,13 +67,16 @@ export PRIVATE_KEY="your_private_key_here"
 NETWORK=zeta-testnet bun hardhat run scripts/deploy-with-config.ts --network zeta-testnet
 ```
 
-### 3. ZetaChain Mainnet
+### 3. External Chain Deployments (Deposit Contracts)
 ```bash
-# Set your private key
+# Deploy deposit contracts to external chains
 export PRIVATE_KEY="your_private_key_here"
 
-# Deploy to mainnet
-NETWORK=zeta-mainnet bun hardhat run scripts/deploy-with-config.ts --network zeta-mainnet
+# Deploy to Arbitrum Sepolia
+npx hardhat run scripts/deploy-deposit-contracts.ts --network arbitrum-sepolia
+
+# Deploy to Ethereum Sepolia  
+npx hardhat run scripts/deploy-deposit-contracts.ts --network ethereum-sepolia
 ```
 
 ## ⚙️ Asset Configuration
@@ -93,8 +98,9 @@ For testnet/mainnet, update ZRC-20 addresses in `deployments.ts` first:
   tokens: {
     "ETH.ARBI": "0x1234...", // Real ZRC-20 ETH.ARBI address
     "USDC.ARBI": "0x5678...", // Real ZRC-20 USDC.ARBI address
-    "USDT.BASE": "0x9abc...", // Real ZRC-20 USDT.BASE address
-    "ZETA": "0xdef0...",       // Real ZETA token address
+    "ETH.ETH": "0x9abc...", // Real ZRC-20 ETH.ETH address
+    "USDC.ETH": "0xdef0...", // Real ZRC-20 USDC.ETH address
+    "ZETA": "0x3456...",       // Real ZETA token address
   }
 }
 ```
@@ -112,7 +118,8 @@ Each asset has the following configurable parameters:
 |-------|------------------|----------------------|-------------------|--------|
 | **ETH.ARBI** | 80% | 85% | 5% | $2,000 |
 | **USDC.ARBI** | 90% | 90% | 5% | $1 |
-| **USDT.BASE** | 90% | 90% | 5% | $1 |
+| **ETH.ETH** | 80% | 85% | 5% | $2,000 |
+| **USDC.ETH** | 90% | 90% | 5% | $1 |
 | **ZETA** | 75% | 80% | 10% | $0.50 |
 
 ### Updating Asset Parameters
@@ -149,7 +156,8 @@ After deployment, you'll get a JSON output for frontend integration:
   "tokens": {
     "ETH.ARBI": "0x...",
     "USDC.ARBI": "0x...",
-    "USDT.BASE": "0x...",
+    "ETH.ETH": "0x...",
+    "USDC.ETH": "0x...",
     "ZETA": "0x..."
   },
   "timestamp": "2025-07-15T03:39:25.979Z"
