@@ -44,3 +44,4 @@ A cross-chain lending protocol built on ZetaChain that enables users to supply c
 - **Ethereum Sepolia** (11155111) - ETH and USDC deposits
 
 For more information, visit: https://www.zetachain.com/docs/
+Assets Deployed Contract address: https://www.zetachain.com/docs/reference/network/contracts/

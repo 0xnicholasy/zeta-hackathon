@@ -20,7 +20,7 @@ async function main() {
   console.log("\n=== Deploying Simple Lending Protocol ===");
 
   const SimpleLendingProtocol = await ethers.getContractFactory("SimpleLendingProtocol");
-  const simpleLendingProtocol = await SimpleLendingProtocol.deploy(deployer.address);
+  const simpleLendingProtocol = await SimpleLendingProtocol.deploy(deployer.address, deployer.address);
   await simpleLendingProtocol.deployed();
   console.log("SimpleLendingProtocol deployed to:", simpleLendingProtocol.address);
 

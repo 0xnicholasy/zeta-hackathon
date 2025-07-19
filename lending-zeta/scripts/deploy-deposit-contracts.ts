@@ -31,7 +31,7 @@ async function main() {
   // Get lending protocol address from current network config
   const networkConfig = getNetwork(chainId);
   let lendingProtocolAddress: string;
-  
+
   if (networkConfig.lendingProtocolAddress && networkConfig.lendingProtocolAddress !== "0x0000000000000000000000000000000000000000") {
     lendingProtocolAddress = networkConfig.lendingProtocolAddress;
   } else {
@@ -57,7 +57,7 @@ async function main() {
   await depositContract.deployed();
 
   console.log("DepositContract deployed to:", depositContract.address);
-  
+
   // Update centralized contract registry
   updateContractAddress(chainId, "DepositContract", depositContract.address as Address);
 
@@ -71,7 +71,7 @@ async function main() {
       if (symbol.includes('.')) {
         continue;
       }
-      
+
       const isNative = symbol === "ETH";
       const decimals = symbol === "USDC" ? 6 : 18;
 
@@ -97,7 +97,7 @@ async function main() {
     if (symbol.includes('.')) {
       continue;
     }
-    
+
     const isSupported = await depositContract.isAssetSupported(address);
     console.log(`  ${symbol} (${address}): ${isSupported ? "✅" : "❌"}`);
   }
@@ -110,9 +110,11 @@ async function main() {
   console.log(`Lending Protocol: ${lendingProtocolAddress}`);
   console.log(`ZetaChain ID: ${zetaChainId}`);
   console.log(`Deployer: ${deployer.address}`);
-  
+
   console.log("\n✅ Deposit contract deployment completed successfully!");
   console.log("You can now deposit assets from this chain to the ZetaChain lending protocol.");
+  console.log("Run the following command to verify contract on etherscan:");
+  console.log(`npx hardhat verify --network ${networkConfig.name} ${depositContract.address} ${gatewayAddress} ${lendingProtocolAddress} ${zetaChainId} ${deployer.address}`);
 }
 
 main()

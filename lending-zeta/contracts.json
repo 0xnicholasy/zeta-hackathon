@@ -22,18 +22,18 @@
       }
     },
     "7001": {
-      "name": "ZetaChain Athens Testnet",
+      "name": "zeta-testnet",
       "chainId": 7001,
       "type": "testnet",
       "rpc": "https://zetachain-athens-evm.blockpi.network/v1/rpc/public",
       "explorer": "https://athens.explorer.zetachain.com",
       "contracts": {
         "LendingProtocol": "0x0000000000000000000000000000000000000000",
-        "SimpleLendingProtocol": "0x0000000000000000000000000000000000000000",
+        "SimpleLendingProtocol": "0xa97021c95855eDbe020A4b9dF7Ac67c62d17309e",
         "UniversalLendingProtocol": "0x0000000000000000000000000000000000000000",
         "PriceOracle": "0x0000000000000000000000000000000000000000",
         "MockPriceOracle": "0x0000000000000000000000000000000000000000",
-        "SimplePriceOracle": "0x4Ef36BC95b67d960B22a92AF1F0F4b52393C4Bec",
+        "SimplePriceOracle": "0xDA3B4B97b31b13d54002Ae3c21343d0aec99E895",
         "Universal": "0x0000000000000000000000000000000000000000"
       },
       "tokens": {
@@ -45,40 +45,36 @@
       }
     },
     "421614": {
-      "name": "Arbitrum Sepolia",
+      "name": "arbitrum-sepolia",
       "chainId": 421614,
       "type": "testnet",
-      "rpc": "https://sepolia-rollup.arbitrum.io/rpc",
-      "explorer": "https://sepolia.arbiscan.io",
       "contracts": {
-        "DepositContract": "0x0000000000000000000000000000000000000000",
+        "DepositContract": "0xd7c66E9134d88D46A01223674f85001510AC2C4d",
         "Gateway": "0x0dA86Dc3F9B71F84a0E97B0e2291e50B7a5df10f"
       },
       "tokens": {
-        "ETH": "0x1de70f3e971B62A0707dA18100392af14f7fB677",
-        "USDC": "0x4bC32034caCcc9B7e02536945eDbC286bACbA073"
+        "ETH": "0x0000000000000000000000000000000000000000",
+        "USDC": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
       },
-      "lendingProtocolAddress": "0x4Ef36BC95b67d960B22a92AF1F0F4b52393C4Bec"
+      "lendingProtocolAddress": "0xa97021c95855eDbe020A4b9dF7Ac67c62d17309e"
     },
     "11155111": {
-      "name": "Ethereum Sepolia",
+      "name": "ethereum-sepolia",
       "chainId": 11155111,
       "type": "testnet",
-      "rpc": "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
-      "explorer": "https://sepolia.etherscan.io",
       "contracts": {
-        "DepositContract": "0x55E1Bd43F67BaB1E176E2A65608C151bC0d8F148",
+        "DepositContract": "0x67439A61D515a6f50Ef76f68960dac61301bF654",
         "Gateway": "0x0c487a766110c85d301d96e33579c5b317fa4995"
       },
       "tokens": {
-        "ETH": "0x05BA149A7bd6dC1F937fA9046A9e05C05f3b18b0",
-        "USDC": "0xcC683A782f4B30c138787CB5576a86AF66fdc31d"
+        "ETH": "0x0",
+        "USDC": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
       },
-      "lendingProtocolAddress": "0x4Ef36BC95b67d960B22a92AF1F0F4b52393C4Bec"
+      "lendingProtocolAddress": "0xa97021c95855eDbe020A4b9dF7Ac67c62d17309e"
     }
   },
   "deployments": {
-    "lastUpdated": "2025-07-18T03:40:41.338Z",
+    "lastUpdated": "2025-07-19T05:47:04.429Z",
     "deployer": "0x0000000000000000000000000000000000000000"
   }
 }

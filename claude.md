@@ -61,20 +61,26 @@ This is a **cross-chain lending protocol** built on ZetaChain that enables users
 
 ### Core Contract Functions
 ```solidity
-// Supply collateral via gateway
-function supply(address asset, uint256 amount, address onBehalfOf) external;
+// Supply collateral via gateway or directly
+function supply(address asset, uint256 amount) external;
 
 // Borrow assets with collateral check
-function borrow(address asset, uint256 amount, address to) external;
+function borrow(address asset, uint256 amount) external;
 
-// Repay borrowed assets with interest
-function repay(address asset, uint256 amount, address onBehalfOf) external;
+// Repay borrowed assets
+function repay(address asset, uint256 amount) external;
 
 // Liquidate undercollateralized positions
-function liquidate(address collateralAsset, address debtAsset, address user, uint256 debtToCover) external;
+function liquidate(address user, address collateralAsset, address debtAsset, uint256 repayAmount) external;
 
-// Withdraw supplied assets
-function withdraw(address asset, uint256 amount, address to) external;
+// Withdraw supplied assets locally
+function withdraw(address asset, uint256 amount) external;
+
+// Withdraw supplied assets to external chain
+function withdrawToChain(address asset, uint256 amount, address recipient, bytes calldata recipientData) external;
+
+// Universal contract function for cross-chain deposits/repayments
+function onCall(MessageContext calldata context, address zrc20, uint256 amount, bytes calldata message) external;
 ```
 
 ### ZRC-20 Token Integration
@@ -346,19 +352,14 @@ describe("CrossChainLendingProtocol", () => {
 /
 ├── lending-zeta/                   # ZetaChain contract development
 │   ├── contracts/
-│   │   ├── LendingProtocol.sol         # Main lending contract
+│   │   ├── SimpleLendingProtocol.sol   # Universal lending contract (main)
 │   │   ├── DepositContract.sol         # Cross-chain deposit contract
 │   │   ├── PriceOracle.sol            # Price oracle implementation
-│   │   ├── SimpleLendingProtocol.sol  # Simplified lending for testing
 │   │   ├── SimplePriceOracle.sol      # Simple oracle for testing
 │   │   ├── Universal.sol              # Universal contract template
 │   │   ├── interfaces/
-│   │   │   ├── ILendingProtocol.sol    # Lending interface
 │   │   │   ├── IPriceOracle.sol        # Oracle interface
 │   │   │   └── IZRC20.sol              # ZRC-20 interface
-│   │   ├── libraries/
-│   │   │   ├── InterestRateModel.sol   # Interest calculation
-│   │   │   └── LiquidationLogic.sol    # Liquidation logic
 │   │   └── mocks/
 │   │       ├── MockPriceOracle.sol     # Price oracle mock
 │   │       └── MockZRC20.sol           # ZRC-20 token mock
@@ -405,10 +406,10 @@ describe("CrossChainLendingProtocol", () => {
 - Security audit for lending-specific risks
 
 #### 2. ZetaChain Deployment (First)
-- Deploy to ZetaChain testnet first
-- Configure supported ZRC-20 assets (ETH.ARBI, USDC.ARBI, ETH.ETH, USDC.ETH)
-- Set collateralization ratios (1.5x minimum, 1.2x liquidation)
-- Initialize interest rate models
+- Deploy SimpleLendingProtocol to ZetaChain testnet first
+- Configure supported ZRC-20 assets with prices (ETH.ARBI, USDC.ARBI, ETH.ETH, USDC.ETH)
+- Set collateralization ratios (150% minimum, 120% liquidation)
+- Test universal contract functionality
 
 #### 3. External Chain Deployments (Second)
 - **Deploy DepositContract to Arbitrum Sepolia**: Handle ETH and USDC deposits

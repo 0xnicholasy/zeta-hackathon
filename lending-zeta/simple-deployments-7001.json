@@ -2,10 +2,15 @@
   "deployer": "0xe1C5Bf97A7Ffb50988DeF972E1E242072298a59C",
   "network": {
     "chainId": 7001,
-    "name": "zeta_testnet"
+    "name": "unknown"
   },
-  "timestamp": "2025-07-17T04:33:59.338Z",
+  "timestamp": "2025-07-19T03:54:18.635Z",
   "contracts": {
-    "SimpleLendingProtocol": "0x4Ef36BC95b67d960B22a92AF1F0F4b52393C4Bec"
+    "SimpleLendingProtocol": "0x1F1178348e0e6d263E28F541c05642B3F535D360",
+    "SimplePriceOracle": "0xDA3B4B97b31b13d54002Ae3c21343d0aec99E895",
+    "tokens": {
+      "ETH.ARBI": "0x67439A61D515a6f50Ef76f68960dac61301bF654",
+      "USDC.ARBI": "0xa04E698F48BE2D75A5B9716286c507B14bE3c273"
+    }
   }
 }
