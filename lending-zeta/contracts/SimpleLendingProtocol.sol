@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import "@zetachain/protocol-contracts/contracts/zevm/interfaces/UniversalContract.sol";
+import "@zetachain/protocol-contracts/contracts/zevm/interfaces/IGatewayZEVM.sol";
+import "@zetachain/protocol-contracts/contracts/Revert.sol";
+import "@zetachain/protocol-contracts/contracts/zevm/interfaces/IZRC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@zetachain/protocol-contracts/contracts/zevm/GatewayZEVM.sol";
-import "@zetachain/protocol-contracts/contracts/zevm/interfaces/IZRC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title SimpleLendingProtocol
@@ -18,11 +20,11 @@ import "@zetachain/protocol-contracts/contracts/zevm/interfaces/IZRC20.sol";
 contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
-    GatewayZEVM public immutable gateway;
+    IGatewayZEVM public immutable gateway;
 
     uint256 private constant PRECISION = 1e18;
-    uint256 private constant COLLATERAL_RATIO = 150; // 150% = 1.5x
-    uint256 private constant LIQUIDATION_THRESHOLD = 120; // 120% = 1.2x
+    uint256 private constant MINIMUM_HEALTH_FACTOR = 1.5e18;
+    uint256 private constant LIQUIDATION_THRESHOLD = 1.2e18;
 
     struct Asset {
         bool isSupported;
@@ -46,6 +48,8 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
     event Liquidate(
         address indexed liquidator,
         address indexed user,
+        address indexed collateralAsset,
+        address debtAsset,
         uint256 repaidDebt,
         uint256 seizedCollateral
     );
@@ -61,7 +65,7 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
      * @param owner The address that will own this contract and have admin privileges
      */
     constructor(address payable gatewayAddress, address owner) Ownable(owner) {
-        gateway = GatewayZEVM(gatewayAddress);
+        gateway = IGatewayZEVM(gatewayAddress);
     }
 
     /**
@@ -119,12 +123,13 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
 
     /**
      * @notice Supply tokens as collateral to the lending protocol
-     * @dev Tokens are transferred from caller and credited to their account
+     * @dev Tokens are transferred from caller and credited to the specified account
      * @param asset The address of the asset token to supply
      * @param amount The amount of tokens to supply (in token's native decimals)
+     * @param onBehalfOf The address to credit the supply to
      */
-    function supply(address asset, uint256 amount) external nonReentrant {
-        _supply(asset, amount, msg.sender);
+    function supply(address asset, uint256 amount, address onBehalfOf) external nonReentrant {
+        _supply(asset, amount, onBehalfOf);
     }
 
     function _supply(address asset, uint256 amount, address onBehalfOf) internal {
@@ -143,11 +148,12 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
 
     /**
      * @notice Borrow tokens against supplied collateral
-     * @dev Requires sufficient collateral ratio (150% minimum). Tokens are transferred to caller
+     * @dev Requires sufficient collateral ratio (150% minimum). Tokens are transferred to specified address
      * @param asset The address of the asset token to borrow
      * @param amount The amount of tokens to borrow (in token's native decimals)
+     * @param to The address to receive the borrowed tokens
      */
-    function borrow(address asset, uint256 amount) external nonReentrant {
+    function borrow(address asset, uint256 amount, address to) external nonReentrant {
         require(assets[asset].isSupported, "Asset not supported");
         require(amount > 0, "Amount must be greater than 0");
         require(
@@ -162,19 +168,20 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
         );
 
         userBorrows[msg.sender][asset] += amount;
-        IERC20(asset).safeTransfer(msg.sender, amount);
+        IERC20(asset).safeTransfer(to, amount);
 
         emit Borrow(msg.sender, asset, amount);
     }
 
     /**
      * @notice Repay borrowed tokens to reduce debt
-     * @dev Tokens are transferred from caller to reduce their debt balance
+     * @dev Tokens are transferred from caller to reduce the specified user's debt balance
      * @param asset The address of the asset token to repay
      * @param amount The amount of tokens to repay (in token's native decimals)
+     * @param onBehalfOf The address whose debt will be reduced
      */
-    function repay(address asset, uint256 amount) external nonReentrant {
-        _repay(asset, amount, msg.sender);
+    function repay(address asset, uint256 amount, address onBehalfOf) external nonReentrant {
+        _repay(asset, amount, onBehalfOf);
     }
 
     function _repay(address asset, uint256 amount, address onBehalfOf) internal {
@@ -199,9 +206,10 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
      * @dev Requires maintaining minimum collateral ratio if user has debt
      * @param asset The address of the asset token to withdraw
      * @param amount The amount of tokens to withdraw (in token's native decimals)
+     * @param to The address to receive the withdrawn tokens
      */
-    function withdraw(address asset, uint256 amount) external nonReentrant {
-        _withdraw(asset, amount, msg.sender, address(0), "");
+    function withdraw(address asset, uint256 amount, address to) external nonReentrant {
+        _withdraw(asset, amount, msg.sender, to, "");
     }
 
     /**
@@ -209,23 +217,23 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
      * @dev Uses ZRC-20 withdraw function for cross-chain transfer
      * @param asset The address of the ZRC-20 asset token to withdraw
      * @param amount The amount of tokens to withdraw (in token's native decimals)
+     * @param destinationChain The chain ID to withdraw to
      * @param recipient The address on the destination chain to receive tokens
-     * @param recipientData Additional data for the cross-chain transfer
      */
-    function withdrawToChain(
+    function withdrawCrossChain(
         address asset,
         uint256 amount,
-        address recipient,
-        bytes calldata recipientData
+        uint256 destinationChain,
+        address recipient
     ) external nonReentrant {
-        _withdraw(asset, amount, msg.sender, recipient, recipientData);
+        _withdrawCrossChain(asset, amount, msg.sender, destinationChain, recipient);
     }
 
     function _withdraw(
         address asset,
         uint256 amount,
         address user,
-        address recipient,
+        address to,
         bytes memory /* recipientData */
     ) internal {
         require(assets[asset].isSupported, "Asset not supported");
@@ -243,13 +251,35 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
 
         userSupplies[user][asset] -= amount;
 
-        if (recipient == address(0)) {
-            // Local withdrawal to user
-            IERC20(asset).safeTransfer(user, amount);
-        } else {
-            // Cross-chain withdrawal using gateway
-            IZRC20(asset).withdraw(abi.encodePacked(recipient), amount);
-        }
+        // Local withdrawal
+        IERC20(asset).safeTransfer(to, amount);
+
+        emit Withdraw(user, asset, amount);
+    }
+
+    function _withdrawCrossChain(
+        address asset,
+        uint256 amount,
+        address user,
+        uint256 /* destinationChain */,
+        address recipient
+    ) internal {
+        require(assets[asset].isSupported, "Asset not supported");
+        require(amount > 0, "Amount must be greater than 0");
+        require(
+            userSupplies[user][asset] >= amount,
+            "Insufficient balance"
+        );
+
+        require(
+            canWithdraw(user, asset, amount),
+            "Would break collateral ratio"
+        );
+
+        userSupplies[user][asset] -= amount;
+
+        // Cross-chain withdrawal using ZRC-20
+        IZRC20(asset).withdraw(abi.encodePacked(recipient), amount);
 
         emit Withdraw(user, asset, amount);
     }
@@ -303,14 +333,14 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
         // Transfer collateral to liquidator
         IERC20(collateralAsset).safeTransfer(msg.sender, collateralValue);
 
-        emit Liquidate(msg.sender, user, repayAmount, collateralValue);
+        emit Liquidate(msg.sender, user, collateralAsset, debtAsset, repayAmount, collateralValue);
     }
 
     /**
      * @notice Calculate the health factor for a user's position
-     * @dev Health factor = (collateral value * 100) / debt value. Values below 120 can be liquidated
+     * @dev Health factor = (collateral value * PRECISION) / debt value. Values below 1.2e18 can be liquidated
      * @param user The address of the user to check
-     * @return The health factor as a percentage (e.g., 150 = 150%)
+     * @return The health factor with 18 decimals (e.g., 1.5e18 = 150%)
      */
     function getHealthFactor(address user) public view returns (uint256) {
         uint256 totalCollateralValue = getTotalCollateralValue(user);
@@ -320,7 +350,7 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
             return type(uint256).max;
         }
 
-        return (totalCollateralValue * 100) / totalDebtValue;
+        return (totalCollateralValue * PRECISION) / totalDebtValue;
     }
 
     /**
@@ -423,7 +453,7 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
 
     /**
      * @notice Check if a user can borrow a specific amount of an asset
-     * @dev Validates that the resulting health factor would be >= 150%
+     * @dev Validates that the resulting health factor would be >= 1.5e18 (150%)
      * @param user The address of the user attempting to borrow
      * @param asset The address of the asset to borrow
      * @param amount The amount to borrow (in token's native decimals)
@@ -451,13 +481,13 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
 
         if (totalDebtValue == 0) return totalCollateralValue > 0;
 
-        uint256 healthFactor = (totalCollateralValue * 100) / totalDebtValue;
-        return healthFactor >= COLLATERAL_RATIO;
+        uint256 healthFactor = (totalCollateralValue * PRECISION) / totalDebtValue;
+        return healthFactor >= MINIMUM_HEALTH_FACTOR;
     }
 
     /**
      * @notice Check if a user can withdraw a specific amount of collateral
-     * @dev Validates that the resulting health factor would be >= 150%
+     * @dev Validates that the resulting health factor would be >= 1.5e18 (150%)
      * @param user The address of the user attempting to withdraw
      * @param asset The address of the asset to withdraw
      * @param amount The amount to withdraw (in token's native decimals)
@@ -485,13 +515,13 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
 
         if (totalDebtValue == 0) return true;
 
-        uint256 healthFactor = (newCollateralValue * 100) / totalDebtValue;
-        return healthFactor >= COLLATERAL_RATIO;
+        uint256 healthFactor = (newCollateralValue * PRECISION) / totalDebtValue;
+        return healthFactor >= MINIMUM_HEALTH_FACTOR;
     }
 
     /**
      * @notice Check if a user's position can be liquidated
-     * @dev Position is liquidatable if health factor < 120% and user has debt
+     * @dev Position is liquidatable if health factor < 1.2e18 (120%) and user has debt
      * @param user The address of the user to check
      * @return True if the position can be liquidated, false otherwise
      */
@@ -518,5 +548,45 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
     function getSupportedAsset(uint256 index) external view returns (address) {
         require(index < supportedAssets.length, "Index out of bounds");
         return supportedAssets[index];
+    }
+
+    function getSupplyBalance(address user, address asset) external view returns (uint256) {
+        return userSupplies[user][asset];
+    }
+
+    function getBorrowBalance(address user, address asset) external view returns (uint256) {
+        return userBorrows[user][asset];
+    }
+
+    function getAssetConfig(address asset) external view returns (Asset memory) {
+        return assets[asset];
+    }
+
+    function getUserAccountData(address user)
+        public
+        view
+        returns (
+            uint256 totalCollateralValue,
+            uint256 totalDebtValue,
+            uint256 availableBorrows,
+            uint256 currentLiquidationThreshold,
+            uint256 healthFactor
+        )
+    {
+        totalCollateralValue = getTotalCollateralValue(user);
+        totalDebtValue = getTotalDebtValue(user);
+        healthFactor = getHealthFactor(user);
+        currentLiquidationThreshold = LIQUIDATION_THRESHOLD;
+        
+        if (totalCollateralValue > 0) {
+            uint256 requiredCollateral = (totalDebtValue * MINIMUM_HEALTH_FACTOR) / PRECISION;
+            if (totalCollateralValue > requiredCollateral) {
+                availableBorrows = totalCollateralValue - requiredCollateral;
+            } else {
+                availableBorrows = 0;
+            }
+        } else {
+            availableBorrows = 0;
+        }
     }
 }
