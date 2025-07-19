@@ -11,7 +11,8 @@
       "WebFetch(domain:www.zetachain.com)",
       "mcp__ide__getDiagnostics",
       "Bash(bun add:*)",
-      "Bash(cast call:*)"
+      "Bash(cast call:*)",
+      "Bash(forge test:*)"
     ],
     "deny": []
   }

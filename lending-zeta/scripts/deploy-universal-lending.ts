@@ -10,7 +10,7 @@ import {
 import { DeploymentManager } from "./deployment-utils";
 
 async function main() {
-  console.log("Starting SimpleLendingProtocol deployment...");
+  console.log("Starting UniversalLendingProtocol deployment...");
 
   const [deployer] = await ethers.getSigners();
   const network = await ethers.provider.getNetwork();
@@ -26,7 +26,7 @@ async function main() {
 
   // Ensure we're deploying on ZetaChain
   if (chainId !== 7001 && chainId !== 7000 && chainId !== 1337) {
-    throw new Error("SimpleLendingProtocol should only be deployed on ZetaChain networks");
+    throw new Error("UniversalLendingProtocol should only be deployed on ZetaChain networks");
   }
 
   // Get gateway address from ZetaChain network configuration
@@ -37,15 +37,11 @@ async function main() {
     console.log("⚠️  Local network detected. Make sure ZetaChain gateway is properly configured.");
     gatewayAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"; // Placeholder for local
   } else if (chainId === 7001) {
-    // ZetaChain Athens Testnet - Update with real gateway address from ZetaChain docs
-    console.log("⚠️  Using placeholder gateway address for Athens testnet");
-    console.log("TODO: Update with real ZetaChain Athens testnet gateway address");
-    gatewayAddress = "0x6c533f7fe93fae114d0954697069df33c9b74fd7"; // UPDATE with real address
+    console.log("Using ZetaChain Athens testnet gateway address: 0x6c533f7fe93fae114d0954697069df33c9b74fd7");
+    gatewayAddress = "0x6c533f7fe93fae114d0954697069df33c9b74fd7";
   } else if (chainId === 7000) {
-    // ZetaChain Mainnet - Update with real gateway address from ZetaChain docs
-    console.log("⚠️  Using placeholder gateway address for mainnet");
-    console.log("TODO: Update with real ZetaChain mainnet gateway address");
-    gatewayAddress = "0xfEDD7A6e3Ef1cC470fbfbF955a22D793dDC0F44E"; // UPDATE with real address
+    console.log("Using ZetaChain mainnet gateway address: 0xfEDD7A6e3Ef1cC470fbfbF955a22D793dDC0F44E");
+    gatewayAddress = "0xfEDD7A6e3Ef1cC470fbfbF955a22D793dDC0F44E";
   } else {
     throw new Error(`Gateway address not configured for chain ${chainId}`);
   }
@@ -55,20 +51,21 @@ async function main() {
     console.log("⚠️  Make sure to update gateway address with real ZetaChain gateway before mainnet deployment");
   }
 
-  // Deploy SimpleLendingProtocol (now universal)
-  console.log("\n=== Deploying SimpleLendingProtocol ===");
+  // Deploy UniversalLendingProtocol
+  console.log("\n=== Deploying UniversalLendingProtocol ===");
 
-  const SimpleLendingProtocol = await ethers.getContractFactory("SimpleLendingProtocol");
-  const universalLendingProtocol = await SimpleLendingProtocol.deploy(
+  const UniversalLendingProtocol = await ethers.getContractFactory("UniversalLendingProtocol");
+  const universalLendingProtocol = await UniversalLendingProtocol.deploy(
     gatewayAddress,
+    "0x0000000000000000000000000000000000000000", // TODO: Replace with actual price oracle address
     deployer.address
   );
 
   await universalLendingProtocol.deployed();
-  console.log("SimpleLendingProtocol deployed to:", universalLendingProtocol.address);
+  console.log("UniversalLendingProtocol deployed to:", universalLendingProtocol.address);
 
   // Update centralized contract registry
-  updateContractAddress(chainId, "SimpleLendingProtocol", universalLendingProtocol.address as Address);
+  updateContractAddress(chainId, "UniversalLendingProtocol", universalLendingProtocol.address as Address);
 
   // Add supported ZRC-20 assets from centralized configuration
   console.log("\n=== Adding Supported Assets ===");
@@ -87,8 +84,13 @@ async function main() {
 
       console.log(`Adding ${asset.symbol} (${tokenAddress}) with price $${asset.price}...`);
 
-      // Add asset with price
-      await universalLendingProtocol.addAsset(tokenAddress, asset.price);
+      // Add asset with proper parameters for UniversalLendingProtocol
+      await universalLendingProtocol.addAsset(
+        tokenAddress,
+        "800000000000000000", // 80% collateral factor (0.8 * 1e18)
+        "850000000000000000", // 85% liquidation threshold (0.85 * 1e18)
+        "50000000000000000"   // 5% liquidation bonus (0.05 * 1e18)
+      );
 
       console.log(`✅ Added ${asset.symbol} as supported lending asset`);
 
@@ -108,7 +110,7 @@ async function main() {
     timestamp: new Date().toISOString(),
     contracts: {
       lending: {
-        SimpleLendingProtocol: universalLendingProtocol.address
+        UniversalLendingProtocol: universalLendingProtocol.address
       },
       gateway: {
         GatewayZEVM: gatewayAddress
@@ -119,7 +121,7 @@ async function main() {
   await deploymentManager.saveDeployment(deploymentInfo);
 
   console.log("\n=== Deployment Configuration Summary ===");
-  console.log("SimpleLendingProtocol:", universalLendingProtocol.address);
+  console.log("UniversalLendingProtocol:", universalLendingProtocol.address);
   console.log("Gateway:", gatewayAddress);
 
   // Update external chains with the lending protocol address in centralized config
@@ -157,7 +159,7 @@ async function main() {
   console.log("\n=== Deployment Summary (Centralized Config) ===");
   printDeploymentSummary(chainId);
 
-  console.log("\n✅ SimpleLendingProtocol deployment completed successfully!");
+  console.log("\n✅ UniversalLendingProtocol deployment completed successfully!");
   console.log("\nNext steps:");
   console.log("1. Deploy DepositContracts on external chains using:");
   console.log("   npx hardhat run scripts/deploy-deposit-contracts.ts --network arbitrum-sepolia");

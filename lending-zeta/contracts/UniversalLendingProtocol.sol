@@ -13,6 +13,7 @@ import "./interfaces/ILendingProtocol.sol";
 import "./interfaces/IPriceOracle.sol";
 import "./libraries/InterestRateModel.sol";
 import "./libraries/LiquidationLogic.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title UniversalLendingProtocol
@@ -97,7 +98,9 @@ contract UniversalLendingProtocol is
 
     modifier healthFactorCheck(address user) {
         _;
-        if (getHealthFactor(user) < MINIMUM_HEALTH_FACTOR)
+        uint256 healthFactor = getHealthFactor(user);
+        
+        if (healthFactor < MINIMUM_HEALTH_FACTOR)
             revert HealthFactorTooLow();
     }
 
@@ -537,12 +540,12 @@ contract UniversalLendingProtocol is
 
         ) = getUserAccountData(user);
 
-        return
-            LiquidationLogic.calculateHealthFactor(
-                totalCollateralValue,
-                totalDebtValue,
-                currentLiquidationThreshold
-            );
+        uint256 healthFactor = LiquidationLogic.calculateHealthFactor(
+            totalCollateralValue,
+            totalDebtValue,
+            currentLiquidationThreshold
+        );
+        return healthFactor;
     }
 
     function getSupplyBalance(
@@ -605,11 +608,12 @@ contract UniversalLendingProtocol is
                 }
 
                 if (borrowBalance > 0) {
-                    totalDebt += LiquidationLogic.calculateDebtValue(
+                    uint256 debtValue = LiquidationLogic.calculateDebtValue(
                         asset,
                         borrowBalance,
                         priceOracle
                     );
+                    totalDebt += debtValue;
                 }
             }
         }
@@ -621,10 +625,14 @@ contract UniversalLendingProtocol is
             currentLiquidationThreshold =
                 weightedLiquidationThreshold /
                 totalCollateral;
-            availableBorrows =
-                (totalCollateral * PRECISION) /
-                MINIMUM_HEALTH_FACTOR -
-                totalDebt;
+            
+            uint256 requiredCollateral = (totalDebt * MINIMUM_HEALTH_FACTOR) / PRECISION;
+            if (totalCollateral > requiredCollateral) {
+                availableBorrows = totalCollateral - requiredCollateral;
+            } else {
+                availableBorrows = 0;
+            }
+            
             healthFactor = LiquidationLogic.calculateHealthFactor(
                 totalCollateral,
                 totalDebt,
@@ -684,7 +692,19 @@ contract UniversalLendingProtocol is
     ) internal view returns (uint256) {
         (, , uint256 availableBorrows, , ) = getUserAccountData(user);
         uint256 assetPrice = priceOracle.getPrice(asset);
-        return (availableBorrows * PRECISION) / assetPrice;
+        uint8 decimals = IERC20Metadata(asset).decimals();
+        
+        // Convert USD value to token amount, accounting for decimals
+        uint256 tokenAmount = (availableBorrows * PRECISION) / assetPrice;
+        
+        // Adjust for token decimals
+        if (decimals < 18) {
+            tokenAmount = tokenAmount / (10 ** (18 - decimals));
+        } else if (decimals > 18) {
+            tokenAmount = tokenAmount * (10 ** (decimals - 18));
+        }
+        
+        return tokenAmount;
     }
 
     function setPriceOracle(address _priceOracle) external onlyOwner {

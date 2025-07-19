@@ -54,6 +54,8 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       "arbitrum-sepolia": process.env.ETHERSCAN_API_KEY || "",
+      "zeta_testnet": process.env.ETHERSCAN_API_KEY || "",
+      "zeta_mainnet": process.env.ETHERSCAN_API_KEY || "",
       // add other networks if needed
     },
     customChains: [
@@ -63,6 +65,22 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://api.etherscan.io/v2/api?chainid=421614",
           browserURL: "https://sepolia.arbiscan.io",
+        }
+      },
+      {
+        network: "zeta_testnet",
+        chainId: 7001,
+        urls: {
+          apiURL: "https://api.etherscan.io/v2/api?chainid=7001",
+          browserURL: "https://athens.explorer.zetachain.com",
+        }
+      },
+      {
+        network: "zeta_mainnet",
+        chainId: 7000,
+        urls: {
+          apiURL: "https://api.etherscan.io/v2/api?chainid=7000",
+          browserURL: "https://explorer.zetachain.com",
         }
       }
     ]
