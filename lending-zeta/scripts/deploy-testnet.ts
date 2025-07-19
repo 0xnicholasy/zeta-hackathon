@@ -56,6 +56,8 @@ async function main() {
     console.log(`📜 Contract address: ${deploymentResult.contractAddress}`);
     console.log(`💾 Deployment info saved to: ${filename}`);
     console.log(`🔗 Transaction hash: ${deploymentResult.transactionHash}`);
+    console.log("\nRun the following command to verify contract on explorer:");
+    console.log(`npx hardhat verify --network ${deploymentResult.network} ${deploymentResult.contractAddress} "0x6c533f7fe93fae114d0954697069df33c9b74fd7" ${deploymentResult.deployer}`);
     
   } catch (error) {
     console.error("Deployment failed:", error);

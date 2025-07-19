@@ -160,6 +160,8 @@ async function main() {
   printDeploymentSummary(chainId);
 
   console.log("\n✅ UniversalLendingProtocol deployment completed successfully!");
+  console.log("\nRun the following command to verify contract on explorer:");
+  console.log(`npx hardhat verify --network ${getNetwork(chainId).name} ${universalLendingProtocol.address} ${gatewayAddress} "0x0000000000000000000000000000000000000000" ${deployer.address}`);
   console.log("\nNext steps:");
   console.log("1. Deploy DepositContracts on external chains using:");
   console.log("   npx hardhat run scripts/deploy-deposit-contracts.ts --network arbitrum-sepolia");

@@ -64,6 +64,11 @@ async function main() {
     JSON.stringify(deploymentInfo, null, 2)
   );
 
+  console.log("\nRun the following commands to verify contracts on explorer:");
+  console.log(`npx hardhat verify --network ${(await ethers.provider.getNetwork()).name} ${simplePriceOracle.address} ${deployer.address}`);
+  console.log(`npx hardhat verify --network ${(await ethers.provider.getNetwork()).name} ${simpleLendingProtocol.address} ${deployer.address} ${deployer.address}`);
+  console.log(`npx hardhat verify --network ${(await ethers.provider.getNetwork()).name} ${ethArbi.address} "Ethereum Arbitrum" "ETH.ARBI" 18 "${ethers.utils.parseEther("1000000")}"`);
+  console.log(`npx hardhat verify --network ${(await ethers.provider.getNetwork()).name} ${usdcArbi.address} "USD Coin Arbitrum" "USDC.ARBI" 6 "${ethers.utils.parseUnits("1000000", 6)}"`);
   console.log("\nSimple deployment completed successfully!");
   console.log("Run the simple initialization script next.");
 }
