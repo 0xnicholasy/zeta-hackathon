@@ -26,7 +26,8 @@
       "Bash(bun list:*)",
       "Bash(bun pm ls:*)",
       "Bash(python3:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(git cherry-pick:*)"
     ],
     "deny": []
   }

@@ -757,5 +757,13 @@
         "beryl",
         "cairo",
         "dock"
-    ]
+    ],
+    "claude.mcpServers": {
+        "shadcn-ui": {
+            "command": "npx",
+            "args": [
+                "@jpisnice/shadcn-ui-mcp-server"
+            ]
+        }
+    }
 }

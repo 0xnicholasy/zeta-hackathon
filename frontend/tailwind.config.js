@@ -6,8 +6,48 @@ export default {
   ],
   darkMode: 'class',
   theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
     extend: {
       colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
         // ZetaChain Brand Colors
         zeta: {
           50: '#E6FDF8',
@@ -27,52 +67,51 @@ export default {
           dark: '#006E4C',  // Dark green accent
         },
         // Background colors
-        background: {
-          light: '#FFFFFF',
-          dark: '#000000',
-        },
+        'bg-light': '#FFFFFF',
+        'bg-dark': '#000000',
         // Surface colors (cards, modals, etc.)
-        surface: {
-          light: '#FFFFFF',
-          dark: '#1F2328',
-        },
+        'surface-light': '#FFFFFF',
+        'surface-dark': '#1F2328',
         // Border colors
-        border: {
-          light: '#E5E8EC',
-          dark: '#2D3237',
-        },
+        'border-light': '#E5E8EC',
+        'border-dark': '#2D3237',
         // Text colors
-        text: {
-          primary: {
-            light: '#000000',
-            dark: '#FFFFFF',
-          },
-          secondary: {
-            light: '#6B7280',
-            dark: '#A9ACB0',
-          },
-          info: {
-            light: '#0066CC',    // Blue for informational content
-            dark: '#66B3FF',     // Lighter blue for dark mode
-          },
-          success: {
-            light: '#008462',    // ZetaChain primary green for positive states
-            dark: '#33ECC9',     // ZetaChain light green for dark mode
-          },
-          warning: {
-            light: '#F59E0B',    // Amber for warnings (approaching liquidation)
-            dark: '#FCD34D',     // Lighter amber for dark mode
-          },
-          error: {
-            light: '#DC2626',    // Red for errors and dangerous states
-            dark: '#F87171',     // Lighter red for dark mode
-          },
-        }
+        'text-primary-light': '#000000',
+        'text-primary-dark': '#FFFFFF',
+        'text-secondary-light': '#6B7280',
+        'text-secondary-dark': '#A9ACB0',
+        'text-info-light': '#0066CC',
+        'text-info-dark': '#66B3FF',
+        'text-success-light': '#008462',
+        'text-success-dark': '#33ECC9',
+        'text-warning-light': '#F59E0B',
+        'text-warning-dark': '#FCD34D',
+        'text-error-light': '#DC2626',
+        'text-error-dark': '#F87171',
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       }
     },
   },
-  plugins: [],
+  plugins: [require("tailwindcss-animate")],
 }

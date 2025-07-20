@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      '@': path.resolve(__dirname, './src'),
       '@contracts': path.resolve(__dirname, '../lending-zeta/typechain-types'),
       '@deployments': path.resolve(__dirname, '../lending-zeta'),
     },

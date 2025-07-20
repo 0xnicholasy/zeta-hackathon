@@ -327,7 +327,7 @@ export default function Stats() {
                       {/* Main Asset Icon */}
                       <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg">
                         {asset.unit ? (
-                          <TokenIcon symbol={asset.unit} className="w-8 h-8" />
+                          <TokenIcon symbol={asset.unit} className="w-8 h-8 text-zeta-700" />
                         ) : (
                           <div className="w-8 h-8 bg-gradient-to-br from-zeta-400 to-zeta-600 rounded-full flex items-center justify-center">
                             <span className="text-white font-bold text-xs">
@@ -341,9 +341,9 @@ export default function Stats() {
                       {asset.sourceChain && (
                         <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-md">
                           {asset.sourceChain.slice(0, 3).toUpperCase() === 'ARB' ? (
-                            <NetworkIcon name="arbitrum-one" className='size-4' />
+                            <NetworkIcon name="arbitrum-one" className='size-4 text-zeta-700' />
                           ) : asset.sourceChain === 'ETH' ? (
-                            <NetworkIcon name="ethereum" className='size-4' />
+                            <NetworkIcon name="ethereum" className='size-4 text-zeta-700' />
                           ) : (
                             <div className="w-3 h-3 bg-gradient-to-br from-zeta-400 to-zeta-600 rounded-full flex items-center justify-center">
                               <span className="text-white font-bold text-sm">
