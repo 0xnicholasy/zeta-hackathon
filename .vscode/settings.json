@@ -1,6 +1,10 @@
 {
     "cSpell.words": [
         "ARBI",
+        "collateralization",
+        "IERC",
+        "overcollateralization",
+        "Reentrancy",
         "viem",
         "zetachain"
     ]

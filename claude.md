@@ -355,7 +355,6 @@ describe("CrossChainLendingProtocol", () => {
 │   │   ├── SimpleLendingProtocol.sol   # Universal lending contract (main)
 │   │   ├── DepositContract.sol         # Cross-chain deposit contract
 │   │   ├── PriceOracle.sol            # Price oracle implementation
-│   │   ├── SimplePriceOracle.sol      # Simple oracle for testing
 │   │   ├── Universal.sol              # Universal contract template
 │   │   ├── interfaces/
 │   │   │   ├── IPriceOracle.sol        # Oracle interface

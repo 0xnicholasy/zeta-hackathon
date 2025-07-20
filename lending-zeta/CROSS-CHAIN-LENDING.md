@@ -205,7 +205,6 @@ await universalLendingProtocol.withdrawCrossChain(
       "name": "ZetaChain Athens Testnet",
       "contracts": {
         "UniversalLendingProtocol": "0x...",
-        "SimplePriceOracle": "0x..."
       },
       "tokens": {
         "ETH.ARBI": "0x...",
@@ -254,7 +253,6 @@ await universalLendingProtocol.withdrawCrossChain(
 
 ### ZetaChain Athens Testnet (7001)
 - **UniversalLendingProtocol**: `TBD` (Deploy with script)
-- **SimplePriceOracle**: `0x4Ef36BC95b67d960B22a92AF1F0F4b52393C4Bec`
 
 ### Arbitrum Sepolia (421614)
 - **DepositContract**: `TBD` (Deploy with script)

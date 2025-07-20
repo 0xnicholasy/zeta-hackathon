@@ -23,7 +23,6 @@ async function main() {
   // Get contract instances
   const priceOracle = await ethers.getContractAt("PriceOracle", deploymentInfo.contracts.oracles.PriceOracle);
   const mockPriceOracle = await ethers.getContractAt("MockPriceOracle", deploymentInfo.contracts.oracles.MockPriceOracle);
-  const simplePriceOracle = await ethers.getContractAt("SimplePriceOracle", deploymentInfo.contracts.oracles.SimplePriceOracle);
   const lendingProtocol = await ethers.getContractAt("LendingProtocol", deploymentInfo.contracts.lending.LendingProtocol);
   const simpleLendingProtocol = await ethers.getContractAt("SimpleLendingProtocol", deploymentInfo.contracts.lending.SimpleLendingProtocol);
 
@@ -52,13 +51,6 @@ async function main() {
   console.log("Setting prices in MockPriceOracle...");
   for (const [asset, price] of Object.entries(prices)) {
     await mockPriceOracle.setPriceInUSD(asset, price);
-    console.log(`Set ${asset} price to $${price}`);
-  }
-
-  // Set prices in SimplePriceOracle
-  console.log("Setting prices in SimplePriceOracle...");
-  for (const [asset, price] of Object.entries(prices)) {
-    await simplePriceOracle.setPrice(asset, price);
     console.log(`Set ${asset} price to $${price}`);
   }
 

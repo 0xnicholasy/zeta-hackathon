@@ -9,7 +9,7 @@ This directory contains comprehensive deployment, initialization, and testing sc
 #### `deploy.ts`
 Deploys the full lending protocol including:
 - Mock ZRC20 tokens (ETH.ARBI, USDC.ARBI, USDT.BASE)
-- Price Oracle contracts (PriceOracle, MockPriceOracle, SimplePriceOracle)
+- Price Oracle contracts (PriceOracle, MockPriceOracle)
 - Main LendingProtocol contract
 - Simple LendingProtocol contract
 - Universal contract (if applicable)
@@ -21,7 +21,6 @@ npx hardhat run scripts/deploy.ts --network <network>
 
 #### `deploy-simple.ts`
 Deploys a simplified version for quick testing:
-- SimplePriceOracle
 - SimpleLendingProtocol
 - Mock ZRC20 tokens (ETH.ARBI, USDC.ARBI)
 
@@ -247,7 +246,6 @@ ETHEREUM_GATEWAY_ADDRESS=0x...
     "oracles": {
       "PriceOracle": "0x4567...8901",
       "MockPriceOracle": "0x5678...9012",
-      "SimplePriceOracle": "0x6789...0123"
     },
     "lending": {
       "LendingProtocol": "0x7890...1234",

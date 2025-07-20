@@ -44,7 +44,6 @@ bun hardhat run scripts/deploy-simple.ts
 
 ### Core Contracts
 - **SimpleLendingProtocol.sol** - Main lending protocol logic
-- **SimplePriceOracle.sol** - Price oracle for asset valuation
 - **MockZRC20.sol** - Mock ZRC-20 tokens for testing
 
 ### Key Functions
@@ -146,7 +145,6 @@ After deployment, you'll get contract addresses for frontend integration:
   "chainId": 1337,
   "contracts": {
     "SimpleLendingProtocol": "0x...",
-    "SimplePriceOracle": "0x...",
     "ETH": "0x...",
     "USDC": "0x...",
     "USDT": "0x..."

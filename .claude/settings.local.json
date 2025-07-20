@@ -12,7 +12,10 @@
       "mcp__ide__getDiagnostics",
       "Bash(bun add:*)",
       "Bash(cast call:*)",
-      "Bash(forge test:*)"
+      "Bash(forge test:*)",
+      "Bash(mv:*)",
+      "Bash(cast sig:*)",
+      "Bash(hh run:*)"
     ],
     "deny": []
   }

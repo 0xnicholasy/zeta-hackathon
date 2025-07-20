@@ -16,21 +16,21 @@ async function main() {
 
   // Deploy SimpleLendingProtocol to testnet
   console.log("\n=== Deploying SimpleLendingProtocol to testnet ===");
-  
+
   try {
     const deployCommand = "npx hardhat deploy --name SimpleLendingProtocol --network zeta_testnet --gateway 0x6c533f7fe93fae114d0954697069df33c9b74fd7 --json";
-    
+
     console.log("Running deployment command:", deployCommand);
     const { stdout, stderr } = await execAsync(deployCommand);
-    
+
     if (stderr) {
       console.error("Deployment stderr:", stderr);
     }
-    
+
     // Parse the JSON output from the deployment
     const deploymentResult = JSON.parse(stdout.trim());
     console.log("Deployment result:", deploymentResult);
-    
+
     // Create the deployment info in the expected format
     const deploymentInfo = {
       deployer: deploymentResult.deployer,
@@ -41,7 +41,6 @@ async function main() {
       timestamp: new Date().toISOString(),
       contracts: {
         SimpleLendingProtocol: deploymentResult.contractAddress,
-        // Note: SimplePriceOracle and tokens would need separate deployments
         // This script focuses on the main lending contract
       }
     };
@@ -49,16 +48,16 @@ async function main() {
     // Save to simple-deployments-<chainid>.json
     const chainId = deploymentInfo.network.chainId;
     const filename = `simple-deployments-${chainId}.json`;
-    
+
     fs.writeFileSync(filename, JSON.stringify(deploymentInfo, null, 2));
-    
+
     console.log(`\n✅ Deployment completed successfully!`);
     console.log(`📜 Contract address: ${deploymentResult.contractAddress}`);
     console.log(`💾 Deployment info saved to: ${filename}`);
     console.log(`🔗 Transaction hash: ${deploymentResult.transactionHash}`);
     console.log("\nRun the following command to verify contract on explorer:");
     console.log(`npx hardhat verify --network ${deploymentResult.network} ${deploymentResult.contractAddress} "0x6c533f7fe93fae114d0954697069df33c9b74fd7" ${deploymentResult.deployer}`);
-    
+
   } catch (error) {
     console.error("Deployment failed:", error);
     process.exit(1);

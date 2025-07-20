@@ -71,7 +71,7 @@ export class DeploymentManager {
     try {
       // Check if contracts exist and are deployed
       const requiredContracts = simple
-        ? ["SimpleLendingProtocol", "SimplePriceOracle"]
+        ? ["SimpleLendingProtocol"]
         : ["LendingProtocol", "PriceOracle"];
 
       for (const contractName of requiredContracts) {
@@ -193,10 +193,9 @@ export class DeploymentManager {
     // Estimate deployment costs
     const estimatedCosts = {
       "MockZRC20": 800000,
-      "SimplePriceOracle": 400000,
-      "PriceOracle": 600000,
       "SimpleLendingProtocol": 2500000,
       "LendingProtocol": 3500000,
+      "PriceOracle": 600000,
     };
 
     console.log("\nEstimated deployment costs:");

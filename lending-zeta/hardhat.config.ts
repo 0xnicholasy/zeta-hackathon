@@ -19,12 +19,12 @@ const config: HardhatUserConfig = {
       chainId: 1337,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     },
-    zeta_testnet: {
+    "zeta-testnet": {
       url: "https://zetachain-athens-evm.blockpi.network/v1/rpc/public",
       chainId: 7001,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     },
-    zeta_mainnet: {
+    "zeta-mainnet": {
       url: "https://zetachain-evm.blockpi.network/v1/rpc/public",
       chainId: 7000,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
@@ -54,8 +54,8 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       "arbitrum-sepolia": process.env.ETHERSCAN_API_KEY || "",
-      "zeta_testnet": "empty",
-      "zeta_mainnet": "empty",
+      "zeta-testnet": "empty",
+      "zeta-mainnet": "empty",
       // add other networks if needed
     },
     customChains: [
@@ -68,7 +68,7 @@ const config: HardhatUserConfig = {
         }
       },
       {
-        network: "zeta_testnet",
+        network: "zeta-testnet",
         chainId: 7001,
         urls: {
           apiURL: "https://zetachain-testnet.blockscout.com/api",
@@ -76,7 +76,7 @@ const config: HardhatUserConfig = {
         }
       },
       {
-        network: "zeta_mainnet",
+        network: "zeta-mainnet",
         chainId: 7000,
         urls: {
           apiURL: "https://zetachain.blockscout.com/api",
