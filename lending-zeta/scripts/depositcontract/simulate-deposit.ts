@@ -126,7 +126,7 @@ async function main() {
       console.log(`5. User gets ${utils.formatEther(depositAmount)} ZRC-20 ETH collateral balance`);
 
       console.log("\n🚀 To execute real transaction, run:");
-      console.log(`DRY_RUN=false hh run scripts/simulate-deposit.ts --network ${getNetwork(chainId).name}`);
+      console.log(`DRY_RUN=false hh run scripts/depositcontract/simulate-deposit.ts --network ${getNetwork(chainId).name}`);
     } else {
       console.log("🚀 Executing real deposit transaction...");
 

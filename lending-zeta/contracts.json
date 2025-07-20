@@ -39,17 +39,17 @@
       "chainId": 11155111,
       "type": "testnet",
       "contracts": {
-        "DepositContract": "0x67439A61D515a6f50Ef76f68960dac61301bF654",
+        "DepositContract": "0x9fEaeD63680F83CDAe2dFF62E8a4Bf68DD41B419",
         "Gateway": "0x0c487a766110c85d301d96e33579c5b317fa4995"
       },
       "tokens": {
-        "ETH": "0x0",
+        "ETH": "0x0000000000000000000000000000000000000000",
         "USDC": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
       }
     }
   },
   "deployments": {
-    "lastUpdated": "2025-07-20T03:11:14.593Z",
+    "lastUpdated": "2025-07-20T09:45:04.231Z",
     "deployer": "0xe1C5Bf97A7Ffb50988DeF972E1E242072298a59C"
   }
 }

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useChainId } from 'wagmi';
-import { 
+import {
   getContractAddress,
   getTokenAddress,
   getAllContracts,
@@ -10,14 +10,17 @@ import {
   getNetworkConfig,
   CONTRACT_NAMES,
   TOKEN_SYMBOLS,
-  type NetworkConfig
+  SupportedChain,
+  type SupportedChainId
 } from '../contracts/deployments';
 
 /**
- * Hook to get contract and token addresses for the current chain
+ * Hook to get contract and token addresses for a specific chain
+ * @param targetChainId - Optional chain ID to query. If not provided, uses current wallet chain
  */
-export function useContracts() {
-  const chainId = useChainId();
+export function useContracts(targetChainId: SupportedChainId) {
+  const walletChainId = useChainId();
+  const chainId = targetChainId || walletChainId;
 
   const contracts = useMemo(() => {
     if (!chainId) return null;
@@ -56,6 +59,7 @@ export function useContracts() {
 
   return {
     chainId,
+    walletChainId,
     networkConfig,
     contracts,
     tokens,
@@ -76,15 +80,20 @@ export function useContracts() {
     zeta: getToken(TOKEN_SYMBOLS.ZETA),
     eth: getToken(TOKEN_SYMBOLS.ETH),
     usdc: getToken(TOKEN_SYMBOLS.USDC),
+    // Supported chain constants for easy access
+    SupportedChain,
   };
 }
 
 /**
  * Hook to get contract address for a specific contract
+ * @param contractName - Name of the contract
+ * @param targetChainId - Optional chain ID to query. If not provided, uses current wallet chain
  */
-export function useContract(contractName: string) {
-  const chainId = useChainId();
-  
+export function useContract(contractName: string, targetChainId?: SupportedChainId) {
+  const walletChainId = useChainId();
+  const chainId = targetChainId || walletChainId;
+
   return useMemo(() => {
     if (!chainId) return null;
     return getContractAddress(contractName, chainId);
@@ -93,10 +102,13 @@ export function useContract(contractName: string) {
 
 /**
  * Hook to get token address for a specific token
+ * @param tokenSymbol - Symbol of the token
+ * @param targetChainId - Optional chain ID to query. If not provided, uses current wallet chain
  */
-export function useToken(tokenSymbol: string) {
-  const chainId = useChainId();
-  
+export function useToken(tokenSymbol: string, targetChainId?: SupportedChainId) {
+  const walletChainId = useChainId();
+  const chainId = targetChainId || walletChainId;
+
   return useMemo(() => {
     if (!chainId) return null;
     return getTokenAddress(tokenSymbol, chainId);
@@ -104,11 +116,13 @@ export function useToken(tokenSymbol: string) {
 }
 
 /**
- * Hook to check if contracts are deployed on current chain
+ * Hook to check if contracts are deployed on a specific chain
+ * @param targetChainId - Optional chain ID to query. If not provided, uses current wallet chain
  */
-export function useDeploymentStatus() {
-  const chainId = useChainId();
-  
+export function useDeploymentStatus(targetChainId?: SupportedChainId) {
+  const walletChainId = useChainId();
+  const chainId = targetChainId || walletChainId;
+
   const status = useMemo(() => {
     if (!chainId) {
       return {

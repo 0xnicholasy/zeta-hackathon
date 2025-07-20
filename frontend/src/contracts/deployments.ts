@@ -1,5 +1,61 @@
-import contractsData from '../../../lending-zeta/contracts.json';
 import { isTestnetMode } from '../config/wagmi';
+
+// Contract deployment data - converted from contracts.json to avoid Vite JSON parsing issues
+const contractsData = {
+  "networks": {
+    "7001": {
+      "name": "zeta-testnet",
+      "chainId": 7001,
+      "type": "testnet" as const,
+      "rpc": "https://zetachain-athens-evm.blockpi.network/v1/rpc/public",
+      "explorer": "https://athens.explorer.zetachain.com",
+      "contracts": {
+        "SimpleLendingProtocol": "0xe5edcFf7ee738f20A95205D67748bC259ee6EcA1",
+        "UniversalLendingProtocol": "0x0000000000000000000000000000000000000000",
+        "PriceOracle": "0x0000000000000000000000000000000000000000",
+        "MockPriceOracle": "0x0000000000000000000000000000000000000000",
+        "Universal": "0x0000000000000000000000000000000000000000"
+      },
+      "tokens": {
+        "ETH.ARBI": "0x1de70f3e971B62A0707dA18100392af14f7fB677",
+        "USDC.ARBI": "0x4bC32034caCcc9B7e02536945eDbC286bACbA073",
+        "ETH.ETH": "0x05BA149A7bd6dC1F937fA9046A9e05C05f3b18b0",
+        "USDC.ETH": "0xcC683A782f4B30c138787CB5576a86AF66fdc31d",
+        "ZETA": "0x0000000000000000000000000000000000000000"
+      }
+    },
+    "421614": {
+      "name": "arbitrum-sepolia",
+      "chainId": 421614,
+      "type": "testnet" as const,
+      "contracts": {
+        "DepositContract": "0x72b57875CBcfdc2f773801D37BB5626e0D1ddBCB",
+        "Gateway": "0x0dA86Dc3F9B71F84a0E97B0e2291e50B7a5df10f"
+      },
+      "tokens": {
+        "ETH": "0x0000000000000000000000000000000000000000",
+        "USDC": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+      }
+    },
+    "11155111": {
+      "name": "ethereum-sepolia",
+      "chainId": 11155111,
+      "type": "testnet" as const,
+      "contracts": {
+        "DepositContract": "0x9fEaeD63680F83CDAe2dFF62E8a4Bf68DD41B419",
+        "Gateway": "0x0c487a766110c85d301d96e33579c5b317fa4995"
+      },
+      "tokens": {
+        "ETH": "0x0000000000000000000000000000000000000000",
+        "USDC": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+      }
+    }
+  },
+  "deployments": {
+    "lastUpdated": "2025-07-20T03:11:14.593Z",
+    "deployer": "0xe1C5Bf97A7Ffb50988DeF972E1E242072298a59C"
+  }
+};
 
 // Type definitions matching the deployment utils
 export interface NetworkConfig {
@@ -44,11 +100,11 @@ export function getAvailableNetworks(): NetworkConfig[] {
 export function getNetworkConfig(chainId: number): NetworkConfig | null {
   const chainIdStr = chainId.toString();
   const network = deployments.networks[chainIdStr];
-  
+
   if (!network) {
     return null;
   }
-  
+
   // Only return if it matches current environment
   if (isTestnetMode && network.type !== 'testnet') {
     return null;
@@ -56,7 +112,7 @@ export function getNetworkConfig(chainId: number): NetworkConfig | null {
   if (!isTestnetMode && network.type !== 'mainnet') {
     return null;
   }
-  
+
   return network;
 }
 
@@ -68,12 +124,12 @@ export function getContractAddress(contractName: string, chainId: number): strin
   if (!network) {
     return null;
   }
-  
+
   const address = network.contracts[contractName];
   if (!address || address === '0x0000000000000000000000000000000000000000') {
     return null;
   }
-  
+
   return address;
 }
 
@@ -85,12 +141,12 @@ export function getTokenAddress(tokenSymbol: string, chainId: number): string | 
   if (!network) {
     return null;
   }
-  
+
   const address = network.tokens[tokenSymbol];
   if (!address || address === '0x0000000000000000000000000000000000000000' || address === '0x0') {
     return null;
   }
-  
+
   return address;
 }
 
@@ -102,7 +158,7 @@ export function getAllContracts(chainId: number): Record<string, string> | null 
   if (!network) {
     return null;
   }
-  
+
   // Filter out zero addresses
   const validContracts: Record<string, string> = {};
   for (const [name, address] of Object.entries(network.contracts)) {
@@ -110,7 +166,7 @@ export function getAllContracts(chainId: number): Record<string, string> | null 
       validContracts[name] = address;
     }
   }
-  
+
   return validContracts;
 }
 
@@ -122,7 +178,7 @@ export function getAllTokens(chainId: number): Record<string, string> | null {
   if (!network) {
     return null;
   }
-  
+
   // Filter out zero addresses
   const validTokens: Record<string, string> = {};
   for (const [symbol, address] of Object.entries(network.tokens)) {
@@ -130,7 +186,7 @@ export function getAllTokens(chainId: number): Record<string, string> | null {
       validTokens[symbol] = address;
     }
   }
-  
+
   return validTokens;
 }
 
@@ -164,6 +220,20 @@ export function getSupportedChainIds(): number[] {
   return getAvailableNetworks().map(network => network.chainId);
 }
 
+// Supported chain constants for type safety
+export const SupportedChain = {
+  ZETA_TESTNET: 7001,
+  ARBITRUM_SEPOLIA: 421614,
+  ETHEREUM_SEPOLIA: 11155111,
+} as const;
+
+export type SupportedChainId = typeof SupportedChain[keyof typeof SupportedChain];
+
+// Helper to check if a chain ID is supported
+export const isSupportedChain = (chainId: number): chainId is SupportedChainId => {
+  return Object.values(SupportedChain).includes(chainId as SupportedChainId);
+};
+
 // Predefined contract and token names for type safety
 export const CONTRACT_NAMES = {
   SIMPLE_LENDING_PROTOCOL: 'SimpleLendingProtocol',
@@ -185,27 +255,27 @@ export const TOKEN_SYMBOLS = {
 } as const;
 
 // Helper functions with predefined contract names
-export const getSimpleLendingProtocolAddress = (chainId: number) => 
+export const getSimpleLendingProtocolAddress = (chainId: number) =>
   getContractAddress(CONTRACT_NAMES.SIMPLE_LENDING_PROTOCOL, chainId);
 
-export const getUniversalLendingProtocolAddress = (chainId: number) => 
+export const getUniversalLendingProtocolAddress = (chainId: number) =>
   getContractAddress(CONTRACT_NAMES.UNIVERSAL_LENDING_PROTOCOL, chainId);
 
-export const getDepositContractAddress = (chainId: number) => 
+export const getDepositContractAddress = (chainId: number) =>
   getContractAddress(CONTRACT_NAMES.DEPOSIT_CONTRACT, chainId);
 
-export const getPriceOracleAddress = (chainId: number) => 
+export const getPriceOracleAddress = (chainId: number) =>
   getContractAddress(CONTRACT_NAMES.PRICE_ORACLE, chainId);
 
 // Helper functions for tokens
-export const getEthArbiAddress = (chainId: number) => 
+export const getEthArbiAddress = (chainId: number) =>
   getTokenAddress(TOKEN_SYMBOLS.ETH_ARBI, chainId);
 
-export const getUsdcArbiAddress = (chainId: number) => 
+export const getUsdcArbiAddress = (chainId: number) =>
   getTokenAddress(TOKEN_SYMBOLS.USDC_ARBI, chainId);
 
-export const getEthEthAddress = (chainId: number) => 
+export const getEthEthAddress = (chainId: number) =>
   getTokenAddress(TOKEN_SYMBOLS.ETH_ETH, chainId);
 
-export const getUsdcEthAddress = (chainId: number) => 
+export const getUsdcEthAddress = (chainId: number) =>
   getTokenAddress(TOKEN_SYMBOLS.USDC_ETH, chainId);

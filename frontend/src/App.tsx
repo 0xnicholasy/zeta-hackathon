@@ -1,5 +1,6 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import ThemeToggle from './components/ThemeToggle';
+import Stats from './components/Stats';
 
 function App() {
   return (
@@ -70,26 +71,7 @@ function App() {
         </div>
 
         {/* Stats Section */}
-        <div className="mt-16 bg-surface-light dark:bg-surface-dark rounded-2xl p-8 border border-border-light dark:border-border-dark">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-zeta-500 mb-2">$0</div>
-              <div className="text-text-secondary-light dark:text-text-secondary-dark">Total Value Locked</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-zeta-500 mb-2">0</div>
-              <div className="text-text-secondary-light dark:text-text-secondary-dark">Active Users</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-zeta-500 mb-2">3</div>
-              <div className="text-text-secondary-light dark:text-text-secondary-dark">Supported Chains</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-zeta-500 mb-2">4</div>
-              <div className="text-text-secondary-light dark:text-text-secondary-dark">Supported Assets</div>
-            </div>
-          </div>
-        </div>
+        <Stats />
       </div>
     </div>
   )

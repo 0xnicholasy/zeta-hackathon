@@ -24,7 +24,9 @@
       "Bash(bunx tailwindcss init:*)",
       "Bash(npx tailwindcss:*)",
       "Bash(bun list:*)",
-      "Bash(bun pm ls:*)"
+      "Bash(bun pm ls:*)",
+      "Bash(python3:*)",
+      "Bash(cp:*)"
     ],
     "deny": []
   }
