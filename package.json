@@ -1,0 +1,23 @@
+{
+  "name": "zeta-hackathon",
+  "version": "1.0.0",
+  "description": "ZetaChain Cross-Chain Lending Protocol",
+  "private": true,
+  "workspaces": [
+    "lending-zeta",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "bun run --filter frontend dev",
+    "build": "bun run --filter frontend build",
+    "test": "bun run --filter lending-zeta test",
+    "deploy": "bun run --filter lending-zeta deploy"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "packageManager": "bun@1.0.0"
+}

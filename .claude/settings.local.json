@@ -17,7 +17,14 @@
       "Bash(cast sig:*)",
       "Bash(hh run:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx hardhat:*)"
+      "Bash(npx hardhat:*)",
+      "Bash(bun create:*)",
+      "Bash(bunx create-react-app:*)",
+      "Bash(bunx create-vite:*)",
+      "Bash(bunx tailwindcss init:*)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(bun list:*)",
+      "Bash(bun pm ls:*)"
     ],
     "deny": []
   }
