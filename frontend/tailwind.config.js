@@ -50,7 +50,23 @@ export default {
           secondary: {
             light: '#6B7280',
             dark: '#A9ACB0',
-          }
+          },
+          info: {
+            light: '#0066CC',    // Blue for informational content
+            dark: '#66B3FF',     // Lighter blue for dark mode
+          },
+          success: {
+            light: '#008462',    // ZetaChain primary green for positive states
+            dark: '#33ECC9',     // ZetaChain light green for dark mode
+          },
+          warning: {
+            light: '#F59E0B',    // Amber for warnings (approaching liquidation)
+            dark: '#FCD34D',     // Lighter amber for dark mode
+          },
+          error: {
+            light: '#DC2626',    // Red for errors and dangerous states
+            dark: '#F87171',     // Lighter red for dark mode
+          },
         }
       },
       fontFamily: {
