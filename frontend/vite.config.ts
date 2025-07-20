@@ -8,6 +8,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@contracts': path.resolve(__dirname, '../lending-zeta/typechain-types'),
+      '@deployments': path.resolve(__dirname, '../lending-zeta'),
     },
   },
+  assetsInclude: ['**/*.json'],
 })
