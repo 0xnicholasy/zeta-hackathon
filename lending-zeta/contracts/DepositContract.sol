@@ -26,10 +26,10 @@ contract DepositContract is ReentrancyGuard, Ownable {
     IGatewayEVM public immutable gateway;
     address public immutable lendingProtocolAddress;
     uint256 public immutable zetaChainId;
-    
+
     mapping(address => SupportedAsset) public supportedAssets;
     address[] public assetsList;
-    
+
     uint256 private constant GAS_LIMIT = 2000000;
 
     event AssetAdded(address indexed asset, uint8 decimals, bool isNative);
@@ -60,9 +60,12 @@ contract DepositContract is ReentrancyGuard, Ownable {
         address _owner
     ) Ownable(_owner) {
         require(_gateway != address(0), "Invalid gateway address");
-        require(_lendingProtocolAddress != address(0), "Invalid lending protocol address");
+        require(
+            _lendingProtocolAddress != address(0),
+            "Invalid lending protocol address"
+        );
         require(_zetaChainId > 0, "Invalid chain ID");
-        
+
         gateway = IGatewayEVM(_gateway);
         lendingProtocolAddress = _lendingProtocolAddress;
         zetaChainId = _zetaChainId;
@@ -81,15 +84,15 @@ contract DepositContract is ReentrancyGuard, Ownable {
         bool isNative
     ) external onlyOwner {
         require(!supportedAssets[asset].isSupported, "Asset already supported");
-        
+
         supportedAssets[asset] = SupportedAsset({
             isSupported: true,
             decimals: decimals,
             isNative: isNative
         });
-        
+
         assetsList.push(asset);
-        
+
         emit AssetAdded(asset, decimals, isNative);
     }
 
@@ -100,9 +103,9 @@ contract DepositContract is ReentrancyGuard, Ownable {
      */
     function removeSupportedAsset(address asset) external onlyOwner {
         require(supportedAssets[asset].isSupported, "Asset not supported");
-        
+
         supportedAssets[asset].isSupported = false;
-        
+
         for (uint256 i = 0; i < assetsList.length; i++) {
             if (assetsList[i] == asset) {
                 assetsList[i] = assetsList[assetsList.length - 1];
@@ -110,7 +113,7 @@ contract DepositContract is ReentrancyGuard, Ownable {
                 break;
             }
         }
-        
+
         emit AssetRemoved(asset);
     }
 
@@ -122,25 +125,28 @@ contract DepositContract is ReentrancyGuard, Ownable {
     function depositEth(address onBehalfOf) external payable nonReentrant {
         if (msg.value == 0) revert InvalidAmount();
         if (onBehalfOf == address(0)) revert InvalidAddress();
-        
+
         address ethAsset = address(0); // ETH represented as address(0)
-        if (!supportedAssets[ethAsset].isSupported) revert UnsupportedAsset(ethAsset);
+        if (!supportedAssets[ethAsset].isSupported)
+            revert UnsupportedAsset(ethAsset);
 
         // Encode message for SimpleLendingProtocol.onCall()
         // Format: (string action, address onBehalfOf) where action = "supply"
         bytes memory message = abi.encode("supply", onBehalfOf);
 
-        try gateway.depositAndCall{value: msg.value}(
-            lendingProtocolAddress,
-            message,
-            RevertOptions({
-                revertAddress: msg.sender,
-                callOnRevert: true,
-                abortAddress: address(0),
-                revertMessage: abi.encode("ETH deposit failed"),
-                onRevertGasLimit: GAS_LIMIT
-            })
-        ) {
+        try
+            gateway.depositAndCall{value: msg.value}(
+                lendingProtocolAddress,
+                message,
+                RevertOptions({
+                    revertAddress: msg.sender,
+                    callOnRevert: true,
+                    abortAddress: msg.sender,
+                    revertMessage: abi.encode("ETH deposit failed"),
+                    onRevertGasLimit: GAS_LIMIT
+                })
+            )
+        {
             emit DepositInitiated(msg.sender, ethAsset, msg.value, onBehalfOf);
         } catch {
             revert DepositFailed();
@@ -162,7 +168,7 @@ contract DepositContract is ReentrancyGuard, Ownable {
         if (amount == 0) revert InvalidAmount();
         if (onBehalfOf == address(0)) revert InvalidAddress();
         if (asset == address(0)) revert InvalidAddress();
-        
+
         SupportedAsset memory assetInfo = supportedAssets[asset];
         if (!assetInfo.isSupported) revert UnsupportedAsset(asset);
         if (assetInfo.isNative) revert UnsupportedAsset(asset); // Use depositEth for native ETH
@@ -174,19 +180,21 @@ contract DepositContract is ReentrancyGuard, Ownable {
         // Format: (string action, address onBehalfOf) where action = "supply"
         bytes memory message = abi.encode("supply", onBehalfOf);
 
-        try gateway.depositAndCall(
-            lendingProtocolAddress,
-            amount,
-            asset,
-            message,
-            RevertOptions({
-                revertAddress: msg.sender,
-                callOnRevert: true,
-                abortAddress: address(0),
-                revertMessage: abi.encode("Token deposit failed"),
-                onRevertGasLimit: GAS_LIMIT
-            })
-        ) {
+        try
+            gateway.depositAndCall(
+                lendingProtocolAddress,
+                amount,
+                asset,
+                message,
+                RevertOptions({
+                    revertAddress: msg.sender,
+                    callOnRevert: true,
+                    abortAddress: msg.sender,
+                    revertMessage: abi.encode("Token deposit failed"),
+                    onRevertGasLimit: GAS_LIMIT
+                })
+            )
+        {
             emit DepositInitiated(msg.sender, asset, amount, onBehalfOf);
         } catch {
             IERC20(asset).safeTransfer(msg.sender, amount);
@@ -209,7 +217,7 @@ contract DepositContract is ReentrancyGuard, Ownable {
         if (amount == 0) revert InvalidAmount();
         if (onBehalfOf == address(0)) revert InvalidAddress();
         if (asset == address(0)) revert InvalidAddress();
-        
+
         SupportedAsset memory assetInfo = supportedAssets[asset];
         if (!assetInfo.isSupported) revert UnsupportedAsset(asset);
         if (assetInfo.isNative) revert UnsupportedAsset(asset); // Use repayEth for native ETH
@@ -221,19 +229,21 @@ contract DepositContract is ReentrancyGuard, Ownable {
         // Format: (string action, address onBehalfOf) where action = "repay"
         bytes memory message = abi.encode("repay", onBehalfOf);
 
-        try gateway.depositAndCall(
-            lendingProtocolAddress,
-            amount,
-            asset,
-            message,
-            RevertOptions({
-                revertAddress: msg.sender,
-                callOnRevert: true,
-                abortAddress: address(0),
-                revertMessage: abi.encode("Token repay failed"),
-                onRevertGasLimit: GAS_LIMIT
-            })
-        ) {
+        try
+            gateway.depositAndCall(
+                lendingProtocolAddress,
+                amount,
+                asset,
+                message,
+                RevertOptions({
+                    revertAddress: msg.sender,
+                    callOnRevert: true,
+                    abortAddress: msg.sender,
+                    revertMessage: abi.encode("Token repay failed"),
+                    onRevertGasLimit: GAS_LIMIT
+                })
+            )
+        {
             emit DepositInitiated(msg.sender, asset, amount, onBehalfOf);
         } catch {
             IERC20(asset).safeTransfer(msg.sender, amount);
@@ -249,25 +259,28 @@ contract DepositContract is ReentrancyGuard, Ownable {
     function repayEth(address onBehalfOf) external payable nonReentrant {
         if (msg.value == 0) revert InvalidAmount();
         if (onBehalfOf == address(0)) revert InvalidAddress();
-        
+
         address ethAsset = address(0); // ETH represented as address(0)
-        if (!supportedAssets[ethAsset].isSupported) revert UnsupportedAsset(ethAsset);
+        if (!supportedAssets[ethAsset].isSupported)
+            revert UnsupportedAsset(ethAsset);
 
         // Encode message for SimpleLendingProtocol.onCall()
         // Format: (string action, address onBehalfOf) where action = "repay"
         bytes memory message = abi.encode("repay", onBehalfOf);
 
-        try gateway.depositAndCall{value: msg.value}(
-            lendingProtocolAddress,
-            message,
-            RevertOptions({
-                revertAddress: msg.sender,
-                callOnRevert: true,
-                abortAddress: address(0),
-                revertMessage: abi.encode("ETH repay failed"),
-                onRevertGasLimit: GAS_LIMIT
-            })
-        ) {
+        try
+            gateway.depositAndCall{value: msg.value}(
+                lendingProtocolAddress,
+                message,
+                RevertOptions({
+                    revertAddress: msg.sender,
+                    callOnRevert: true,
+                    abortAddress: msg.sender,
+                    revertMessage: abi.encode("ETH repay failed"),
+                    onRevertGasLimit: GAS_LIMIT
+                })
+            )
+        {
             emit DepositInitiated(msg.sender, ethAsset, msg.value, onBehalfOf);
         } catch {
             revert DepositFailed();
@@ -296,7 +309,9 @@ contract DepositContract is ReentrancyGuard, Ownable {
      * @param asset The address of the asset to query (use address(0) for ETH)
      * @return SupportedAsset struct containing isSupported, decimals, and isNative flags
      */
-    function getAssetInfo(address asset) external view returns (SupportedAsset memory) {
+    function getAssetInfo(
+        address asset
+    ) external view returns (SupportedAsset memory) {
         return supportedAssets[asset];
     }
 

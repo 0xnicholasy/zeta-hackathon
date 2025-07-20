@@ -99,9 +99,8 @@ contract UniversalLendingProtocol is
     modifier healthFactorCheck(address user) {
         _;
         uint256 healthFactor = getHealthFactor(user);
-        
-        if (healthFactor < MINIMUM_HEALTH_FACTOR)
-            revert HealthFactorTooLow();
+
+        if (healthFactor < MINIMUM_HEALTH_FACTOR) revert HealthFactorTooLow();
     }
 
     constructor(
@@ -384,7 +383,7 @@ contract UniversalLendingProtocol is
                 RevertOptions({
                     revertAddress: address(this),
                     callOnRevert: true,
-                    abortAddress: address(0),
+                    abortAddress: msg.sender,
                     revertMessage: abi.encode(destinationChain),
                     onRevertGasLimit: 100000
                 })
@@ -625,14 +624,15 @@ contract UniversalLendingProtocol is
             currentLiquidationThreshold =
                 weightedLiquidationThreshold /
                 totalCollateral;
-            
-            uint256 requiredCollateral = (totalDebt * MINIMUM_HEALTH_FACTOR) / PRECISION;
+
+            uint256 requiredCollateral = (totalDebt * MINIMUM_HEALTH_FACTOR) /
+                PRECISION;
             if (totalCollateral > requiredCollateral) {
                 availableBorrows = totalCollateral - requiredCollateral;
             } else {
                 availableBorrows = 0;
             }
-            
+
             healthFactor = LiquidationLogic.calculateHealthFactor(
                 totalCollateral,
                 totalDebt,
@@ -693,17 +693,17 @@ contract UniversalLendingProtocol is
         (, , uint256 availableBorrows, , ) = getUserAccountData(user);
         uint256 assetPrice = priceOracle.getPrice(asset);
         uint8 decimals = IERC20Metadata(asset).decimals();
-        
+
         // Convert USD value to token amount, accounting for decimals
         uint256 tokenAmount = (availableBorrows * PRECISION) / assetPrice;
-        
+
         // Adjust for token decimals
         if (decimals < 18) {
             tokenAmount = tokenAmount / (10 ** (18 - decimals));
         } else if (decimals > 18) {
             tokenAmount = tokenAmount * (10 ** (decimals - 18));
         }
-        
+
         return tokenAmount;
     }
 

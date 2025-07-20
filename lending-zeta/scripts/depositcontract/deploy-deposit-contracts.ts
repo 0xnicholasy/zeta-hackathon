@@ -4,7 +4,7 @@ import {
   getContractAddress,
   updateContractAddress,
   Address
-} from "../utils/contracts";
+} from "../../utils/contracts";
 
 const ZETA_CHAIN_IDS = {
   testnet: 7001,
@@ -28,18 +28,20 @@ async function main() {
     throw new Error(`Gateway address not configured for chain ${chainId}. Update contracts.json first.`);
   }
 
-  // Get lending protocol address from current network config
+  // Get network config for the current chain (for gateway and tokens)
   const networkConfig = getNetwork(chainId);
-  let lendingProtocolAddress: string;
 
-  if (networkConfig.lendingProtocolAddress && networkConfig.lendingProtocolAddress !== "0x0000000000000000000000000000000000000000") {
-    lendingProtocolAddress = networkConfig.lendingProtocolAddress;
-  } else {
-    throw new Error(`Lending protocol address not configured for ${networkConfig.name}. Deploy to ZetaChain first and update contracts.json.`);
-  }
-
+  // Get lending protocol address from ZetaChain network config (where the protocol is deployed)
   // Use testnet by default, change to mainnet for production
   const zetaChainId = ZETA_CHAIN_IDS.testnet;
+  let lendingProtocolAddress: string;
+  
+  try {
+    // Get SimpleLendingProtocol address from ZetaChain (chain ID 7001)
+    lendingProtocolAddress = getContractAddress(zetaChainId, "SimpleLendingProtocol");
+  } catch (error) {
+    throw new Error(`SimpleLendingProtocol address not found on ZetaChain. Deploy to ZetaChain first and update contracts.json.`);
+  }
 
   console.log("Gateway address:", gatewayAddress);
   console.log("Lending protocol address:", lendingProtocolAddress);

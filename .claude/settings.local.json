@@ -15,7 +15,9 @@
       "Bash(forge test:*)",
       "Bash(mv:*)",
       "Bash(cast sig:*)",
-      "Bash(hh run:*)"
+      "Bash(hh run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx hardhat:*)"
     ],
     "deny": []
   }

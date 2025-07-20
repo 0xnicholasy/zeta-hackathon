@@ -14,10 +14,11 @@ This guide shows you how to deploy and manage the ZetaChain cross-chain lending 
 ## 🔧 Configuration System
 
 ### Core Files
-- **`deployments.ts`** - Contains all contract addresses and network configurations
-- **`hardhat.config.ts`** - Network settings for Hardhat deployment
-- **`scripts/deploy-with-config.ts`** - Smart deployment script with auto-configuration
-- **`scripts/setup-assets.ts`** - Asset configuration script
+- **`lending-zeta/contracts.json`** - Contains all contract addresses and network configurations
+- **`lending-zeta/hardhat.config.ts`** - Network settings for Hardhat deployment
+- **`lending-zeta/scripts/simple/deploy-and-init-simple.ts`** - Simple lending protocol deployment
+- **`lending-zeta/scripts/universal/deploy-universal-lending.ts`** - Universal lending protocol deployment
+- **`lending-zeta/scripts/depositcontract/deploy-deposit-contracts.ts`** - External chain deposit contracts
 
 ### TypeScript Interfaces
 ```typescript
@@ -49,65 +50,53 @@ interface CoreContracts {
 
 ## 🚀 Deployment Commands
 
-### 1. Local Development
+### 1. Simple Lending Protocol (Recommended)
 ```bash
-# Deploy to local Hardhat network
-bun hardhat run scripts/deploy-with-config.ts
-
-# Or explicitly specify network
-NETWORK=localnet bun hardhat run scripts/deploy-with-config.ts
+# Deploy Simple Lending Protocol to ZetaChain testnet
+cd lending-zeta
+npx hardhat run scripts/simple/deploy-and-init-simple.ts --network zeta-testnet
 ```
 
-### 2. ZetaChain Testnet
+### 2. Universal Lending Protocol (Advanced)
 ```bash
-# Set your private key
-export PRIVATE_KEY="your_private_key_here"
-
-# Deploy to testnet
-NETWORK=zeta-testnet bun hardhat run scripts/deploy-with-config.ts --network zeta-testnet
+# Deploy Universal Lending Protocol to ZetaChain testnet  
+cd lending-zeta
+npx hardhat run scripts/universal/deploy-universal-lending.ts --network zeta-testnet
 ```
 
 ### 3. External Chain Deployments (Deposit Contracts)
 ```bash
 # Deploy deposit contracts to external chains
-export PRIVATE_KEY="your_private_key_here"
+cd lending-zeta
 
 # Deploy to Arbitrum Sepolia
-npx hardhat run scripts/deploy-deposit-contracts.ts --network arbitrum-sepolia
+npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network arbitrum-sepolia
 
 # Deploy to Ethereum Sepolia  
-npx hardhat run scripts/deploy-deposit-contracts.ts --network ethereum-sepolia
+npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network ethereum-sepolia
 ```
 
 ## ⚙️ Asset Configuration
 
-### Automatic Configuration (Local)
-For local development, mock tokens are automatically deployed and configured:
+### Asset Configuration
+Assets are automatically configured during deployment. The scripts use real ZRC-20 token addresses that are already configured in `contracts.json`:
 
-```bash
-# Everything is done automatically
-bun hardhat run scripts/deploy-with-config.ts
-```
-
-### Manual Configuration (Testnet/Mainnet)
-For testnet/mainnet, update ZRC-20 addresses in `deployments.ts` first:
-
-```typescript
-// Update these addresses in deployments.ts
-"zeta-testnet": {
-  tokens: {
-    "ETH.ARBI": "0x1234...", // Real ZRC-20 ETH.ARBI address
-    "USDC.ARBI": "0x5678...", // Real ZRC-20 USDC.ARBI address
-    "ETH.ETH": "0x9abc...", // Real ZRC-20 ETH.ETH address
-    "USDC.ETH": "0xdef0...", // Real ZRC-20 USDC.ETH address
-    "ZETA": "0x3456...",       // Real ZETA token address
+```json
+// lending-zeta/contracts.json - ZRC-20 token addresses
+"7001": {
+  "tokens": {
+    "ETH.ARBI": "0x1de70f3e971B62A0707dA18100392af14f7fB677",
+    "USDC.ARBI": "0x4bC32034caCcc9B7e02536945eDbC286bACbA073", 
+    "ETH.ETH": "0x05BA149A7bd6dC1F937fA9046A9e05C05f3b18b0",
+    "USDC.ETH": "0xcC683A782f4B30c138787CB5576a86AF66fdc31d"
   }
 }
 ```
 
-Then run asset setup:
+### Verify Asset Configuration
 ```bash
-NETWORK=zeta-testnet bun hardhat run scripts/setup-assets.ts --network zeta-testnet
+cd lending-zeta
+npx hardhat run scripts/simple/verify-assets.ts --network zeta-testnet
 ```
 
 ## 🎯 Asset Parameters
@@ -123,19 +112,16 @@ Each asset has the following configurable parameters:
 | **ZETA** | 75% | 80% | 10% | $0.50 |
 
 ### Updating Asset Parameters
-Edit `ASSET_CONFIGS` in `deployments.ts`:
+Asset parameters are configured in the deployment scripts. To modify them, edit the asset configuration in the deployment files:
 
 ```typescript
-export const ASSET_CONFIGS = {
-  "ETH.ARBI": {
-    symbol: "ETH.ARBI",
-    collateralFactor: 0.8,        // 80%
-    liquidationThreshold: 0.85,   // 85%
-    liquidationBonus: 0.05,       // 5%
-    priceInUSD: 2000             // $2000
-  },
-  // ... other assets
-};
+// In scripts/simple/deploy-and-init-simple.ts or scripts/universal/deploy-universal-lending.ts
+const assets = [
+  { symbol: "ETH.ARBI", address: ethArbiAddress, price: 2000 },
+  { symbol: "USDC.ARBI", address: usdcArbiAddress, price: 1 },
+  { symbol: "ETH.ETH", address: ethEthAddress, price: 2000 },
+  { symbol: "USDC.ETH", address: usdcEthAddress, price: 1 }
+];
 ```
 
 ## 🔗 Frontend Integration
@@ -166,61 +152,59 @@ After deployment, you'll get a JSON output for frontend integration:
 
 ### Using in Frontend
 ```typescript
-import { getDeployment, getContractAddress, getTokenAddress } from './deployments';
+// Read contracts.json to get deployed addresses
+import contractsConfig from './lending-zeta/contracts.json';
 
-// Get deployment for current network
-const deployment = getDeployment('zeta-testnet');
+// Get network configuration
+const zetaNetwork = contractsConfig.networks['7001'];
 
-// Get specific contract address
-const lendingProtocolAddress = getContractAddress('zeta-testnet', 'LendingProtocol');
+// Get contract addresses
+const lendingProtocolAddress = zetaNetwork.contracts.SimpleLendingProtocol;
 
-// Get specific token address
-const ethTokenAddress = getTokenAddress('zeta-testnet', 'ETH.ARBI');
-
-// Validate deployment
-const validation = validateDeployment('zeta-testnet');
-if (!validation.isValid) {
-  console.error('Missing addresses:', validation.missingContracts, validation.missingTokens);
-}
+// Get token addresses  
+const ethArbiAddress = zetaNetwork.tokens['ETH.ARBI'];
+const usdcArbiAddress = zetaNetwork.tokens['USDC.ARBI'];
 ```
 
 ## 🛠️ Helper Functions
 
-The deployment system includes several utility functions:
+The deployment system includes utility scripts in `scripts/utils/deployment-utils.ts`:
 
-```typescript
-// Get deployment info
-const deployment = getDeployment('zeta-testnet');
+```bash
+cd lending-zeta
 
-// Get contract addresses
-const contractAddresses = getAllContractAddresses('zeta-testnet');
+# Verify all deployed contracts
+npx hardhat run scripts/utils/deployment-utils.ts verify --network zeta-testnet
 
-// Get token addresses  
-const tokenAddresses = getAllTokenAddresses('zeta-testnet');
+# Show deployment summary
+npx hardhat run scripts/utils/deployment-utils.ts summary --network zeta-testnet
 
-// Validate addresses
-const isValid = isValidAddress('0x1234...'); // returns boolean
-
-// Validate entire deployment
-const validation = validateDeployment('zeta-testnet');
+# Check account balances
+npx hardhat run scripts/utils/deployment-utils.ts balances --network zeta-testnet
 ```
 
 ## 🔍 Verification
 
 ### Check Deployment Status
 ```bash
+cd lending-zeta
+
 # Verify all assets are configured
-NETWORK=zeta-testnet bun hardhat run scripts/setup-assets.ts --network zeta-testnet
+npx hardhat run scripts/simple/verify-assets.ts --network zeta-testnet
+
+# Verify deployment completeness
+npx hardhat run scripts/utils/deployment-utils.ts verify --network zeta-testnet
 ```
 
 ### Manual Verification
-```typescript
-import { validateDeployment } from './deployments';
+```bash
+cd lending-zeta
 
-const validation = validateDeployment('zeta-testnet');
-console.log('Valid:', validation.isValid);
-console.log('Missing contracts:', validation.missingContracts);
-console.log('Missing tokens:', validation.missingTokens);
+# Check contracts.json for deployed addresses
+cat contracts.json
+
+# Verify contracts on chain
+npx hardhat run scripts/utils/deployment-utils.ts summary --network zeta-testnet
 ```
 
 ## 🐛 Troubleshooting
@@ -229,16 +213,16 @@ console.log('Missing tokens:', validation.missingTokens);
 
 1. **"Contract not deployed" Error**
    ```bash
-   # Check if addresses are updated in deployments.ts
+   cd lending-zeta
    # Run deployment first:
-   NETWORK=zeta-testnet bun hardhat run scripts/deploy-with-config.ts --network zeta-testnet
+   npx hardhat run scripts/simple/deploy-and-init-simple.ts --network zeta-testnet
    ```
 
 2. **"Token not configured" Error**
    ```bash
-   # Update ZRC-20 addresses in deployments.ts
-   # Then run asset setup:
-   NETWORK=zeta-testnet bun hardhat run scripts/setup-assets.ts --network zeta-testnet
+   cd lending-zeta
+   # Verify asset configuration:
+   npx hardhat run scripts/simple/verify-assets.ts --network zeta-testnet
    ```
 
 3. **"Invalid private key" Error**
@@ -255,9 +239,11 @@ console.log('Missing tokens:', validation.missingTokens);
    ```
 
 ### Debug Mode
-Set `DEBUG=true` for verbose logging:
+Use Hardhat's built-in debugging features:
 ```bash
-DEBUG=true NETWORK=zeta-testnet bun hardhat run scripts/deploy-with-config.ts --network zeta-testnet
+cd lending-zeta
+# Run deployment with verbose output
+npx hardhat run scripts/simple/deploy-and-init-simple.ts --network zeta-testnet --verbose
 ```
 
 ## 📝 Environment Variables
@@ -277,39 +263,46 @@ DEBUG=true
 
 ## 🎉 Quick Start Examples
 
-### Local Development
-```bash
-# 1. Deploy everything locally
-bun hardhat run scripts/deploy-with-config.ts
-
-# 2. Start building your frontend!
-# All addresses are automatically updated in deployments.ts
-```
-
-### Testnet Deployment
+### Testnet Deployment (Recommended)
 ```bash
 # 1. Set private key
 export PRIVATE_KEY="0x..."
 
-# 2. Update ZRC-20 addresses in deployments.ts (if needed)
-# 3. Deploy contracts
-NETWORK=zeta-testnet bun hardhat run scripts/deploy-with-config.ts --network zeta-testnet
+# 2. Deploy Simple Lending Protocol
+cd lending-zeta
+npx hardhat run scripts/simple/deploy-and-init-simple.ts --network zeta-testnet
 
-# 4. Configure assets (if not already done)
-NETWORK=zeta-testnet bun hardhat run scripts/setup-assets.ts --network zeta-testnet
+# 3. Deploy Deposit Contracts
+npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network arbitrum-sepolia
+npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network ethereum-sepolia
+
+# 4. Verify assets configuration
+npx hardhat run scripts/simple/verify-assets.ts --network zeta-testnet
 ```
 
-### Production Deployment
+### Universal Protocol Deployment (Advanced)
 ```bash
 # 1. Set private key
 export PRIVATE_KEY="0x..."
 
-# 2. Update all mainnet addresses in deployments.ts
-# 3. Deploy to mainnet
-NETWORK=zeta-mainnet bun hardhat run scripts/deploy-with-config.ts --network zeta-mainnet
+# 2. Deploy Universal Lending Protocol
+cd lending-zeta
+npx hardhat run scripts/universal/deploy-universal-lending.ts --network zeta-testnet
 
-# 4. Verify on explorer
-# 5. Configure frontend with production addresses
+# 3. Deploy Deposit Contracts (same as above)
+# 4. All addresses automatically updated in contracts.json
+```
+
+### Local Testing
+```bash
+# 1. Run local tests
+cd lending-zeta
+npx hardhat test
+
+# 2. Start local network and deploy
+npx hardhat node
+# In another terminal:
+npx hardhat run scripts/simple/deploy-and-init-simple.ts --network localhost
 ```
 
 ---
@@ -318,10 +311,10 @@ NETWORK=zeta-mainnet bun hardhat run scripts/deploy-with-config.ts --network zet
 
 | Command | Description |
 |---------|-------------|
-| `bun hardhat compile` | Compile contracts |
-| `bun hardhat test` | Run tests |
-| `NETWORK=localnet bun hardhat run scripts/deploy-with-config.ts` | Deploy locally |
-| `NETWORK=zeta-testnet bun hardhat run scripts/deploy-with-config.ts --network zeta-testnet` | Deploy to testnet |
-| `NETWORK=zeta-testnet bun hardhat run scripts/setup-assets.ts --network zeta-testnet` | Configure assets |
+| `cd lending-zeta && npx hardhat compile` | Compile contracts |
+| `cd lending-zeta && npx hardhat test` | Run tests |
+| `cd lending-zeta && npx hardhat run scripts/simple/deploy-and-init-simple.ts --network zeta-testnet` | Deploy Simple Protocol |
+| `cd lending-zeta && npx hardhat run scripts/universal/deploy-universal-lending.ts --network zeta-testnet` | Deploy Universal Protocol |
+| `cd lending-zeta && npx hardhat run scripts/simple/verify-assets.ts --network zeta-testnet` | Verify assets |
 
 Ready to build your ZetaChain lending protocol! 🚀

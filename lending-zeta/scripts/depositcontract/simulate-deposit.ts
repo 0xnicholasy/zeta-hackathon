@@ -3,7 +3,7 @@ import { utils } from "ethers";
 import {
   getNetwork,
   getContractAddress,
-} from "../utils/contracts";
+} from "../../utils/contracts";
 
 async function main() {
   console.log("💰 Simulating user deposit via DepositContract...");
@@ -32,6 +32,7 @@ async function main() {
     return;
   }
 
+
   console.log("DepositContract address:", depositContractAddress);
 
   // Get contract instance
@@ -39,6 +40,9 @@ async function main() {
     "DepositContract",
     depositContractAddress
   );
+  let lendingProtocolAddress: string;
+  lendingProtocolAddress = await depositContract.lendingProtocolAddress();
+  console.log("Lending protocol address:", lendingProtocolAddress);
 
   // Define deposit parameters
   const depositAmount = ethers.utils.parseEther("0.001"); // 0.001 ETH
@@ -149,6 +153,7 @@ async function main() {
       console.log("\n🎯 Cross-chain transaction initiated!");
       console.log("Check ZetaChain explorer for the cross-chain transaction status:");
       console.log(`https://athens.explorer.zetachain.com/`);
+      console.log(`https://zetachain-athens.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData/${tx.hash}`);
     }
 
   } catch (error: any) {

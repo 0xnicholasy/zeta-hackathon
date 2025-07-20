@@ -3,7 +3,7 @@ import {
   getNetwork,
   getContractAddress,
   getTokenAddress,
-} from "../utils/contracts";
+} from "../../utils/contracts";
 
 async function main() {
   console.log("🔍 Verifying SimpleLendingProtocol assets...");

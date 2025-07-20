@@ -267,26 +267,34 @@ describe("CrossChainLendingProtocol", () => {
 ### Project Structure for Lending Protocol
 ```
 /
-├── contracts/
-│   ├── LendingProtocol.sol         # Main lending contract
-│   ├── interfaces/
-│   │   ├── ILendingProtocol.sol    # Lending interface
-│   │   ├── IPriceOracle.sol        # Oracle interface
-│   │   └── IZRC20.sol              # ZRC-20 interface
-│   ├── libraries/
-│   │   ├── InterestRateModel.sol   # Interest calculation
-│   │   └── LiquidationLogic.sol    # Liquidation logic
-│   └── mocks/
-│       ├── MockPriceOracle.sol     # Price oracle mock
-│       └── MockZRC20.sol           # ZRC-20 token mock
-├── scripts/
-│   ├── deploy.ts                   # Deployment script
-│   └── setup-assets.ts             # Asset configuration
-├── test/
-│   ├── LendingProtocol.test.ts     # Core tests
-│   ├── Liquidation.test.ts         # Liquidation tests
-│   └── CrossChain.test.ts          # Gateway integration tests
-├── frontend/
+├── lending-zeta/                   # ZetaChain contract development
+│   ├── contracts/
+│   │   ├── SimpleLendingProtocol.sol   # Simple lending contract
+│   │   ├── UniversalLendingProtocol.sol # Universal lending contract  
+│   │   ├── DepositContract.sol         # Cross-chain deposit contract
+│   │   ├── interfaces/
+│   │   │   ├── IPriceOracle.sol        # Oracle interface
+│   │   │   └── IZRC20.sol              # ZRC-20 interface
+│   │   └── mocks/
+│   │       ├── MockPriceOracle.sol     # Price oracle mock
+│   │       └── MockZRC20.sol           # ZRC-20 token mock
+│   ├── scripts/
+│   │   ├── depositcontract/            # Deposit contract scripts
+│   │   │   ├── deploy-deposit-contracts.ts
+│   │   │   └── simulate-deposit.ts
+│   │   ├── simple/                     # Simple protocol scripts
+│   │   │   ├── deploy-and-init-simple.ts
+│   │   │   └── verify-assets.ts
+│   │   ├── universal/                  # Universal protocol scripts
+│   │   │   └── deploy-universal-lending.ts
+│   │   └── utils/                      # Shared utilities
+│   │       └── deployment-utils.ts
+│   ├── test/
+│   │   └── Universal.t.sol             # Foundry tests
+│   ├── contracts.json                  # Deployment configuration
+│   ├── hardhat.config.ts               # Hardhat configuration
+│   └── package.json                    # Dependencies
+├── frontend/ (future)                  # Frontend application
 │   ├── components/
 │   │   ├── SupplyModal.tsx         # Supply interface
 │   │   ├── BorrowModal.tsx         # Borrow interface
@@ -301,9 +309,9 @@ describe("CrossChainLendingProtocol", () => {
 │       ├── zrc20-utils.ts          # ZRC-20 helpers
 │       └── gateway-utils.ts        # Gateway helpers
 └── docs/
-    ├── protocol-overview.md        # Protocol documentation
-    ├── liquidation-guide.md        # Liquidation guide
-    └── cross-chain-guide.md        # Cross-chain usage
+    ├── DEPLOYMENT-GUIDE.md         # Deployment guide
+    ├── CROSS-CHAIN-LENDING.md      # Cross-chain protocol docs
+    └── README-LENDING.md           # Simple protocol docs
 ```
 
 ### Deployment Checklist for Lending Protocol
@@ -323,55 +331,54 @@ describe("CrossChainLendingProtocol", () => {
    - Test with Arbitrum Sepolia and Ethereum Sepolia testnet
 
 3. **Post-deployment**:
-   - **Update DEPLOYMENTS config**: Update contract addresses in `deployments.ts` for the deployed network
+   - **Update contracts.json**: Automatically updated with deployed contract addresses
    - Monitor health factors across all users
    - Track liquidation events and bad debt
    - Verify cross-chain transaction success rates
-   - Update frontend with contract addresses
+   - Update frontend with contract addresses from contracts.json
 
 ### Deployment Configuration Management
 
-#### CRITICAL: Update deployments.ts After Each Deployment
+#### Deployment Configuration Management
 
-After deploying to any network other than `localnet`, you **MUST** update the `deployments.ts` file with the actual deployed contract addresses:
+The project now uses `contracts.json` which is automatically updated during deployment. The structure looks like this:
 
-```typescript
-// Example: After deploying to ZetaChain Athens testnet
-"zeta-testnet": {
-  chainId: 7001,
-  name: "ZetaChain Athens Testnet",
-  // ... other config
-  contracts: {
-    LendingProtocol: "0x1234...5678", // ← Update with actual deployed address
-    PriceOracle: "0xabcd...ef00",     // ← Update with actual deployed address
-  },
-  tokens: {
-    "ETH.ARBI": "0x9876...5432",      // ← Update with actual ZRC-20 address
-    "USDC.ARBI": "0x5678...9abc",     // ← Update with actual ZRC-20 address
-    "ETH.ETH": "0xdef0...1234",       // ← Update with actual ZRC-20 address
-    "USDC.ETH": "0x3456...7890",      // ← Update with actual ZRC-20 address
-    "ZETA": "0xabcd...ef00",          // ← Update with actual ZETA address
+```json
+// lending-zeta/contracts.json
+{
+  "networks": {
+    "7001": {
+      "name": "ZetaChain Athens Testnet",
+      "chainId": 7001,
+      "contracts": {
+        "SimpleLendingProtocol": "0x1234...5678",
+        "UniversalLendingProtocol": "0xabcd...ef00"
+      },
+      "tokens": {
+        "ETH.ARBI": "0x9876...5432",
+        "USDC.ARBI": "0x5678...9abc", 
+        "ETH.ETH": "0xdef0...1234",
+        "USDC.ETH": "0x3456...7890"
+      }
+    }
   }
 }
 ```
 
 #### Deployment Address Update Process
 
-1. **Deploy contracts** to target network (testnet/mainnet)
-2. **Copy deployed addresses** from deployment logs/explorer
-3. **Update deployments.ts** with actual addresses (replace `0x0000...0000`)
-4. **Validate deployment** using helper functions:
-   ```typescript
-   import { validateDeployment } from './deployments';
-   
-   const validation = validateDeployment('zeta-testnet');
-   if (!validation.isValid) {
-     console.error('Missing contracts:', validation.missingContracts);
-     console.error('Missing tokens:', validation.missingTokens);
-   }
+1. **Deploy contracts** using deployment scripts (automatically updates `contracts.json`)
+2. **Verify deployment** using utility scripts:
+   ```bash
+   cd lending-zeta
+   npx hardhat run scripts/utils/deployment-utils.ts verify --network zeta-testnet
    ```
-5. **Commit updated deployments.ts** to version control
-6. **Test frontend integration** with new addresses
+3. **Check deployment summary**:
+   ```bash
+   npx hardhat run scripts/utils/deployment-utils.ts summary --network zeta-testnet
+   ```
+4. **Commit updated contracts.json** to version control
+5. **Test frontend integration** with new addresses
 
 #### ZRC-20 Token Addresses
 
@@ -395,27 +402,22 @@ For ZetaChain networks, obtain ZRC-20 token addresses from:
 #### Helper Functions Usage
 
 ```typescript
-// Get contract address safely
-try {
-  const lendingAddress = getContractAddress('zeta-testnet', 'LendingProtocol');
-  console.log('Lending Protocol deployed at:', lendingAddress);
-} catch (error) {
-  console.error('Contract not deployed:', error.message);
-}
+// Read contracts.json to get deployed addresses
+import contractsConfig from './lending-zeta/contracts.json';
 
-// Validate all addresses before frontend deployment
-const network = 'zeta-testnet';
-const validation = validateDeployment(network);
+// Get network configuration
+const zetaNetwork = contractsConfig.networks['7001'];
 
-if (validation.isValid) {
-  console.log('✅ All contracts and tokens configured');
-} else {
-  console.error('❌ Missing deployments:', validation);
-  // Do not proceed with frontend deployment
-}
+// Get contract addresses safely
+const simpleLendingAddress = zetaNetwork.contracts.SimpleLendingProtocol;
+const universalLendingAddress = zetaNetwork.contracts.UniversalLendingProtocol;
+
+// Get token addresses
+const ethArbiAddress = zetaNetwork.tokens['ETH.ARBI'];
+const usdcArbiAddress = zetaNetwork.tokens['USDC.ARBI'];
 ```
 
-**Remember**: The `deployments.ts` file is the **single source of truth** for contract addresses across all networks. Keep it updated and validated after every deployment.
+**Remember**: The `contracts.json` file is the **single source of truth** for contract addresses across all networks. It's automatically updated during deployment.
 
 ### Key Protocol Constants
 ```typescript

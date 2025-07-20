@@ -12,23 +12,28 @@ A cross-chain lending protocol built on ZetaChain that enables users to supply c
 
 ## Quick Start
 
-1. **Deploy to ZetaChain**: 
+1. **Deploy Simple Lending Protocol to ZetaChain**: 
    ```bash
-   npx hardhat run scripts/deploy.ts --network zeta-testnet
+   npx hardhat run scripts/simple/deploy-and-init-simple.ts --network zeta-testnet
    ```
 
-2. **Deploy Deposit Contracts**:
+2. **Deploy Universal Lending Protocol to ZetaChain** (Advanced):
+   ```bash
+   npx hardhat run scripts/universal/deploy-universal-lending.ts --network zeta-testnet
+   ```
+
+3. **Deploy Deposit Contracts**:
    ```bash
    # Arbitrum Sepolia
-   npx hardhat run scripts/deploy-deposit-contracts.ts --network arbitrum-sepolia
+   npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network arbitrum-sepolia
    
    # Ethereum Sepolia
-   npx hardhat run scripts/deploy-deposit-contracts.ts --network ethereum-sepolia
+   npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network ethereum-sepolia
    ```
 
-3. **Test the Protocol**:
+4. **Test Cross-Chain Deposits**:
    ```bash
-   npx hardhat run scripts/test-lending.ts --network zeta-testnet
+   npx hardhat run scripts/depositcontract/simulate-deposit.ts --network arbitrum-sepolia
    ```
 
 ## Documentation

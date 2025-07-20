@@ -6,8 +6,8 @@ import {
   printDeploymentSummary,
   Address,
   updateLendingProtocolAddress
-} from "../utils/contracts";
-import { DeploymentManager } from "./deployment-utils";
+} from "../../utils/contracts";
+import { DeploymentManager } from "../utils/deployment-utils";
 
 async function main() {
   console.log("Starting UniversalLendingProtocol deployment...");
@@ -25,18 +25,14 @@ async function main() {
   console.log("Account balance:", ethers.utils.formatEther(balance));
 
   // Ensure we're deploying on ZetaChain
-  if (chainId !== 7001 && chainId !== 7000 && chainId !== 1337) {
-    throw new Error("UniversalLendingProtocol should only be deployed on ZetaChain networks");
+  if (chainId !== 7001 && chainId !== 7000) {
+    throw new Error("UniversalLendingProtocol should only be deployed on ZetaChain networks (7001 for testnet, 7000 for mainnet)");
   }
 
   // Get gateway address from ZetaChain network configuration
   let gatewayAddress: string;
 
-  if (chainId === 1337) {
-    // For local development, use placeholder
-    console.log("⚠️  Local network detected. Make sure ZetaChain gateway is properly configured.");
-    gatewayAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"; // Placeholder for local
-  } else if (chainId === 7001) {
+  if (chainId === 7001) {
     console.log("Using ZetaChain Athens testnet gateway address: 0x6c533f7fe93fae114d0954697069df33c9b74fd7");
     gatewayAddress = "0x6c533f7fe93fae114d0954697069df33c9b74fd7";
   } else if (chainId === 7000) {
@@ -47,9 +43,6 @@ async function main() {
   }
 
   console.log("Using gateway address:", gatewayAddress);
-  if (chainId !== 1337) {
-    console.log("⚠️  Make sure to update gateway address with real ZetaChain gateway before mainnet deployment");
-  }
 
   // Deploy UniversalLendingProtocol
   console.log("\n=== Deploying UniversalLendingProtocol ===");
@@ -100,25 +93,12 @@ async function main() {
     }
   }
 
-  // Save deployment info using DeploymentManager
-  const deploymentInfo = {
-    network: {
-      name: getNetwork(chainId).name,
-      chainId: chainId
-    },
-    deployer: deployer.address,
-    timestamp: new Date().toISOString(),
-    contracts: {
-      lending: {
-        UniversalLendingProtocol: universalLendingProtocol.address
-      },
-      gateway: {
-        GatewayZEVM: gatewayAddress
-      }
-    }
-  };
-
-  await deploymentManager.saveDeployment(deploymentInfo);
+  // Update contracts.json with new UniversalLendingProtocol address using DeploymentManager
+  await deploymentManager.updateContractsJson(
+    "UniversalLendingProtocol",
+    universalLendingProtocol.address,
+    deployer.address
+  );
 
   console.log("\n=== Deployment Configuration Summary ===");
   console.log("UniversalLendingProtocol:", universalLendingProtocol.address);
@@ -152,11 +132,7 @@ async function main() {
     console.log("⚠️  Warning: Could not update external chain configs:", error);
   }
 
-  // Print deployment summary using both systems
-  console.log("\n=== Deployment Summary (DeploymentManager) ===");
-  await deploymentManager.printDeploymentSummary();
-
-  console.log("\n=== Deployment Summary (Centralized Config) ===");
+  console.log("\n=== Deployment Summary ===");
   printDeploymentSummary(chainId);
 
   console.log("\n✅ UniversalLendingProtocol deployment completed successfully!");

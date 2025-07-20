@@ -146,17 +146,17 @@ function isAssetSupported(address asset) external view returns (bool);
 
 ```bash
 # Deploy UniversalLendingProtocol on ZetaChain Athens Testnet
-npx hardhat run scripts/deploy-universal-lending.ts --network zeta-testnet
+npx hardhat run scripts/universal/deploy-universal-lending.ts --network zeta-testnet
 ```
 
 ### 2. Deploy on External Chains
 
 ```bash
 # Deploy DepositContract on Arbitrum Sepolia
-npx hardhat run scripts/deploy-deposit-contracts.ts --network arbitrum-sepolia
+npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network arbitrum-sepolia
 
 # Deploy DepositContract on Ethereum Sepolia  
-npx hardhat run scripts/deploy-deposit-contracts.ts --network ethereum-sepolia
+npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network ethereum-sepolia
 ```
 
 ### 3. Configuration
@@ -172,8 +172,8 @@ npx hardhat run scripts/deploy-deposit-contracts.ts --network ethereum-sepolia
 ### 1. Run Cross-Chain Tests
 
 ```bash
-# Test cross-chain lending functionality
-npx hardhat run scripts/test-cross-chain-lending.ts --network zeta-testnet
+# Test cross-chain deposit simulation
+npx hardhat run scripts/depositcontract/simulate-deposit.ts --network arbitrum-sepolia
 ```
 
 ### 2. Manual Testing Flow
