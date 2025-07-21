@@ -6,7 +6,7 @@ import {
 } from "../../utils/contracts";
 
 async function main() {
-  console.log("💰 Simulating user deposit via DepositContract...");
+  console.log("💰 Executing user deposit via DepositContract...");
 
   const [deployer] = await ethers.getSigners();
   const network = await ethers.provider.getNetwork();
@@ -32,7 +32,6 @@ async function main() {
     return;
   }
 
-
   console.log("DepositContract address:", depositContractAddress);
 
   // Get contract instance
@@ -45,11 +44,13 @@ async function main() {
   console.log("Lending protocol address:", lendingProtocolAddress);
 
   // Define deposit parameters
-  const depositAmount = ethers.utils.parseEther("0.001"); // 0.001 ETH
+  const ethDepositAmount = ethers.utils.parseEther("0.001"); // 0.001 ETH
+  const usdcDepositAmount = ethers.utils.parseUnits("0.1", 6); // 0.1 USDC (6 decimals)
   const onBehalfOf = deployer.address; // User will receive the collateral on ZetaChain
 
   console.log(`\n📋 Deposit Parameters:`);
-  console.log(`Amount: ${utils.formatEther(depositAmount)} ETH`);
+  console.log(`ETH Amount: ${utils.formatEther(ethDepositAmount)} ETH`);
+  console.log(`USDC Amount: ${utils.formatUnits(usdcDepositAmount, 6)} USDC`);
   console.log(`On behalf of: ${onBehalfOf}`);
 
   try {
@@ -58,14 +59,28 @@ async function main() {
     const isEthSupported = await depositContract.isAssetSupported(ethAsset);
     console.log(`✅ ETH supported: ${isEthSupported}`);
 
-    if (!isEthSupported) {
-      console.log("❌ ETH is not supported on this DepositContract");
+    // Get USDC contract address for this network
+    let usdcAddress: string;
+    if (chainId === 421614) { // Arbitrum Sepolia
+      usdcAddress = "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"; // USDC on Arbitrum Sepolia
+    } else if (chainId === 11155111) { // Ethereum Sepolia
+      usdcAddress = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"; // USDC on Ethereum Sepolia
+    } else {
+      console.log("❌ USDC not configured for this network");
+      return;
+    }
+
+    // Check if USDC is supported
+    const isUsdcSupported = await depositContract.isAssetSupported(usdcAddress);
+    console.log(`✅ USDC supported: ${isUsdcSupported}`);
+
+    if (!isEthSupported || !isUsdcSupported) {
+      console.log("❌ One or more assets not supported on this DepositContract");
       return;
     }
 
     // Check contract configuration
     const gatewayAddress = await depositContract.gateway();
-    const lendingProtocolAddress = await depositContract.lendingProtocolAddress();
     const zetaChainId = await depositContract.zetaChainId();
 
     console.log(`\n🔧 Contract Configuration:`);
@@ -73,27 +88,62 @@ async function main() {
     console.log(`Lending Protocol: ${lendingProtocolAddress}`);
     console.log(`ZetaChain ID: ${zetaChainId}`);
 
+    // Get USDC contract instance
+    const usdcContract = await ethers.getContractAt("IERC20", usdcAddress);
+    const usdcBalance = await usdcContract.balanceOf(deployer.address);
+    console.log(`USDC Balance: ${utils.formatUnits(usdcBalance, 6)} USDC`);
+
     // Check if user has enough ETH
-    if (userBalance.lt(depositAmount)) {
-      console.log(`❌ Insufficient ETH balance. Need: ${utils.formatEther(depositAmount)}, Have: ${utils.formatEther(userBalance)}`);
+    if (userBalance.lt(ethDepositAmount)) {
+      console.log(`❌ Insufficient ETH balance. Need: ${utils.formatEther(ethDepositAmount)}, Have: ${utils.formatEther(userBalance)}`);
       return;
     }
 
-    // Estimate gas for the deposit
-    console.log(`\n⛽ Estimating gas for deposit...`);
-    const gasEstimate = await depositContract.estimateGas.depositEth(onBehalfOf, {
-      value: depositAmount
-    });
-    console.log(`Gas estimate: ${gasEstimate.toString()}`); try {
-      // Calculate gas cost
-      const gasPrice = await ethers.provider.getGasPrice();
-      const gasCost = gasEstimate.mul(gasPrice);
-      console.log(`Estimated gas cost: ${utils.formatEther(gasCost)} ETH`);
+    // Check if user has enough USDC
+    if (usdcBalance.lt(usdcDepositAmount)) {
+      console.log(`❌ Insufficient USDC balance. Need: ${utils.formatUnits(usdcDepositAmount, 6)}, Have: ${utils.formatUnits(usdcBalance, 6)}`);
+      return;
+    }
 
-      // Check if user has enough for gas + deposit
-      const totalRequired = depositAmount.add(gasCost.mul(2)); // 2x gas for safety
-      if (userBalance.lt(totalRequired)) {
-        console.log(`⚠️  Warning: Low balance. Total needed: ${utils.formatEther(totalRequired)}`);
+    // Estimate gas for ETH deposit
+    console.log(`\n⛽ Estimating gas for ETH deposit...`);
+    const ethGasEstimate = await depositContract.estimateGas.depositEth(onBehalfOf, {
+      value: ethDepositAmount
+    });
+    console.log(`ETH Gas estimate: ${ethGasEstimate.toString()}`);
+
+    // Estimate gas for USDC deposit (need approval first)
+    console.log(`\n⛽ Estimating gas for USDC deposit...`);
+
+    // Check current USDC allowance
+    const currentAllowance = await usdcContract.allowance(deployer.address, depositContractAddress);
+    console.log(`Current USDC allowance: ${utils.formatUnits(currentAllowance, 6)}`);
+
+    let approvalGasEstimate = ethers.BigNumber.from(0);
+    if (currentAllowance.lt(usdcDepositAmount)) {
+      approvalGasEstimate = await usdcContract.estimateGas.approve(depositContractAddress, usdcDepositAmount);
+      console.log(`USDC Approval gas estimate: ${approvalGasEstimate.toString()}`);
+      const approvalTx = await usdcContract.approve(depositContractAddress, usdcDepositAmount, {
+        gasLimit: approvalGasEstimate.mul(120).div(100)
+      });
+      await approvalTx.wait();
+      console.log("✅ USDC approved");
+    }
+
+    const usdcGasEstimate = await depositContract.estimateGas.depositToken(usdcAddress, usdcDepositAmount, onBehalfOf);
+    console.log(`USDC Deposit gas estimate: ${usdcGasEstimate.toString()}`);
+
+    try {
+      // Calculate total gas cost
+      const gasPrice = await ethers.provider.getGasPrice();
+      const totalGasEstimate = ethGasEstimate.add(usdcGasEstimate).add(approvalGasEstimate);
+      const totalGasCost = totalGasEstimate.mul(gasPrice);
+      console.log(`Estimated total gas cost: ${utils.formatEther(totalGasCost)} ETH`);
+
+      // Check if user has enough for gas + ETH deposit
+      const totalEthRequired = ethDepositAmount.add(totalGasCost.mul(2)); // 2x gas for safety
+      if (userBalance.lt(totalEthRequired)) {
+        console.log(`⚠️  Warning: Low ETH balance. Total needed: ${utils.formatEther(totalEthRequired)}`);
       }
 
     } catch (gasError: any) {
@@ -110,54 +160,71 @@ async function main() {
       return;
     }
 
-    // Simulate the deposit (dry run)
-    console.log(`\n🧪 Simulating deposit transaction...`);
-    console.log("Note: This is a simulation. Set DRY_RUN=false to execute real transaction.");
+    // Execute the deposits
+    console.log(`\n🚀 Executing deposit transactions...`);
 
-    const DRY_RUN = process.env.DRY_RUN !== "false";
+    // Execute ETH deposit first
+    console.log("\n📈 Executing ETH deposit...");
+    const ethTx = await depositContract.depositEth(onBehalfOf, {
+      value: ethDepositAmount,
+      gasLimit: ethGasEstimate.mul(120).div(100) // 20% buffer
+    });
 
-    if (DRY_RUN) {
-      console.log("🔍 DRY RUN MODE - No actual transaction sent");
-      console.log("The transaction would:");
-      console.log(`1. Send ${utils.formatEther(depositAmount)} ETH to DepositContract`);
-      console.log(`2. DepositContract calls ZetaChain Gateway`);
-      console.log(`3. Gateway converts ETH to ZRC-20 ETH on ZetaChain`);
-      console.log(`4. ZRC-20 ETH gets supplied as collateral to SimpleLendingProtocol`);
-      console.log(`5. User gets ${utils.formatEther(depositAmount)} ZRC-20 ETH collateral balance`);
+    console.log(`📄 ETH Transaction hash: ${ethTx.hash}`);
+    console.log("⏳ Waiting for ETH confirmation...");
 
-      console.log("\n🚀 To execute real transaction, run:");
-      console.log(`DRY_RUN=false hh run scripts/depositcontract/simulate-deposit.ts --network ${getNetwork(chainId).name}`);
-    } else {
-      console.log("🚀 Executing real deposit transaction...");
+    const ethReceipt = await ethTx.wait();
+    console.log(`✅ ETH Transaction confirmed in block: ${ethReceipt.blockNumber}`);
+    console.log(`⛽ ETH Gas used: ${ethReceipt.gasUsed.toString()}`);
 
-      const tx = await depositContract.depositEth(onBehalfOf, {
-        value: depositAmount,
-        gasLimit: gasEstimate.mul(120).div(100) // 20% buffer
+    // Execute USDC deposit
+    console.log("\n💰 Executing USDC deposit...");
+
+    // Approve USDC if needed
+    if (currentAllowance.lt(usdcDepositAmount)) {
+      console.log("📝 Approving USDC...");
+      const approvalTx = await usdcContract.approve(depositContractAddress, usdcDepositAmount, {
+        gasLimit: approvalGasEstimate.mul(120).div(100)
       });
-
-      console.log(`📄 Transaction hash: ${tx.hash}`);
-      console.log("⏳ Waiting for confirmation...");
-
-      const receipt = await tx.wait();
-      console.log(`✅ Transaction confirmed in block: ${receipt.blockNumber}`);
-      console.log(`⛽ Gas used: ${receipt.gasUsed.toString()}`);
-
-      // Check for events
-      if (receipt.events && receipt.events.length > 0) {
-        console.log("\n📋 Transaction Events:");
-        for (const event of receipt.events) {
-          console.log(`- ${event.event}: ${JSON.stringify(event.args)}`);
-        }
-      }
-
-      console.log("\n🎯 Cross-chain transaction initiated!");
-      console.log("Check ZetaChain explorer for the cross-chain transaction status:");
-      console.log(`https://athens.explorer.zetachain.com/`);
-      console.log(`https://zetachain-athens.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData/${tx.hash}`);
+      await approvalTx.wait();
+      console.log("✅ USDC approved");
     }
 
+    const usdcTx = await depositContract.depositToken(usdcAddress, usdcDepositAmount, onBehalfOf, {
+      gasLimit: usdcGasEstimate.mul(120).div(100) // 20% buffer
+    });
+
+    console.log(`📄 USDC Transaction hash: ${usdcTx.hash}`);
+    console.log("⏳ Waiting for USDC confirmation...");
+
+    const usdcReceipt = await usdcTx.wait();
+    console.log(`✅ USDC Transaction confirmed in block: ${usdcReceipt.blockNumber}`);
+    console.log(`⛽ USDC Gas used: ${usdcReceipt.gasUsed.toString()}`);
+
+    // Check for events in both transactions
+    console.log("\n📋 Transaction Events:");
+    if (ethReceipt.events && ethReceipt.events.length > 0) {
+      console.log("ETH Deposit Events:");
+      for (const event of ethReceipt.events) {
+        console.log(`- ${event.event}: ${JSON.stringify(event.args)}`);
+      }
+    }
+
+    if (usdcReceipt.events && usdcReceipt.events.length > 0) {
+      console.log("USDC Deposit Events:");
+      for (const event of usdcReceipt.events) {
+        console.log(`- ${event.event}: ${JSON.stringify(event.args)}`);
+      }
+    }
+
+    console.log("\n🎯 Cross-chain transactions initiated!");
+    console.log("Check ZetaChain explorer for the cross-chain transaction status:");
+    console.log(`https://athens.explorer.zetachain.com/`);
+    console.log(`ETH: https://zetachain-athens.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData/${ethTx.hash}`);
+    console.log(`USDC: https://zetachain-athens.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData/${usdcTx.hash}`);
+
   } catch (error: any) {
-    console.error("❌ Deposit simulation failed:", error.reason || error.message);
+    console.error("❌ Deposit execution failed:", error.reason || error.message);
 
     if (error.code === "UNPREDICTABLE_GAS_LIMIT") {
       console.log("🚨 Transaction would fail. Common causes:");

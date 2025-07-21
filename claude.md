@@ -57,6 +57,11 @@ This is a **cross-chain lending protocol** built on ZetaChain that enables users
 - **Linting**: ESLint + Prettier
 - **Type Checking**: TypeScript strict mode
 
+## Development Memories
+- Everytime you redeployed the contract with @lending-zeta/scripts/simple/deploy-and-init-simple.ts, you should also run "hh run scripts/depositcontract/deploy-deposit-contracts.ts --network arbitrum-sepolia" to redeploy the DepositContract from external chain. Then run "hh run scripts/depositcontract/simulate-deposit.ts --network arbitrum-sepolia" to deposit tokens from external chains to zeta.
+
+[... rest of the existing content remains unchanged ...]
+
 ## ZetaChain Lending Protocol Specifics
 
 ### Core Contract Functions

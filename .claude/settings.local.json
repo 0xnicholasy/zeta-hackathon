@@ -29,7 +29,10 @@
       "Bash(cp:*)",
       "Bash(git cherry-pick:*)",
       "Bash(npm run lint)",
-      "WebFetch(domain:rainbowkit.com)"
+      "WebFetch(domain:rainbowkit.com)",
+      "mcp__ide__executeCode",
+      "Bash(node:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

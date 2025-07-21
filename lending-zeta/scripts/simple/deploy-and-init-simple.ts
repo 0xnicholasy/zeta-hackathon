@@ -100,7 +100,7 @@ async function main() {
   printDeploymentSummary(chainId);
 
   console.log("\nRun the following commands to verify contracts on explorer:");
-  console.log(`npx hardhat verify --network ${networkString} "${simpleLendingProtocol.address}" "${deployer.address}" "${deployer.address}"`);
+  console.log(`npx hardhat verify --network ${networkString} "${simpleLendingProtocol.address}" "${zetaTestnetGatewayAddress}" "${deployer.address}"`);
 
   console.log("\n✅ Simple protocol deployed and initialized successfully!");
   console.log("🎯 Cross-chain deposits are now supported from:");

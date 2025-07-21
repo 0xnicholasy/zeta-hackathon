@@ -362,17 +362,40 @@ contract UniversalLendingProtocol is
         assets[zrc20].totalSupply -= amount;
 
         // Calculate gas fee for cross-chain withdrawal
-        (address gasFeeAddress, uint256 gasFee) = IZRC20(zrc20)
-            .withdrawGasFee();
-        if (gasFeeAddress != address(0)) {
-            revert("Gas fee address is not zero");
-        }
+        (address gasZRC20, uint256 gasFee) = IZRC20(zrc20).withdrawGasFee();
         if (amount <= gasFee) revert InvalidAmount();
 
-        uint256 withdrawAmount = amount - gasFee;
+        uint256 withdrawAmount = amount;
+        uint256 approvalAmount = amount;
 
-        // Approve gateway to spend the ZRC-20 tokens
-        IERC20(zrc20).approve(address(gateway), amount);
+        if (zrc20 == gasZRC20) {
+            // Asset and gas token are the same
+            withdrawAmount = amount - gasFee;
+            approvalAmount = amount; // Full amount including gas fee
+            
+            require(
+                IERC20(zrc20).balanceOf(address(this)) >= approvalAmount,
+                "Insufficient contract balance for withdrawal + gas"
+            );
+            
+            IERC20(zrc20).approve(address(gateway), approvalAmount);
+        } else {
+            // Asset and gas token are different - user must provide gas tokens
+            require(
+                IERC20(zrc20).balanceOf(address(this)) >= amount,
+                "Insufficient contract balance for withdrawal"
+            );
+            IERC20(zrc20).approve(address(gateway), amount);
+            
+            // Transfer gas fee from user to this contract
+            require(
+                IERC20(gasZRC20).transferFrom(msg.sender, address(this), gasFee),
+                "Failed to transfer gas fee from user"
+            );
+            
+            // Approve gas fee for the gateway
+            IERC20(gasZRC20).approve(address(gateway), gasFee);
+        }
 
         // Execute cross-chain withdrawal via gateway
         try
@@ -654,6 +677,17 @@ contract UniversalLendingProtocol is
         string calldata symbol
     ) external view returns (address) {
         return chainAssets[chainId][symbol];
+    }
+
+    /**
+     * @notice Get gas fee information for cross-chain withdrawal
+     * @param asset The asset to withdraw
+     * @return gasToken The address of the gas token
+     * @return gasFee The amount of gas fee required
+     */
+    function getWithdrawGasFee(address asset) external view returns (address gasToken, uint256 gasFee) {
+        require(assets[asset].isSupported, "Asset not supported");
+        return IZRC20(asset).withdrawGasFee();
     }
 
     // === INTERNAL FUNCTIONS ===

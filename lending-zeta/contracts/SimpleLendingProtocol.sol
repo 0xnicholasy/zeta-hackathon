@@ -110,11 +110,20 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
         uint256 amount,
         bytes calldata message
     ) external override onlyGateway {
-        (string memory action, address onBehalfOf) = abi.decode(message, (string, address));
-        
-        if (keccak256(abi.encodePacked(action)) == keccak256(abi.encodePacked("supply"))) {
+        (string memory action, address onBehalfOf) = abi.decode(
+            message,
+            (string, address)
+        );
+
+        if (
+            keccak256(abi.encodePacked(action)) ==
+            keccak256(abi.encodePacked("supply"))
+        ) {
             _supply(zrc20, amount, onBehalfOf);
-        } else if (keccak256(abi.encodePacked(action)) == keccak256(abi.encodePacked("repay"))) {
+        } else if (
+            keccak256(abi.encodePacked(action)) ==
+            keccak256(abi.encodePacked("repay"))
+        ) {
             _repay(zrc20, amount, onBehalfOf);
         } else {
             revert("Invalid action");
@@ -128,11 +137,19 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
      * @param amount The amount of tokens to supply (in token's native decimals)
      * @param onBehalfOf The address to credit the supply to
      */
-    function supply(address asset, uint256 amount, address onBehalfOf) external nonReentrant {
+    function supply(
+        address asset,
+        uint256 amount,
+        address onBehalfOf
+    ) external nonReentrant {
         _supply(asset, amount, onBehalfOf);
     }
 
-    function _supply(address asset, uint256 amount, address onBehalfOf) internal {
+    function _supply(
+        address asset,
+        uint256 amount,
+        address onBehalfOf
+    ) internal {
         require(assets[asset].isSupported, "Asset not supported");
         require(amount > 0, "Amount must be greater than 0");
 
@@ -153,7 +170,11 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
      * @param amount The amount of tokens to borrow (in token's native decimals)
      * @param to The address to receive the borrowed tokens
      */
-    function borrow(address asset, uint256 amount, address to) external nonReentrant {
+    function borrow(
+        address asset,
+        uint256 amount,
+        address to
+    ) external nonReentrant {
         require(assets[asset].isSupported, "Asset not supported");
         require(amount > 0, "Amount must be greater than 0");
         require(
@@ -180,11 +201,19 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
      * @param amount The amount of tokens to repay (in token's native decimals)
      * @param onBehalfOf The address whose debt will be reduced
      */
-    function repay(address asset, uint256 amount, address onBehalfOf) external nonReentrant {
+    function repay(
+        address asset,
+        uint256 amount,
+        address onBehalfOf
+    ) external nonReentrant {
         _repay(asset, amount, onBehalfOf);
     }
 
-    function _repay(address asset, uint256 amount, address onBehalfOf) internal {
+    function _repay(
+        address asset,
+        uint256 amount,
+        address onBehalfOf
+    ) internal {
         require(assets[asset].isSupported, "Asset not supported");
         require(amount > 0, "Amount must be greater than 0");
 
@@ -193,7 +222,11 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
 
         // For gateway calls, tokens are already transferred to this contract
         if (msg.sender != address(gateway)) {
-            IERC20(asset).safeTransferFrom(msg.sender, address(this), repayAmount);
+            IERC20(asset).safeTransferFrom(
+                msg.sender,
+                address(this),
+                repayAmount
+            );
         }
 
         userBorrows[onBehalfOf][asset] -= repayAmount;
@@ -208,7 +241,11 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
      * @param amount The amount of tokens to withdraw (in token's native decimals)
      * @param to The address to receive the withdrawn tokens
      */
-    function withdraw(address asset, uint256 amount, address to) external nonReentrant {
+    function withdraw(
+        address asset,
+        uint256 amount,
+        address to
+    ) external nonReentrant {
         _withdraw(asset, amount, msg.sender, to, "");
     }
 
@@ -226,7 +263,13 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
         uint256 destinationChain,
         address recipient
     ) external nonReentrant {
-        _withdrawCrossChain(asset, amount, msg.sender, destinationChain, recipient);
+        _withdrawCrossChain(
+            asset,
+            amount,
+            msg.sender,
+            destinationChain,
+            recipient
+        );
     }
 
     function _withdraw(
@@ -238,10 +281,7 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
     ) internal {
         require(assets[asset].isSupported, "Asset not supported");
         require(amount > 0, "Amount must be greater than 0");
-        require(
-            userSupplies[user][asset] >= amount,
-            "Insufficient balance"
-        );
+        require(userSupplies[user][asset] >= amount, "Insufficient balance");
 
         // Check if withdrawal would break collateral ratio
         require(
@@ -266,22 +306,98 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
     ) internal {
         require(assets[asset].isSupported, "Asset not supported");
         require(amount > 0, "Amount must be greater than 0");
-        require(
-            userSupplies[user][asset] >= amount,
-            "Insufficient balance"
-        );
+        require(userSupplies[user][asset] >= amount, "Insufficient balance");
 
         require(
             canWithdraw(user, asset, amount),
             "Would break collateral ratio"
         );
 
+        // Get gas fee information for cross-chain withdrawal
+        (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
+        require(amount > gasFee, "Amount must be greater than gas fee");
+
+        // Update user balance before performing withdrawal
         userSupplies[user][asset] -= amount;
 
-        // Cross-chain withdrawal using ZRC-20
-        IZRC20(asset).withdraw(abi.encodePacked(recipient), amount);
+        // Adjust withdrawal logic based on whether asset == gasZRC20
+        uint256 withdrawalAmount = amount;
+        uint256 approvalAmount = amount;
+
+        if (asset == gasZRC20) {
+            // Asset and gas token are the same (e.g., ETH.ARBI withdrawal paying gas in ETH.ARBI)
+            // The actual withdrawal amount should be reduced by gas fee
+            // because the gateway will use part of the tokens for gas
+            withdrawalAmount = amount - gasFee;
+            approvalAmount = amount; // Full amount including gas fee
+
+            require(
+                IERC20(asset).balanceOf(address(this)) >= approvalAmount,
+                "Insufficient contract balance for withdrawal + gas"
+            );
+
+            IERC20(asset).approve(address(gateway), approvalAmount);
+        } else {
+            // Asset and gas token are different (e.g., USDC.ARBI withdrawal paying gas in ETH.ARBI)
+            // User must provide gas tokens
+            require(
+                IERC20(asset).balanceOf(address(this)) >= amount,
+                "Insufficient contract balance for withdrawal"
+            );
+            IERC20(asset).approve(address(gateway), amount);
+
+            // Transfer gas fee from user to this contract
+            require(
+                IERC20(gasZRC20).transferFrom(user, address(this), gasFee),
+                "Failed to transfer gas fee from user"
+            );
+
+            // Approve gas fee for the gateway
+            IERC20(gasZRC20).approve(address(gateway), gasFee);
+        }
+
+        // Use gateway.withdraw() for cross-chain withdrawal
+        gateway.withdraw(
+            abi.encodePacked(recipient),
+            withdrawalAmount,
+            asset,
+            RevertOptions({
+                revertAddress: address(this),
+                callOnRevert: false, // Simplified - don't handle reverts for now
+                abortAddress: address(0),
+                revertMessage: abi.encodePacked(""),
+                onRevertGasLimit: 0
+            })
+        );
 
         emit Withdraw(user, asset, amount);
+    }
+
+    /**
+     * @notice Get gas fee information for cross-chain withdrawal
+     * @param asset The asset to withdraw
+     * @return gasToken The address of the gas token
+     * @return gasFee The amount of gas fee required
+     */
+    function getWithdrawGasFee(
+        address asset
+    ) external view returns (address gasToken, uint256 gasFee) {
+        require(assets[asset].isSupported, "Asset not supported");
+        return IZRC20(asset).withdrawGasFee();
+    }
+
+    /**
+     * @notice Handle revert from cross-chain operations
+     * @dev Called by gateway when cross-chain transaction reverts
+     */
+    function onRevert(
+        RevertContext calldata revertContext
+    ) external onlyGateway {
+        // Handle withdrawal revert - restore user balance
+        // Note: This is a simplified implementation
+        // In production, you'd want to properly decode the revert data
+        // and restore the exact user state
+        emit Withdraw(address(0), address(0), 0); // Placeholder event
     }
 
     /**
@@ -333,7 +449,14 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
         // Transfer collateral to liquidator
         IERC20(collateralAsset).safeTransfer(msg.sender, collateralValue);
 
-        emit Liquidate(msg.sender, user, collateralAsset, debtAsset, repayAmount, collateralValue);
+        emit Liquidate(
+            msg.sender,
+            user,
+            collateralAsset,
+            debtAsset,
+            repayAmount,
+            collateralValue
+        );
     }
 
     /**
@@ -481,7 +604,8 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
 
         if (totalDebtValue == 0) return totalCollateralValue > 0;
 
-        uint256 healthFactor = (totalCollateralValue * PRECISION) / totalDebtValue;
+        uint256 healthFactor = (totalCollateralValue * PRECISION) /
+            totalDebtValue;
         return healthFactor >= MINIMUM_HEALTH_FACTOR;
     }
 
@@ -515,7 +639,8 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
 
         if (totalDebtValue == 0) return true;
 
-        uint256 healthFactor = (newCollateralValue * PRECISION) / totalDebtValue;
+        uint256 healthFactor = (newCollateralValue * PRECISION) /
+            totalDebtValue;
         return healthFactor >= MINIMUM_HEALTH_FACTOR;
     }
 
@@ -550,19 +675,29 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
         return supportedAssets[index];
     }
 
-    function getSupplyBalance(address user, address asset) external view returns (uint256) {
+    function getSupplyBalance(
+        address user,
+        address asset
+    ) external view returns (uint256) {
         return userSupplies[user][asset];
     }
 
-    function getBorrowBalance(address user, address asset) external view returns (uint256) {
+    function getBorrowBalance(
+        address user,
+        address asset
+    ) external view returns (uint256) {
         return userBorrows[user][asset];
     }
 
-    function getAssetConfig(address asset) external view returns (Asset memory) {
+    function getAssetConfig(
+        address asset
+    ) external view returns (Asset memory) {
         return assets[asset];
     }
 
-    function getUserAccountData(address user)
+    function getUserAccountData(
+        address user
+    )
         public
         view
         returns (
@@ -577,9 +712,10 @@ contract SimpleLendingProtocol is UniversalContract, ReentrancyGuard, Ownable {
         totalDebtValue = getTotalDebtValue(user);
         healthFactor = getHealthFactor(user);
         currentLiquidationThreshold = LIQUIDATION_THRESHOLD;
-        
+
         if (totalCollateralValue > 0) {
-            uint256 requiredCollateral = (totalDebtValue * MINIMUM_HEALTH_FACTOR) / PRECISION;
+            uint256 requiredCollateral = (totalDebtValue *
+                MINIMUM_HEALTH_FACTOR) / PRECISION;
             if (totalCollateralValue > requiredCollateral) {
                 availableBorrows = totalCollateralValue - requiredCollateral;
             } else {
