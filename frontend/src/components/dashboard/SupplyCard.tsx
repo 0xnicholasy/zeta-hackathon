@@ -43,7 +43,7 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
     const chainBalances = externalBalances[parseInt(selectedChain)];
     const availableAssets: [string, TokenBalance][] = chainBalances ? Object.entries(chainBalances).map(([key, value]) => [key, value as TokenBalance]) : [];
 
-    const handleSupplyClick = (tokenSymbol: string, balance: TokenBalance) => {
+    const handleSupplyClick = (balance: TokenBalance) => {
         setSelectedToken(balance);
         setIsSupplyDialogOpen(true);
     };
@@ -144,7 +144,7 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                                                     variant="zeta"
                                                     size="sm"
                                                     className="mt-1 h-7 text-xs"
-                                                    onClick={() => handleSupplyClick(tokenSymbol, balance)}
+                                                    onClick={() => handleSupplyClick(balance)}
                                                 >
                                                     Supply
                                                 </Button>

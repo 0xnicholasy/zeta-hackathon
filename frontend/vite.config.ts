@@ -12,5 +12,6 @@ export default defineConfig({
       '@deployments': path.resolve(__dirname, '../lending-zeta'),
     },
   },
-  assetsInclude: ['**/*.json'],
+  // Remove the problematic assetsInclude line
+  // assetsInclude: ['**/*.json'], // This was causing the issue
 })
