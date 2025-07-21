@@ -7,7 +7,6 @@ import { QuickActions } from './QuickActions';
 import { AccountHealth } from './AccountHealth';
 import { SupplyCard } from './SupplyCard';
 import { BorrowCard } from './BorrowCard';
-import { PortfolioOverview } from './PortfolioOverview';
 import { useDashboardData } from '../../hooks/useDashboardData';
 
 export function ConnectedState() {
@@ -58,13 +57,6 @@ export function ConnectedState() {
 
             {/* Quick Actions */}
             <QuickActions />
-
-            {/* Account Health */}
-            <AccountHealth
-                healthFactor={healthFactor}
-                totalSupplied={totalSupplied}
-                totalBorrowed={totalBorrowed}
-            />
 
             {/* Network Switcher */}
             <div className="mb-6">
@@ -120,6 +112,7 @@ export function ConnectedState() {
                 <SupplyCard
                     userAssets={userAssets}
                     selectedChain={selectedChain}
+                    walletChainId={walletChainId}
                     externalBalances={externalBalances}
                     isLoadingExternalBalances={isLoadingExternalBalances}
                 />
@@ -128,13 +121,14 @@ export function ConnectedState() {
                     selectedChain={selectedChain}
                 />
             </div>
-
-            {/* Portfolio Overview */}
-            <PortfolioOverview
-                userAssets={userAssets}
-                totalSupplied={totalSupplied}
-                totalBorrowed={totalBorrowed}
-            />
+            {/* Account Health */}
+            {walletChainId === SupportedChain.ZETA_TESTNET && (
+                <AccountHealth
+                    healthFactor={healthFactor}
+                    totalSupplied={totalSupplied}
+                    totalBorrowed={totalBorrowed}
+                />
+            )}
         </div>
     );
 }

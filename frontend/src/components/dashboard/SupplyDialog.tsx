@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { TokenNetworkIcon } from '../ui/token-network-icon';
 import { useContracts } from '../../hooks/useContracts';
 import { isSupportedChain, type SupportedChainId } from '../../contracts/deployments';
@@ -240,7 +241,6 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
               sourceChain={selectedToken.chainName}
               size="sm"
               shadow="sm"
-              isNative={selectedToken.isNative}
               showNativeIndicator={true}
             />
             Supply {selectedToken.tokenSymbol}
@@ -259,12 +259,11 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
                 <span>Available: {Number(maxAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</span>
               </div>
               <div className="relative">
-                <input
+                <Input
                   type="number"
                   value={amount}
                   onChange={handleAmountChange}
                   placeholder="0.00"
-                  className="w-full px-3 py-2 border border-border-light dark:border-border-dark rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-green-500"
                   step="any"
                   min="0"
                   max={maxAmount}

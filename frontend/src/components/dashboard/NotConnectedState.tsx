@@ -45,9 +45,7 @@ export function NotConnectedState() {
                         <div className="text-xs text-muted-foreground">ETH, USDC</div>
                     </div>
                     <div className="bg-surface-light dark:bg-surface-dark p-4 rounded-lg border border-border-light dark:border-border-dark">
-                        <div className="w-8 h-8 bg-gradient-to-br from-zeta-400 to-zeta-600 rounded-full flex items-center justify-center mx-auto mb-2">
-                            <span className="text-white font-bold text-sm">Z</span>
-                        </div>
+                        <NetworkIcon name="zeta-chain" className="w-8 h-8 mx-auto mb-2" />
                         <div className="text-sm font-medium text-foreground">ZetaChain</div>
                         <div className="text-xs text-muted-foreground">Universal EVM</div>
                     </div>
