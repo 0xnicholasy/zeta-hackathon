@@ -28,24 +28,24 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     if (savedTheme) {
       return savedTheme;
     }
-    
+
     // Check system preference
     if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return 'dark';
     }
-    
+
     return 'light';
   });
 
   useEffect(() => {
     const root = window.document.documentElement;
-    
+
     // Remove previous theme class
     root.classList.remove('light', 'dark');
-    
+
     // Add current theme class
     root.classList.add(theme);
-    
+
     // Save to localStorage
     localStorage.setItem('theme', theme);
   }, [theme]);

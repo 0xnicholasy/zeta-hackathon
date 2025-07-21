@@ -143,10 +143,11 @@ export function getTokenAddress(tokenSymbol: string, chainId: number): string | 
   }
 
   const address = network.tokens[tokenSymbol];
-  if (!address || address === '0x0000000000000000000000000000000000000000' || address === '0x0') {
+  if (!address || address === '0x0') {
     return null;
   }
 
+  // Allow zero address for native ETH
   return address;
 }
 
@@ -179,10 +180,10 @@ export function getAllTokens(chainId: number): Record<string, string> | null {
     return null;
   }
 
-  // Filter out zero addresses
+  // Filter out invalid addresses but allow zero address for native ETH
   const validTokens: Record<string, string> = {};
   for (const [symbol, address] of Object.entries(network.tokens)) {
-    if (address && address !== '0x0000000000000000000000000000000000000000' && address !== '0x0') {
+    if (address && address !== '0x0') {
       validTokens[symbol] = address;
     }
   }

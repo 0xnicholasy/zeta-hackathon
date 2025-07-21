@@ -1,9 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useReadContract, useReadContracts } from 'wagmi';
 import { formatUnits } from 'viem';
-import { useContracts } from '../hooks/useContracts';
-import { SupportedChain, TOKEN_SYMBOLS, getTokenAddress } from '../contracts/deployments';
-import { SimpleLendingProtocol__factory } from '../contracts/types';
+import { useContracts } from '../../hooks/useContracts';
+import { SupportedChain, TOKEN_SYMBOLS, getTokenAddress } from '../../contracts/deployments';
+import { SimpleLendingProtocol__factory } from '../../contracts/types';
 import { TokenIcon, NetworkIcon, } from '@web3icons/react';
 
 interface AssetData {
@@ -20,7 +20,6 @@ interface AssetData {
 
 interface StatsData {
   totalValueLocked: string;
-  activeUsers: number;
   supportedChains: number;
   supportedAssets: number;
   assets: AssetData[];
@@ -29,13 +28,13 @@ interface StatsData {
 export default function Stats() {
   const [stats, setStats] = useState<StatsData>({
     totalValueLocked: '$0',
-    activeUsers: 0,
     supportedChains: 3, // Fixed: Arbitrum, Ethereum, ZetaChain
     supportedAssets: 0,
     assets: [],
   });
 
   // Use ZetaChain testnet specifically for stats since that's where the lending protocol is deployed
+  // This component ONLY fetches protocol data from ZetaChain, not user balances from external chains
   const { simpleLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
 
   // Define all available assets from deployment config
@@ -254,21 +253,13 @@ export default function Stats() {
 
   return (
     <div className="mt-16 bg-surface-light dark:bg-surface-dark rounded-2xl p-8 border border-border-light dark:border-border-dark">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="text-center">
           <div className="text-3xl font-bold text-zeta-500 mb-2">
             {stats.totalValueLocked}
           </div>
           <div className="text-text-secondary-light dark:text-text-secondary-dark">
             Total Value Locked
-          </div>
-        </div>
-        <div className="text-center">
-          <div className="text-3xl font-bold text-zeta-500 mb-2">
-            {stats.activeUsers}
-          </div>
-          <div className="text-text-secondary-light dark:text-text-secondary-dark">
-            Active Users
           </div>
         </div>
         <div className="text-center">

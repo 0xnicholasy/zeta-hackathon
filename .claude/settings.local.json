@@ -27,7 +27,9 @@
       "Bash(bun pm ls:*)",
       "Bash(python3:*)",
       "Bash(cp:*)",
-      "Bash(git cherry-pick:*)"
+      "Bash(git cherry-pick:*)",
+      "Bash(npm run lint)",
+      "WebFetch(domain:rainbowkit.com)"
     ],
     "deny": []
   }
