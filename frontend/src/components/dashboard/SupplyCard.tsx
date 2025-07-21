@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { TokenNetworkIcon } from '../ui/token-network-icon';
+import { Spinner } from '../ui/spinner';
 import { FaPlus } from 'react-icons/fa';
 import { SupportedChain } from '../../contracts/deployments';
 import { SupplyDialog } from './SupplyDialog';
+import { WithdrawDialog } from './WithdrawDialog';
 import type { UserAssetData } from './types';
 import type { TokenBalance } from '../../hooks/useMultiChainBalances';
 
@@ -19,6 +21,8 @@ interface SupplyCardProps {
 export function SupplyCard({ userAssets, selectedChain, walletChainId, externalBalances, isLoadingExternalBalances }: SupplyCardProps) {
     const [isSupplyDialogOpen, setIsSupplyDialogOpen] = useState(false);
     const [selectedToken, setSelectedToken] = useState<TokenBalance | null>(null);
+    const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
+    const [selectedAssetForWithdraw, setSelectedAssetForWithdraw] = useState<UserAssetData | null>(null);
 
     // Check if we're on ZetaChain
     const isOnZetaChain = walletChainId === SupportedChain.ZETA_TESTNET;
@@ -42,6 +46,12 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
     const handleSupplyClick = (tokenSymbol: string, balance: TokenBalance) => {
         setSelectedToken(balance);
         setIsSupplyDialogOpen(true);
+    };
+
+    const handleWithdrawClick = (asset: UserAssetData) => {
+        console.log('handleWithdrawClick', asset);
+        setSelectedAssetForWithdraw(asset);
+        setIsWithdrawDialogOpen(true);
     };
 
     return (
@@ -82,7 +92,12 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                                         </div>
                                         <div className="text-right">
                                             <div className="text-sm font-medium">{asset.formattedSuppliedBalance}</div>
-                                            <Button variant="zeta-outline" size="sm" className="mt-1 h-7 text-xs">
+                                            <Button
+                                                variant="zeta-outline"
+                                                size="sm"
+                                                className="mt-1 h-7 text-xs"
+                                                onClick={() => handleWithdrawClick(asset)}
+                                            >
                                                 Withdraw
                                             </Button>
                                         </div>
@@ -125,9 +140,9 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                                             </div>
                                             <div className="text-right">
                                                 <div className="text-sm font-medium">{Number(formattedBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
-                                                <Button 
-                                                    variant="zeta" 
-                                                    size="sm" 
+                                                <Button
+                                                    variant="zeta"
+                                                    size="sm"
                                                     className="mt-1 h-7 text-xs"
                                                     onClick={() => handleSupplyClick(tokenSymbol, balance)}
                                                 >
@@ -140,18 +155,28 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                             </div>
                         ) : (
                             <div className="text-center py-4 text-muted-foreground border-2 border-dashed border-border-light dark:border-border-dark rounded-lg">
-                                <p className="text-sm">{isLoadingExternalBalances ? 'Loading assets...' : 'No assets available'}</p>
+                                {isLoadingExternalBalances ? (
+                                    <Spinner variant="zeta" size="sm" text="Loading assets..." textPosition="bottom" />
+                                ) : (
+                                    <p className="text-sm">No assets available</p>
+                                )}
                             </div>
                         )}
                     </div>
                 )}
             </CardContent>
 
-            <SupplyDialog 
+            <SupplyDialog
                 isOpen={isSupplyDialogOpen}
                 onClose={() => setIsSupplyDialogOpen(false)}
                 selectedToken={selectedToken}
                 chainId={parseInt(selectedChain)}
+            />
+
+            <WithdrawDialog
+                isOpen={isWithdrawDialogOpen}
+                onClose={() => setIsWithdrawDialogOpen(false)}
+                selectedAsset={selectedAssetForWithdraw}
             />
         </Card>
     );

@@ -12,6 +12,7 @@ import {
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { TokenNetworkIcon } from '../ui/token-network-icon';
+import { Spinner } from '../ui/spinner';
 import { useContracts } from '../../hooks/useContracts';
 import { isSupportedChain, type SupportedChainId } from '../../contracts/deployments';
 import type { TokenBalance } from '../../hooks/useMultiChainBalances';
@@ -322,7 +323,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
         {currentStep !== 'input' && (
           <div className="flex flex-col items-center py-6">
             {currentStep !== 'success' && (
-              <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <Spinner variant="zeta" size="lg" className="mb-4" />
             )}
             {currentStep === 'success' && (
               <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mb-4">
@@ -377,6 +378,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
                 onClick={handleSubmit}
                 disabled={!isValidAmount || isSubmitting || !address}
               >
+{isSubmitting && <Spinner variant="white" size="xs" className="mr-2" />}
                 {isSubmitting ? 'Submitting...' : 'Supply'}
               </Button>
             </>

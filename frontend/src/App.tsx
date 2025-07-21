@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Suspense } from 'react';
 import { appRoutes } from './config/routes';
+import { Spinner } from './components/ui/spinner';
 
 function App() {
   return (
@@ -13,7 +14,7 @@ function App() {
             element={
               <Suspense fallback={
                 <div className="flex items-center justify-center min-h-screen">
-                  <div className="text-lg">Loading...</div>
+                  <Spinner variant="zeta" size="xl" text="Loading..." textPosition="bottom" />
                 </div>
               }>
                 <route.element />
