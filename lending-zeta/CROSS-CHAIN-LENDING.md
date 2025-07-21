@@ -153,10 +153,10 @@ npx hardhat run scripts/universal/deploy-universal-lending.ts --network zeta-tes
 
 ```bash
 # Deploy DepositContract on Arbitrum Sepolia
-npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network arbitrum-sepolia
+npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network arbitrum-sepolia
 
 # Deploy DepositContract on Ethereum Sepolia  
-npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network ethereum-sepolia
+npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network ethereum-sepolia
 ```
 
 ### 3. Configuration
@@ -173,7 +173,7 @@ npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network et
 
 ```bash
 # Test cross-chain deposit simulation
-npx hardhat run scripts/depositcontract/simulate-deposit.ts --network arbitrum-sepolia
+npx hardhat run scripts/deposit-contract/simulate-deposit.ts --network arbitrum-sepolia
 ```
 
 ### 2. Manual Testing Flow

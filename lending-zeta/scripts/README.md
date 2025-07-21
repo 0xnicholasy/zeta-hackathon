@@ -6,7 +6,7 @@ This directory contains deployment scripts for the ZetaChain cross-chain lending
 
 ```
 scripts/
-├── depositcontract/          # Deposit contract deployment and testing
+├── deposit-contract/          # Deposit contract deployment and testing
 │   ├── deploy-deposit-contracts.ts
 │   └── simulate-deposit.ts
 ├── simple/                   # Simple lending protocol deployment
@@ -40,14 +40,14 @@ npx hardhat run scripts/universal/deploy-universal-lending.ts --network zeta-tes
 npm run deploy:deposits --network arbitrum-sepolia
 npm run deploy:deposits --network ethereum-sepolia
 # or
-npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network arbitrum-sepolia
+npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network arbitrum-sepolia
 ```
 
 ### Test Cross-Chain Deposits
 ```bash
 npm run simulate:deposit --network arbitrum-sepolia
 # or  
-npx hardhat run scripts/depositcontract/simulate-deposit.ts --network arbitrum-sepolia
+npx hardhat run scripts/deposit-contract/simulate-deposit.ts --network arbitrum-sepolia
 ```
 
 ### Verify Assets

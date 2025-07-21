@@ -25,15 +25,15 @@ A cross-chain lending protocol built on ZetaChain that enables users to supply c
 3. **Deploy Deposit Contracts**:
    ```bash
    # Arbitrum Sepolia
-   npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network arbitrum-sepolia
+   npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network arbitrum-sepolia
    
    # Ethereum Sepolia
-   npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network ethereum-sepolia
+   npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network ethereum-sepolia
    ```
 
 4. **Test Cross-Chain Deposits**:
    ```bash
-   npx hardhat run scripts/depositcontract/simulate-deposit.ts --network arbitrum-sepolia
+   npx hardhat run scripts/deposit-contract/simulate-deposit.ts --network arbitrum-sepolia
    ```
 
 ## Documentation

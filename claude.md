@@ -58,7 +58,7 @@ This is a **cross-chain lending protocol** built on ZetaChain that enables users
 - **Type Checking**: TypeScript strict mode
 
 ## Development Memories
-- Everytime you redeployed the contract with @lending-zeta/scripts/simple/deploy-and-init-simple.ts, you should also run "hh run scripts/depositcontract/deploy-deposit-contracts.ts --network arbitrum-sepolia" to redeploy the DepositContract from external chain. Then run "hh run scripts/depositcontract/simulate-deposit.ts --network arbitrum-sepolia" to deposit tokens from external chains to zeta.
+- Everytime you redeployed the contract with @lending-zeta/scripts/simple/deploy-and-init-simple.ts, you should also run "hh run scripts/deposit-contract/deploy-deposit-contracts.ts --network arbitrum-sepolia" to redeploy the DepositContract from external chain. Then run "hh run scripts/deposit-contract/simulate-deposit.ts --network arbitrum-sepolia" to deposit tokens from external chains to zeta.
 
 [... rest of the existing content remains unchanged ...]
 
@@ -284,7 +284,7 @@ describe("CrossChainLendingProtocol", () => {
 │   │       ├── MockPriceOracle.sol     # Price oracle mock
 │   │       └── MockZRC20.sol           # ZRC-20 token mock
 │   ├── scripts/
-│   │   ├── depositcontract/            # Deposit contract scripts
+│   │   ├── deposit-contract/            # Deposit contract scripts
 │   │   │   ├── deploy-deposit-contracts.ts
 │   │   │   └── simulate-deposit.ts
 │   │   ├── simple/                     # Simple protocol scripts

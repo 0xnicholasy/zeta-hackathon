@@ -40,6 +40,20 @@ contract DepositContract is ReentrancyGuard, Ownable {
         uint256 amount,
         address indexed onBehalfOf
     );
+    event BorrowCrossChainInitiated(
+        address indexed user,
+        address indexed asset,
+        uint256 amount,
+        uint256 indexed destinationChain,
+        address recipient
+    );
+    event WithdrawCrossChainInitiated(
+        address indexed user,
+        address indexed asset,
+        uint256 amount,
+        uint256 indexed destinationChain,
+        address recipient
+    );
 
     error UnsupportedAsset(address asset);
     error InvalidAmount();
@@ -313,6 +327,88 @@ contract DepositContract is ReentrancyGuard, Ownable {
         address asset
     ) external view returns (SupportedAsset memory) {
         return supportedAssets[asset];
+    }
+
+    /**
+     * @notice Trigger a cross-chain borrow and withdrawal to external chain
+     * @dev This function sends a message to ZetaChain to borrow assets and withdraw them back to the caller's chain
+     * @param asset The address of the asset to borrow on ZetaChain (ZRC-20 token address)
+     * @param amount The amount to borrow (in token's native decimals)
+     * @param destinationChain The chain ID where the borrowed assets should be withdrawn to
+     * @param recipient The address on the destination chain to receive the borrowed assets
+     */
+    function borrowCrossChain(
+        address asset,
+        uint256 amount,
+        uint256 destinationChain,
+        address recipient
+    ) external payable nonReentrant {
+        if (amount == 0) revert InvalidAmount();
+        if (recipient == address(0)) revert InvalidAddress();
+        if (asset == address(0)) revert InvalidAddress();
+        
+        // Encode message for SimpleLendingProtocol.onCall()
+        // Format: (string action, address user, uint256 amount, uint256 destinationChain, address recipient)
+        bytes memory message = abi.encode("borrowCrossChain", msg.sender, amount, destinationChain, recipient);
+
+        try
+            gateway.call(
+                lendingProtocolAddress,
+                message,
+                RevertOptions({
+                    revertAddress: msg.sender,
+                    callOnRevert: true,
+                    abortAddress: msg.sender,
+                    revertMessage: abi.encode("Cross-chain borrow failed"),
+                    onRevertGasLimit: GAS_LIMIT
+                })
+            )
+        {
+            emit BorrowCrossChainInitiated(msg.sender, asset, amount, destinationChain, recipient);
+        } catch {
+            revert DepositFailed();
+        }
+    }
+
+    /**
+     * @notice Trigger a cross-chain withdrawal from ZetaChain to external chain
+     * @dev This function sends a message to ZetaChain to withdraw supplied assets to the caller's chain
+     * @param asset The address of the asset to withdraw from ZetaChain (ZRC-20 token address)
+     * @param amount The amount to withdraw (in token's native decimals)
+     * @param destinationChain The chain ID where the assets should be withdrawn to
+     * @param recipient The address on the destination chain to receive the withdrawn assets
+     */
+    function withdrawCrossChain(
+        address asset,
+        uint256 amount,
+        uint256 destinationChain,
+        address recipient
+    ) external payable nonReentrant {
+        if (amount == 0) revert InvalidAmount();
+        if (recipient == address(0)) revert InvalidAddress();
+        if (asset == address(0)) revert InvalidAddress();
+        
+        // Encode message for SimpleLendingProtocol.onCall()
+        // Format: (string action, address user, uint256 amount, uint256 destinationChain, address recipient)
+        bytes memory message = abi.encode("withdrawCrossChain", msg.sender, amount, destinationChain, recipient);
+
+        try
+            gateway.call(
+                lendingProtocolAddress,
+                message,
+                RevertOptions({
+                    revertAddress: msg.sender,
+                    callOnRevert: true,
+                    abortAddress: msg.sender,
+                    revertMessage: abi.encode("Cross-chain withdraw failed"),
+                    onRevertGasLimit: GAS_LIMIT
+                })
+            )
+        {
+            emit WithdrawCrossChainInitiated(msg.sender, asset, amount, destinationChain, recipient);
+        } catch {
+            revert DepositFailed();
+        }
     }
 
     /**

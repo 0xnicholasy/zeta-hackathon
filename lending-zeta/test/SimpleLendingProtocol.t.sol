@@ -116,7 +116,7 @@ contract SimpleLendingProtocolTest is Test {
 
     function testCannotUpdateUnsupportedAsset() public {
         vm.prank(owner);
-        vm.expectRevert("Asset not supported");
+        vm.expectRevert(abi.encodeWithSelector(SimpleLendingProtocol.AssetNotSupported.selector, address(0x999)));
         lendingProtocol.updatePrice(address(0x999), 100);
     }
 
@@ -142,13 +142,13 @@ contract SimpleLendingProtocolTest is Test {
 
     function testSupplyUnsupportedAsset() public {
         vm.prank(user1);
-        vm.expectRevert("Asset not supported");
+        vm.expectRevert(abi.encodeWithSelector(SimpleLendingProtocol.AssetNotSupported.selector, address(0x999)));
         lendingProtocol.supply(address(0x999), 1000, user1);
     }
 
     function testSupplyZeroAmount() public {
         vm.prank(user1);
-        vm.expectRevert("Amount must be greater than 0");
+        vm.expectRevert(SimpleLendingProtocol.InvalidAmount.selector);
         lendingProtocol.supply(address(ethToken), 0, user1);
     }
 
@@ -216,7 +216,7 @@ contract SimpleLendingProtocolTest is Test {
         ethToken.approve(address(lendingProtocol), supplyAmount);
         lendingProtocol.supply(address(ethToken), supplyAmount, user1);
 
-        vm.expectRevert("Insufficient collateral");
+        vm.expectRevert(SimpleLendingProtocol.InsufficientCollateral.selector);
         lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
         vm.stopPrank();
     }
@@ -229,7 +229,7 @@ contract SimpleLendingProtocolTest is Test {
         ethToken.approve(address(lendingProtocol), supplyAmount);
         lendingProtocol.supply(address(ethToken), supplyAmount, user1);
 
-        vm.expectRevert("Insufficient liquidity");
+        vm.expectRevert(SimpleLendingProtocol.InsufficientLiquidity.selector);
         lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
         vm.stopPrank();
     }
@@ -352,7 +352,7 @@ contract SimpleLendingProtocolTest is Test {
         ethToken.approve(address(lendingProtocol), supplyAmount);
         lendingProtocol.supply(address(ethToken), supplyAmount, user1);
 
-        vm.expectRevert("Insufficient balance");
+        vm.expectRevert(SimpleLendingProtocol.InsufficientBalance.selector);
         lendingProtocol.withdraw(address(ethToken), withdrawAmount, user1);
         vm.stopPrank();
     }
@@ -367,7 +367,7 @@ contract SimpleLendingProtocolTest is Test {
         lendingProtocol.supply(address(ethToken), supplyAmount, user1);
         lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
 
-        vm.expectRevert("Would break collateral ratio");
+        vm.expectRevert(SimpleLendingProtocol.InsufficientCollateral.selector);
         lendingProtocol.withdraw(address(ethToken), withdrawAmount, user1);
         vm.stopPrank();
     }
@@ -436,7 +436,7 @@ contract SimpleLendingProtocolTest is Test {
 
         vm.startPrank(liquidator);
         usdcToken.approve(address(lendingProtocol), 100 * 10 ** 6);
-        vm.expectRevert("User is not liquidatable");
+        vm.expectRevert(SimpleLendingProtocol.HealthFactorTooLow.selector);
         lendingProtocol.liquidate(
             user2,
             address(ethToken),
@@ -517,7 +517,7 @@ contract SimpleLendingProtocolTest is Test {
         });
 
         vm.prank(user1);
-        vm.expectRevert();
+        vm.expectRevert(SimpleLendingProtocol.Unauthorized.selector);
         lendingProtocol.onCall(context, address(ethToken), 1000, message);
     }
 
@@ -530,7 +530,7 @@ contract SimpleLendingProtocolTest is Test {
         });
 
         vm.prank(address(gateway));
-        vm.expectRevert("Invalid action");
+        vm.expectRevert("Invalid action or message format");
         lendingProtocol.onCall(context, address(ethToken), 1000, message);
     }
 
@@ -581,7 +581,7 @@ contract SimpleLendingProtocolTest is Test {
         assertEq(lendingProtocol.getSupportedAsset(0), address(ethToken));
         assertEq(lendingProtocol.getSupportedAsset(1), address(usdcToken));
 
-        vm.expectRevert("Index out of bounds");
+        vm.expectRevert(SimpleLendingProtocol.InvalidAmount.selector);
         lendingProtocol.getSupportedAsset(2);
     }
 

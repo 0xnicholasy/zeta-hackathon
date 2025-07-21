@@ -254,7 +254,7 @@ contract UniversalLendingProtocolTest is Test {
     function testCrossChainSupplyUnsupportedAsset() public {
         address unsupportedAsset = address(0x999);
         uint256 supplyAmount = 1000;
-        bytes memory message = abi.encode(user1, uint8(0));
+        bytes memory message = abi.encode("supply", user1);
         MessageContext memory context = MessageContext({
             sender: abi.encodePacked(user1),
             senderEVM: user1,
@@ -566,9 +566,9 @@ contract UniversalLendingProtocolTest is Test {
         );
 
         lendingProtocol.liquidate(
+            user2,
             address(ethToken), // collateral asset
             address(usdcToken), // debt asset
-            user2,
             debtToCover
         );
         vm.stopPrank();
@@ -594,11 +594,11 @@ contract UniversalLendingProtocolTest is Test {
 
         vm.startPrank(liquidator);
         usdcToken.approve(address(lendingProtocol), 100 * 10 ** 6);
-        vm.expectRevert("Health factor above liquidation threshold");
+        vm.expectRevert(UniversalLendingProtocol.HealthFactorTooLow.selector);
         lendingProtocol.liquidate(
+            user2,
             address(ethToken),
             address(usdcToken),
-            user2,
             100 * 10 ** 6
         );
         vm.stopPrank();
@@ -716,7 +716,7 @@ contract UniversalLendingProtocolTest is Test {
     }
 
     function testOnlyGatewayCanCallOnCall() public {
-        bytes memory message = abi.encode(user1, uint8(0));
+        bytes memory message = abi.encode("supply", user1);
         MessageContext memory context = MessageContext({
             sender: abi.encodePacked(user1),
             senderEVM: user1,
@@ -729,7 +729,7 @@ contract UniversalLendingProtocolTest is Test {
     }
 
     function testInvalidOperationInOnCall() public {
-        bytes memory message = abi.encode(user1, uint8(99)); // Invalid operation
+        bytes memory message = abi.encode("invalid", user1); // Invalid operation
         MessageContext memory context = MessageContext({
             sender: abi.encodePacked(user1),
             senderEVM: user1,

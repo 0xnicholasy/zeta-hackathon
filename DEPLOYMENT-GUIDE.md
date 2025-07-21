@@ -18,7 +18,7 @@ This guide shows you how to deploy and manage the ZetaChain cross-chain lending 
 - **`lending-zeta/hardhat.config.ts`** - Network settings for Hardhat deployment
 - **`lending-zeta/scripts/simple/deploy-and-init-simple.ts`** - Simple lending protocol deployment
 - **`lending-zeta/scripts/universal/deploy-universal-lending.ts`** - Universal lending protocol deployment
-- **`lending-zeta/scripts/depositcontract/deploy-deposit-contracts.ts`** - External chain deposit contracts
+- **`lending-zeta/scripts/deposit-contract/deploy-deposit-contracts.ts`** - External chain deposit contracts
 
 ### TypeScript Interfaces
 ```typescript
@@ -70,10 +70,10 @@ npx hardhat run scripts/universal/deploy-universal-lending.ts --network zeta-tes
 cd lending-zeta
 
 # Deploy to Arbitrum Sepolia
-npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network arbitrum-sepolia
+npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network arbitrum-sepolia
 
 # Deploy to Ethereum Sepolia  
-npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network ethereum-sepolia
+npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network ethereum-sepolia
 ```
 
 ## ⚙️ Asset Configuration
@@ -273,8 +273,8 @@ cd lending-zeta
 npx hardhat run scripts/simple/deploy-and-init-simple.ts --network zeta-testnet
 
 # 3. Deploy Deposit Contracts
-npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network arbitrum-sepolia
-npx hardhat run scripts/depositcontract/deploy-deposit-contracts.ts --network ethereum-sepolia
+npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network arbitrum-sepolia
+npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network ethereum-sepolia
 
 # 4. Verify assets configuration
 npx hardhat run scripts/simple/verify-assets.ts --network zeta-testnet

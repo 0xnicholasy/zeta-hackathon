@@ -10,7 +10,7 @@ const contractsData = {
       "rpc": "https://zetachain-athens-evm.blockpi.network/v1/rpc/public",
       "explorer": "https://athens.explorer.zetachain.com",
       "contracts": {
-        "SimpleLendingProtocol": "0x02E44958e9cb50CB735B7b5Bed1616f162A174eb",
+        "SimpleLendingProtocol": "0x36cF9ca6756dC1882Ff4f1922C679bB631D5607E",
         "UniversalLendingProtocol": "0x0000000000000000000000000000000000000000",
         "PriceOracle": "0x0000000000000000000000000000000000000000",
         "MockPriceOracle": "0x0000000000000000000000000000000000000000",
@@ -29,7 +29,7 @@ const contractsData = {
       "chainId": 421614,
       "type": "testnet" as const,
       "contracts": {
-        "DepositContract": "0x753511D6FC7005333d3065aBc82552BaD4dFD4CC",
+        "DepositContract": "0xc74800e8d51c5C96b7A5B0Db6246f3D1183F9a52",
         "Gateway": "0x0dA86Dc3F9B71F84a0E97B0e2291e50B7a5df10f"
       },
       "tokens": {
@@ -42,7 +42,7 @@ const contractsData = {
       "chainId": 11155111,
       "type": "testnet" as const,
       "contracts": {
-        "DepositContract": "0xe7650dC7C0D8E68859FBcD8EaBEe83ed54B98696",
+        "DepositContract": "0xa8631751c308552CEaD2246723081c46799E6875",
         "Gateway": "0x0c487a766110c85d301d96e33579c5b317fa4995"
       },
       "tokens": {
