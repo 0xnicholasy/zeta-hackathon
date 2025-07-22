@@ -13,72 +13,36 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { TokenNetworkIcon } from '../ui/token-network-icon';
 import { Spinner } from '../ui/spinner';
-import { HourglassLoader, StaticHourglass } from '../ui/hourglass-loader';
+import { HourglassLoader } from '../ui/hourglass-loader';
 import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
 import { useContracts } from '../../hooks/useContracts';
-import { isSupportedChain, type SupportedChainId, getTransactionUrl } from '../../contracts/deployments';
+import { type SupportedChainId, getTransactionUrl } from '../../contracts/deployments';
 import type { TokenBalance } from '../../hooks/useMultiChainBalances';
-import { FaCheck, FaTimes } from 'react-icons/fa';
+import type { EVMTransactionHash } from './types';
+import { safeEVMAddress, safeEVMTransactionHash } from './types';
+import { FaCheck, FaTimes, FaClock } from 'react-icons/fa';
+import { DepositContract__factory, ERC20__factory } from '@/contracts/typechain-types';
+import { formatHexString } from '@/utils/formatHexString';
 
 interface SupplyDialogProps {
   isOpen: boolean;
   onClose: () => void;
   selectedToken: TokenBalance | null;
-  chainId: number;
+  chainId: SupportedChainId;
 }
 
 // DepositContract ABI (only functions we need)
-const depositContractAbi = [
-  {
-    name: 'depositEth',
-    type: 'function',
-    stateMutability: 'payable',
-    inputs: [{ name: 'onBehalfOf', type: 'address' }],
-    outputs: [],
-  },
-  {
-    name: 'depositToken',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'asset', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-      { name: 'onBehalfOf', type: 'address' },
-    ],
-    outputs: [],
-  },
-] as const;
+const depositContractAbi = DepositContract__factory.abi;
 
 // ERC20 ABI for approval
-const erc20Abi = [
-  {
-    name: 'approve',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'spender', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-    ],
-    outputs: [{ name: '', type: 'bool' }],
-  },
-  {
-    name: 'allowance',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'owner', type: 'address' },
-      { name: 'spender', type: 'address' },
-    ],
-    outputs: [{ name: '', type: 'uint256' }],
-  },
-] as const;
+const erc20Abi = ERC20__factory.abi;
 
 export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: SupplyDialogProps) {
   const [amount, setAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState<'input' | 'approve' | 'approving' | 'deposit' | 'depositing' | 'success'>('input');
-  const [approvalHash, setApprovalHash] = useState<`0x${string}` | null>(null);
-  const [depositHash, setDepositHash] = useState<`0x${string}` | null>(null);
+  const [approvalHash, setApprovalHash] = useState<EVMTransactionHash | null>(null);
+  const [depositHash, setDepositHash] = useState<EVMTransactionHash | null>(null);
 
   // Use cross-chain tracking hook
   const crossChain = useCrossChainTracking();
@@ -86,19 +50,24 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
   const { address } = useAccount();
 
   // Type guard the chainId to ensure it's supported
-  const supportedChainId: SupportedChainId | null = isSupportedChain(chainId) ? chainId : null;
-  const { depositContract } = useContracts(supportedChainId as SupportedChainId);
+  const { depositContract } = useContracts(chainId);
 
   const { writeContract, data: hash, error: contractError, reset: resetContract } = useWriteContract();
 
   // Wait for approval transaction
   const { isLoading: isApprovingTx, isSuccess: isApprovalSuccess } = useWaitForTransactionReceipt({
-    hash: approvalHash as `0x${string}`,
+    hash: approvalHash || undefined,
+    query: {
+      enabled: !!approvalHash,
+    },
   });
 
   // Wait for deposit transaction
   const { isLoading: isDepositingTx, isSuccess: isDepositSuccess } = useWaitForTransactionReceipt({
-    hash: depositHash as `0x${string}`,
+    hash: depositHash || undefined,
+    query: {
+      enabled: !!depositHash,
+    },
   });
 
   // Move computed values to the top but after hooks
@@ -114,11 +83,11 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
     try {
       setCurrentStep('deposit');
       writeContract({
-        address: depositContract as `0x${string}`,
+        address: safeEVMAddress(depositContract),
         abi: depositContractAbi,
         functionName: 'depositToken',
         args: [
-          selectedToken.tokenAddress as `0x${string}`,
+          selectedToken.tokenAddress,
           amountBigInt,
           address,
         ],
@@ -149,7 +118,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
         // For native ETH, call depositEth directly
         setCurrentStep('deposit');
         writeContract({
-          address: depositContract as `0x${string}`,
+          address: safeEVMAddress(depositContract),
           abi: depositContractAbi,
           functionName: 'depositEth',
           args: [address],
@@ -159,10 +128,10 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
         // For ERC20 tokens, start with approval
         setCurrentStep('approve');
         writeContract({
-          address: selectedToken.tokenAddress as `0x${string}`,
+          address: safeEVMAddress(selectedToken.tokenAddress),
           abi: erc20Abi,
           functionName: 'approve',
-          args: [depositContract as `0x${string}`, amountBigInt],
+          args: [safeEVMAddress(depositContract), amountBigInt],
         });
       }
     } catch (error) {
@@ -236,18 +205,21 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
   // Update current hash when writeContract returns new hash
   useEffect(() => {
     if (hash) {
-      if (currentStep === 'approve') {
-        setApprovalHash(hash);
-        setCurrentStep('approving');
-      } else if (currentStep === 'deposit') {
-        setDepositHash(hash);
-        setCurrentStep('depositing');
+      const validHash = safeEVMTransactionHash(hash);
+      if (validHash) {
+        if (currentStep === 'approve') {
+          setApprovalHash(validHash);
+          setCurrentStep('approving');
+        } else if (currentStep === 'deposit') {
+          setDepositHash(validHash);
+          setCurrentStep('depositing');
+        }
       }
     }
   }, [hash, currentStep]);
 
   // Early return AFTER all hooks have been called
-  if (!selectedToken || !supportedChainId || !depositContract) return null;
+  if (!selectedToken || !depositContract) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -381,9 +353,9 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
                   rel="noopener noreferrer"
                   className="ml-1 text-primary hover:text-primary/80 underline"
                 >
-                  {approvalHash.slice(0, 6)}...{approvalHash.slice(-4)}
+                  {formatHexString(approvalHash)}
                 </a>
-                {isApprovingTx && <StaticHourglass size="xs" variant="muted" className="ml-2" />}
+                {isApprovingTx && <FaClock className="ml-2 w-3 h-3 text-muted-foreground" />}
                 {isApprovalSuccess && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
               </div>
             )}
@@ -398,9 +370,9 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
                   rel="noopener noreferrer"
                   className="ml-1 text-primary hover:text-primary/80 underline"
                 >
-                  {depositHash.slice(0, 6)}...{depositHash.slice(-4)}
+                  {formatHexString(depositHash)}
                 </a>
-                {isDepositingTx && <StaticHourglass size="xs" variant="muted" className="ml-2" />}
+                {isDepositingTx && <FaClock className="ml-2 w-3 h-3 text-muted-foreground" />}
                 {isDepositSuccess && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
               </div>
             )}
@@ -411,14 +383,14 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
               <div className="mt-1 text-xs text-muted-foreground flex items-center">
                 <span>Cross-chain:</span>
                 <a
-                  href={`https://explorer.zetachain.com/cc/tx/${crossChain.txHash}`}
+                  href={`https://zetachain-athens.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData/${crossChain.txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="ml-1 text-primary hover:text-primary/80 underline"
                 >
-                  {crossChain.txHash.slice(0, 6)}...{crossChain.txHash.slice(-4)}
+                  {formatHexString(crossChain.txHash)}
                 </a>
-                {crossChain.status === 'pending' && <StaticHourglass size="xs" variant="muted" className="ml-2" />}
+                {crossChain.status === 'pending' && <FaClock className="ml-2 w-3 h-3 text-muted-foreground" />}
                 {crossChain.status === 'success' && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
                 {crossChain.status === 'failed' && <FaTimes className="ml-2 w-3 h-3 text-text-error-light dark:text-text-error-dark" />}
               </div>
@@ -434,7 +406,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
                   rel="noopener noreferrer"
                   className="ml-1 text-blue-500 hover:text-blue-700 underline"
                 >
-                  {hash.slice(0, 6)}...{hash.slice(-4)}
+                  {formatHexString(hash)}
                 </a>
               </div>
             )}

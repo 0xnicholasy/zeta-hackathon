@@ -1,5 +1,6 @@
 import { contractsData } from '@/config/contracts-data';
 import { isTestnetMode } from '../config/wagmi';
+import { isEVMAddress, isZeroAddress, ZERO_ADDRESS, type EVMAddress } from '../components/dashboard/types';
 
 // Type definitions
 export interface NetworkConfig {
@@ -63,15 +64,15 @@ export function getNetworkConfig(chainId: number): NetworkConfig | null {
 /**
  * Get contract address by name and chain ID
  */
-export function getContractAddress(contractName: string, chainId: number): string | null {
+export function getContractAddress(contractName: string, chainId: number): EVMAddress {
   const network = getNetworkConfig(chainId);
   if (!network) {
-    return null;
+    return ZERO_ADDRESS;
   }
 
   const address = network.contracts[contractName];
-  if (!address || address === '0x0000000000000000000000000000000000000000') {
-    return null;
+  if (!address || isZeroAddress(address) || !isEVMAddress(address)) {
+    return ZERO_ADDRESS;
   }
 
   return address;
@@ -80,15 +81,15 @@ export function getContractAddress(contractName: string, chainId: number): strin
 /**
  * Get token address by symbol and chain ID
  */
-export function getTokenAddress(tokenSymbol: string, chainId: number): string | null {
+export function getTokenAddress(tokenSymbol: string, chainId: number): EVMAddress {
   const network = getNetworkConfig(chainId);
   if (!network) {
-    return null;
+    return ZERO_ADDRESS;
   }
 
   const address = network.tokens[tokenSymbol];
-  if (!address || address === '0x0') {
-    return null;
+  if (!address || isZeroAddress(address) || !isEVMAddress(address)) {
+    return ZERO_ADDRESS;
   }
 
   // Allow zero address for native ETH
@@ -107,7 +108,7 @@ export function getAllContracts(chainId: number): Record<string, string> | null 
   // Filter out zero addresses
   const validContracts: Record<string, string> = {};
   for (const [name, address] of Object.entries(network.contracts)) {
-    if (address && address !== '0x0000000000000000000000000000000000000000') {
+    if (address && !isZeroAddress(address)) {
       validContracts[name] = address;
     }
   }
@@ -127,7 +128,7 @@ export function getAllTokens(chainId: number): Record<string, string> | null {
   // Filter out invalid addresses but allow zero address for native ETH
   const validTokens: Record<string, string> = {};
   for (const [symbol, address] of Object.entries(network.tokens)) {
-    if (address && address !== '0x0') {
+    if (address && !isZeroAddress(address)) {
       validTokens[symbol] = address;
     }
   }

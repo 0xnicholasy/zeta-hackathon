@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAccount, useReadContracts } from 'wagmi';
 import { formatUnits } from 'viem';
+import type { EVMAddress } from '../components/dashboard/types';
+import { isZeroAddress, safeEVMAddress, ZERO_ADDRESS } from '../components/dashboard/types';
 import { createPublicClient, http, type PublicClient, type Chain } from 'viem';
 import { arbitrumSepolia, sepolia } from 'viem/chains';
 import {
@@ -15,7 +17,7 @@ export interface TokenBalance {
   chainId: number;
   chainName: string;
   tokenSymbol: string;
-  tokenAddress: string;
+  tokenAddress: EVMAddress;
   balance: string;
   formattedBalance: string;
   decimals: number;
@@ -121,11 +123,12 @@ export function useMultiChainBalances() {
       // Get token addresses for this chain
       const tokens = config.tokens;
 
-      for (const [tokenSymbol, tokenAddress] of Object.entries(tokens)) {
+      for (const [tokenSymbol, tokenAddressString] of Object.entries(tokens)) {
+        const tokenAddress = safeEVMAddress(tokenAddressString);
         if (!tokenAddress) continue;
 
         // Handle native ETH (zero address) and ERC20 tokens
-        const isNativeETH = tokenAddress === '0x0000000000000000000000000000000000000000' || tokenSymbol === 'ETH';
+        const isNativeETH = isZeroAddress(tokenAddress) || tokenSymbol === 'ETH';
 
         try {
           let balance = '0';
@@ -141,13 +144,13 @@ export function useMultiChainBalances() {
             // ERC20 token balance
             const [tokenBalance, tokenDecimals] = await Promise.all([
               client.readContract({
-                address: tokenAddress as `0x${string}`,
+                address: safeEVMAddress(tokenAddress) || '' as EVMAddress,
                 abi: erc20Abi,
                 functionName: 'balanceOf',
                 args: [address],
               }),
               client.readContract({
-                address: tokenAddress as `0x${string}`,
+                address: safeEVMAddress(tokenAddress) || '' as EVMAddress,
                 abi: erc20Abi,
                 functionName: 'decimals',
               }),
@@ -275,17 +278,17 @@ export function useZetaChainBalances() {
 
     return tokens.map(token => ({
       ...token,
-      address: getTokenAddress(token.symbol, SupportedChain.ZETA_TESTNET) || '',
+      address: getTokenAddress(token.symbol, SupportedChain.ZETA_TESTNET),
     })).filter(token => token.address);
   }, []);
 
   // Get ZRC-20 token balances
   const { data: zetaBalances } = useReadContracts({
     contracts: zetaTokens.map(token => ({
-      address: token.address as `0x${string}`,
+      address: safeEVMAddress(token.address) || undefined,
       abi: erc20Abi,
       functionName: 'balanceOf',
-      args: [address || '0x0'],
+      args: [address || ZERO_ADDRESS],
     })),
     query: {
       enabled: zetaTokens.length > 0 && !!address && isConnected,
@@ -295,12 +298,12 @@ export function useZetaChainBalances() {
   // Get ZRC-20 token decimals
   const { data: zetaDecimals } = useReadContracts({
     contracts: zetaTokens.map(token => ({
-      address: token.address as `0x${string}`,
+      address: safeEVMAddress(token.address) || undefined,
       abi: erc20Abi,
       functionName: 'decimals',
     })),
     query: {
-      enabled: zetaTokens.length > 0,
+      enabled: zetaTokens.length > 0 && !!address && isConnected,
     },
   });
 

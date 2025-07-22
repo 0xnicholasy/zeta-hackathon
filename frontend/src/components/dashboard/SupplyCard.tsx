@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { TokenNetworkIcon } from '../ui/token-network-icon';
 import { Spinner } from '../ui/spinner';
 import { FaPlus } from 'react-icons/fa';
-import { SupportedChain } from '../../contracts/deployments';
+import { isSupportedChain, SupportedChain } from '../../contracts/deployments';
 import { SupplyDialog } from './SupplyDialog';
 import { WithdrawDialog } from './WithdrawDialog';
 import type { UserAssetData } from './types';
@@ -19,6 +19,10 @@ interface SupplyCardProps {
 }
 
 export function SupplyCard({ userAssets, selectedChain, walletChainId, externalBalances, isLoadingExternalBalances }: SupplyCardProps) {
+    const chainId = parseInt(selectedChain);
+    if (!isSupportedChain(chainId)) {
+        throw new Error(`Invalid chain ID: ${chainId}`);
+    }
     const [isSupplyDialogOpen, setIsSupplyDialogOpen] = useState(false);
     const [selectedToken, setSelectedToken] = useState<TokenBalance | null>(null);
     const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
@@ -169,7 +173,7 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                 isOpen={isSupplyDialogOpen}
                 onClose={() => setIsSupplyDialogOpen(false)}
                 selectedToken={selectedToken}
-                chainId={parseInt(selectedChain)}
+                chainId={chainId}
             />
 
             {selectedAssetForWithdraw && <WithdrawDialog

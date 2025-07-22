@@ -4,7 +4,9 @@ import { formatUnits } from 'viem';
 import { useContracts } from '../../hooks/useContracts';
 import { SupportedChain, TOKEN_SYMBOLS, getTokenAddress } from '../../contracts/deployments';
 import { SimpleLendingProtocol__factory } from '../../contracts/typechain-types/factories/contracts/SimpleLendingProtocol__factory';
+import { EVMAddress, safeEVMAddress } from '../dashboard/types';
 import { TokenIcon, NetworkIcon, } from '@web3icons/react';
+import { ERC20__factory } from '@/contracts/typechain-types';
 
 interface AssetData {
   address: string;
@@ -54,7 +56,7 @@ export default function Stats() {
 
   // Get supported assets count from protocol
   const { data: supportedAssetsCount } = useReadContract({
-    address: simpleLendingProtocol as `0x${string}`,
+    address: safeEVMAddress(simpleLendingProtocol),
     abi: SimpleLendingProtocol__factory.abi,
     functionName: 'getSupportedAssetsCount',
     query: {
@@ -66,7 +68,7 @@ export default function Stats() {
   const { data: supportedAssets } = useReadContracts({
     contracts: supportedAssetsCount ?
       Array.from({ length: Number(supportedAssetsCount) }, (_, i) => ({
-        address: simpleLendingProtocol as `0x${string}`,
+        address: safeEVMAddress(simpleLendingProtocol),
         abi: SimpleLendingProtocol__factory.abi,
         functionName: 'getSupportedAsset',
         args: [BigInt(i)],
@@ -77,8 +79,8 @@ export default function Stats() {
   });
 
   // Get supported asset addresses for comparison
-  const supportedAssetAddresses = useMemo(() => {
-    return supportedAssets?.map(result => result.result as unknown as string).filter(Boolean) || [];
+  const supportedAssetAddresses: EVMAddress[] = useMemo(() => {
+    return supportedAssets?.map(result => safeEVMAddress(result.result as unknown as string)).filter(Boolean) || [];
   }, [supportedAssets]);
 
   // Use all assets for display
@@ -88,7 +90,7 @@ export default function Stats() {
 
   const { data: assetConfigs } = useReadContracts({
     contracts: assetAddresses.map(asset => ({
-      address: simpleLendingProtocol as `0x${string}`,
+      address: safeEVMAddress(simpleLendingProtocol),
       abi: SimpleLendingProtocol__factory.abi,
       functionName: 'getAssetConfig',
       args: [asset],
@@ -99,34 +101,12 @@ export default function Stats() {
   });
 
   // ERC20 ABI for balance, decimals, and symbol
-  const erc20Abi = [
-    {
-      name: 'balanceOf',
-      type: 'function' as const,
-      stateMutability: 'view' as const,
-      inputs: [{ name: 'account', type: 'address' as const }],
-      outputs: [{ name: '', type: 'uint256' as const }],
-    },
-    {
-      name: 'decimals',
-      type: 'function' as const,
-      stateMutability: 'view' as const,
-      inputs: [],
-      outputs: [{ name: '', type: 'uint8' as const }],
-    },
-    {
-      name: 'symbol',
-      type: 'function' as const,
-      stateMutability: 'view' as const,
-      inputs: [],
-      outputs: [{ name: '', type: 'string' as const }],
-    },
-  ] as const;
+  const erc20Abi = ERC20__factory.abi;
 
   // Get contract balance for each asset to calculate TVL
   const { data: assetBalances } = useReadContracts({
     contracts: assetAddresses.map(asset => ({
-      address: asset as `0x${string}`,
+      address: safeEVMAddress(asset),
       abi: erc20Abi,
       functionName: 'balanceOf',
       args: [simpleLendingProtocol],
@@ -138,7 +118,7 @@ export default function Stats() {
 
   const { data: assetDecimals } = useReadContracts({
     contracts: assetAddresses.map(asset => ({
-      address: asset as `0x${string}`,
+      address: safeEVMAddress(asset),
       abi: erc20Abi,
       functionName: 'decimals',
     })),
@@ -149,7 +129,7 @@ export default function Stats() {
 
   const { data: assetSymbols } = useReadContracts({
     contracts: assetAddresses.map(asset => ({
-      address: asset as `0x${string}`,
+      address: safeEVMAddress(asset),
       abi: erc20Abi,
       functionName: 'symbol',
     })),

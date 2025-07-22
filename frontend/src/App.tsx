@@ -14,7 +14,7 @@ function App() {
             element={
               <Suspense fallback={
                 <div className="flex items-center justify-center min-h-screen">
-                  <Spinner variant="zeta" size="xl" text="Loading..." textPosition="bottom" />
+                  <Spinner variant="zeta" size="3xl" text="Loading..." textPosition="bottom" />
                 </div>
               }>
                 <route.element />

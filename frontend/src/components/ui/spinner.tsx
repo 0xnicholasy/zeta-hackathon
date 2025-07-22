@@ -3,13 +3,13 @@ import { ColorRing } from "react-loader-spinner"
 import { cn } from "@/lib/utils"
 
 const sizeMap = {
-  xs: 12,
-  sm: 16,
-  default: 20,
-  lg: 24,
-  xl: 32,
-  "2xl": 40,
-  "3xl": 48,
+  xs: 16,
+  sm: 20,
+  default: 24,
+  lg: 32,
+  xl: 40,
+  "2xl": 48,
+  "3xl": 64,
 }
 
 const colorMap = {
