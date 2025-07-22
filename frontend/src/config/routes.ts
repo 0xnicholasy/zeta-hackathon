@@ -4,6 +4,7 @@ import type { RouteObject } from 'react-router-dom';
 // Lazy load components to avoid circular dependencies
 const LandingPage = React.lazy(() => import('../pages/LandingPage'));
 const DashBoardPage = React.lazy(() => import('../pages/DashBoardPage'));
+const DebuggingPage = React.lazy(() => import('../pages/DebuggingPage'));
 const NotFoundPage = React.lazy(() => import('../pages/NotFoundPage'));
 
 export interface AppRoute {
@@ -17,6 +18,7 @@ export interface AppRoute {
 export const ROUTES = {
   HOME: '/',
   DASHBOARD: '/dashboard',
+  DEBUGGING: '/debugging',
   NOT_FOUND: '*',
 } as const;
 
@@ -34,6 +36,13 @@ export const appRoutes: AppRoute[] = [
     element: DashBoardPage,
     isPublic: false,
     description: 'Main lending and borrowing interface',
+  },
+  {
+    path: ROUTES.DEBUGGING,
+    name: 'Debugging',
+    element: DebuggingPage,
+    isPublic: true,
+    description: 'Debug page for deployments and spinner components',
   },
   {
     path: ROUTES.NOT_FOUND,

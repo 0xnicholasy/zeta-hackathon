@@ -1,47 +1,46 @@
 import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-
+import { MoonLoader } from "react-spinners"
 import { cn } from "@/lib/utils"
 
-const spinnerVariants = cva(
-  "animate-spin rounded-full border-solid border-t-transparent",
-  {
-    variants: {
-      variant: {
-        default: "border-primary",
-        zeta: "border-zeta-500",
-        secondary: "border-secondary",
-        muted: "border-muted-foreground",
-        accent: "border-accent",
-        destructive: "border-destructive",
-        white: "border-white",
-      },
-      size: {
-        xs: "h-3 w-3 border-[1px]",
-        sm: "h-4 w-4 border-[1.5px]",
-        default: "h-5 w-5 border-2",
-        lg: "h-6 w-6 border-2",
-        xl: "h-8 w-8 border-[3px]",
-        "2xl": "h-10 w-10 border-[3px]",
-        "3xl": "h-12 w-12 border-4",
-      },
-      speed: {
-        slow: "animate-[spin_2s_linear_infinite]",
-        normal: "animate-spin",
-        fast: "animate-[spin_0.5s_linear_infinite]",
-      }
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-      speed: "normal",
-    },
-  }
-)
+const sizeMap = {
+  xs: 12,
+  sm: 16,
+  default: 20,
+  lg: 24,
+  xl: 32,
+  "2xl": 40,
+  "3xl": 48,
+}
 
-export interface SpinnerProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof spinnerVariants> {
+const colorMap = {
+  default: "hsl(var(--primary))",
+  zeta: "hsl(var(--zeta-500))",
+  secondary: "hsl(var(--secondary-foreground))",
+  muted: "hsl(var(--muted-foreground))",
+  accent: "hsl(var(--accent-foreground))",
+  destructive: "hsl(var(--destructive))",
+  white: "#ffffff",
+}
+
+const speedMap = {
+  slow: 0.4,
+  normal: 0.7,
+  fast: 1.3,
+}
+
+export interface SpinnerProps extends React.HTMLAttributes<HTMLDivElement> {
+  /**
+   * Color variant of the spinner
+   */
+  variant?: keyof typeof colorMap
+  /**
+   * Size of the spinner
+   */
+  size?: keyof typeof sizeMap
+  /**
+   * Animation speed
+   */
+  speed?: keyof typeof speedMap
   /**
    * Show text alongside the spinner
    */
@@ -53,23 +52,29 @@ export interface SpinnerProps
 }
 
 const Spinner = React.forwardRef<HTMLDivElement, SpinnerProps>(
-  ({ 
-    className, 
-    variant, 
-    size, 
-    speed, 
-    text, 
+  ({
+    className,
+    variant = "default",
+    size = "default",
+    speed = "normal",
+    text,
     textPosition = "right",
-    ...props 
+    ...props
   }, ref) => {
     const spinnerElement = (
       <div
-        className={cn(spinnerVariants({ variant, size, speed, className }))}
+        className={cn("inline-block", className)}
         role="status"
         aria-label="Loading"
         {...props}
         ref={ref}
-      />
+      >
+        <MoonLoader
+          size={sizeMap[size]}
+          color={colorMap[variant]}
+          speedMultiplier={speedMap[speed]}
+        />
+      </div>
     )
 
     if (text) {
@@ -91,4 +96,4 @@ const Spinner = React.forwardRef<HTMLDivElement, SpinnerProps>(
 )
 Spinner.displayName = "Spinner"
 
-export { Spinner, spinnerVariants }
+export { Spinner }

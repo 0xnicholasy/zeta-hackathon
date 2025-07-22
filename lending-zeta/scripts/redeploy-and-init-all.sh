@@ -1,5 +1,5 @@
-hardhat run scripts/simple/deploy-and-init-simple.ts --network zeta-testnet
-hardhat run scripts/deposit-contract/deploy-and-init-deposit-contract.ts --network ethereum-sepolia
-hardhat run scripts/deposit-contract/simulate-deposit.ts --network ethereum-sepolia
-hardhat run scripts/deposit-contract/deploy-and-init-deposit-contract.ts --network arbitrum-sepolia
-hardhat run scripts/deposit-contract/simulate-deposit.ts --network arbitrum-sepolia
+hh run scripts/simple/deploy-and-init-simple.ts --network zeta-testnet
+# hh run scripts/deposit-contract/deploy-deposit-contracts.ts --network ethereum-sepolia
+# hh run scripts/deposit-contract/simulate-deposit.ts --network ethereum-sepolia
+hh run scripts/deposit-contract/deploy-deposit-contracts.ts --network arbitrum-sepolia      
+hh run scripts/deposit-contract/simulate-deposit.ts --network arbitrum-sepolia

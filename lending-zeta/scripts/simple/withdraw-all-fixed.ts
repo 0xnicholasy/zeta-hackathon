@@ -94,38 +94,20 @@ async function main() {
             console.log(`  Gas token: ${gasZRC20Address}`);
             console.log(`  Gas fee: ${utils.formatEther(gasFeeAmount)} ETH`);
             
-            const IERC20_ABI = [
-              "function balanceOf(address account) external view returns (uint256)",
-              "function approve(address spender, uint256 amount) external returns (bool)",
-              "function allowance(address owner, address spender) external view returns (uint256)"
-            ];
-            
-            const gasToken = new ethers.Contract(gasZRC20Address, IERC20_ABI, user);
-            
             if (asset.address === gasZRC20Address) {
               // Asset and gas token are the same - contract has enough balance already
               console.log(`=> Same token for asset and gas - proceeding with withdrawal`);
-              
-              // Perform cross-chain withdrawal
-              const withdrawalPromise = simpleLendingProtocol.withdrawCrossChain(
-                asset.address,
-                supplyBalance,
-                asset.destinationChain,
-                user.address,
-                { gasLimit: 800000 }
-              );
-              
-              withdrawalPromises.push({
-                promise: withdrawalPromise,
-                asset: asset.symbol,
-                amount: supplyBalance
-              });
-              
-              totalWithdrawals++;
             } else {
               // Asset and gas token are different - user needs to provide gas tokens
               console.log(`=> Different gas token required - checking user balance and approval`);
               
+              const IERC20_ABI = [
+                "function balanceOf(address account) external view returns (uint256)",
+                "function approve(address spender, uint256 amount) external returns (bool)",
+                "function allowance(address owner, address spender) external view returns (uint256)"
+              ];
+              
+              const gasToken = new ethers.Contract(gasZRC20Address, IERC20_ABI, user);
               const userGasBalance = await gasToken.balanceOf(user.address);
               console.log(`  User gas token balance: ${utils.formatEther(userGasBalance)}`);
               
@@ -146,26 +128,26 @@ async function main() {
                 await approveTx.wait();
                 console.log(`  => Gas tokens approved`);
               }
-              
-              console.log(`=> Proceeding with cross-chain withdrawal to chain ${asset.destinationChain}`);
-              
-              // Perform cross-chain withdrawal
-              const withdrawalPromise = simpleLendingProtocol.withdrawCrossChain(
-                asset.address,
-                supplyBalance,
-                asset.destinationChain,
-                user.address,
-                { gasLimit: 800000 }
-              );
-              
-              withdrawalPromises.push({
-                promise: withdrawalPromise,
-                asset: asset.symbol,
-                amount: supplyBalance
-              });
-              
-              totalWithdrawals++;
             }
+            
+            console.log(`=> Proceeding with cross-chain withdrawal to chain ${asset.destinationChain}`);
+            
+            // Perform cross-chain withdrawal - contract will handle gas token validation internally
+            const withdrawalPromise = simpleLendingProtocol.withdrawCrossChain(
+              asset.address,
+              supplyBalance,
+              asset.destinationChain,
+              user.address,
+              { gasLimit: 800000 }
+            );
+            
+            withdrawalPromises.push({
+              promise: withdrawalPromise,
+              asset: asset.symbol,
+              amount: supplyBalance
+            });
+            
+            totalWithdrawals++;
           } catch (error: any) {
             console.log(`=> Error checking gas requirements for ${asset.symbol}:`, error.message);
           }

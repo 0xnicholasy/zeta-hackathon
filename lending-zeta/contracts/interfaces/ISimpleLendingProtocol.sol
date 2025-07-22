@@ -13,6 +13,7 @@ interface ISimpleLendingProtocol {
     error InsufficientCollateral();
     error InsufficientLiquidity();
     error InsufficientBalance();
+    error InsufficientGasFee(address gasTokenAddress, uint256 required, uint256 available);
     error HealthFactorTooLow();
 
     event Supply(address indexed user, address indexed asset, uint256 amount);

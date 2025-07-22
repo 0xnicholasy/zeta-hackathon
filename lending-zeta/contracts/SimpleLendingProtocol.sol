@@ -79,7 +79,9 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
             if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
             IERC20(asset).approve(address(gateway), amount);
 
-            if (!IERC20(gasZRC20).transferFrom(msg.sender, address(this), gasFee)) revert InsufficientCollateral();
+            uint256 userGasBalance = IERC20(gasZRC20).balanceOf(msg.sender);
+            if (userGasBalance < gasFee) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            if (!IERC20(gasZRC20).transferFrom(msg.sender, address(this), gasFee)) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
             IERC20(gasZRC20).approve(address(gateway), gasFee);
         }
 
@@ -187,7 +189,7 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         uint256 amount,
         bytes calldata message
     ) external virtual override onlyGateway {
-        if (message.length == 64) {
+        if (message.length == 128) {
             (string memory action, address onBehalfOf) = abi.decode(message, (string, address));
 
             if (keccak256(abi.encodePacked(action)) == keccak256(abi.encodePacked("supply"))) {
@@ -197,7 +199,7 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
                 _repay(zrc20, amount, onBehalfOf);
                 return;
             }
-        } else if (message.length == 160) {
+        } else if (message.length == 224) {
             (
                 string memory action,
                 address user,
@@ -252,6 +254,11 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         } else {
             if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
             IERC20(asset).approve(address(gateway), amount);
+
+            uint256 userGasBalance = IERC20(gasZRC20).balanceOf(user);
+            if (userGasBalance < gasFee) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            if (!IERC20(gasZRC20).transferFrom(user, address(this), gasFee)) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            IERC20(gasZRC20).approve(address(gateway), gasFee);
         }
 
         gateway.withdraw(
@@ -299,6 +306,11 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         } else {
             if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
             IERC20(asset).approve(address(gateway), amount);
+
+            uint256 userGasBalance = IERC20(gasZRC20).balanceOf(user);
+            if (userGasBalance < gasFee) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            if (!IERC20(gasZRC20).transferFrom(user, address(this), gasFee)) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            IERC20(gasZRC20).approve(address(gateway), gasFee);
         }
 
         gateway.withdraw(

@@ -35,7 +35,9 @@
       "Bash(grep:*)",
       "Bash(bun run:*)",
       "Bash(bun install:*)",
-      "Bash(bun remove:*)"
+      "Bash(bun remove:*)",
+      "WebFetch(domain:zetachain-athens.blockpi.network)",
+      "WebFetch(domain:athens.explorer.zetachain.com)"
     ],
     "deny": []
   }
