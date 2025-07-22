@@ -49,7 +49,6 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
     };
 
     const handleWithdrawClick = (asset: UserAssetData) => {
-        console.log('handleWithdrawClick', asset);
         setSelectedAssetForWithdraw(asset);
         setIsWithdrawDialogOpen(true);
     };

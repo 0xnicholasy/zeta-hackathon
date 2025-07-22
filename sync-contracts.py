@@ -11,13 +11,14 @@ Usage: python sync-contracts.py
 
 import json
 import shutil
-import os
 import sys
+import re
 from pathlib import Path
 from datetime import datetime
+from typing import Dict, Any, Union
 
 class ContractSyncer:
-    def __init__(self):
+    def __init__(self) -> None:
         # Project root directory
         self.root_dir = Path(__file__).parent
         
@@ -29,9 +30,9 @@ class ContractSyncer:
         # Target directories (frontend)
         self.frontend_dir = self.root_dir / "frontend"
         self.typechain_target = self.frontend_dir / "src" / "contracts" / "typechain-types"
-        self.deployments_ts = self.frontend_dir / "src" / "contracts" / "deployments.ts"
+        self.contracts_data_ts = self.frontend_dir / "src" / "config" / "contracts-data.ts"
         
-    def validate_directories(self):
+    def validate_directories(self) -> bool:
         """Validate that required directories exist"""
         missing_dirs = []
         
@@ -52,7 +53,7 @@ class ContractSyncer:
             
         return True
         
-    def sync_typechains(self):
+    def sync_typechains(self) -> bool:
         """Sync typechain-types from lending-zeta to frontend"""
         print("🔄 Syncing typechain types...")
         
@@ -72,38 +73,67 @@ class ContractSyncer:
             print(f"   ❌ Error syncing typechains: {e}")
             return False
     
-    def convert_contracts_json_to_deployments_ts(self):
-        """Convert contracts.json to deployments.ts format"""
-        print("🔄 Converting contracts.json to deployments.ts...")
+    def convert_contracts_json_to_data_ts(self) -> bool:
+        """Convert contracts.json to contracts-data.ts format"""
+        print("🔄 Converting contracts.json to contracts-data.ts...")
         
         try:
             # Read contracts.json
             with open(self.contracts_json, 'r') as f:
                 contracts_data = json.load(f)
             
-            # Generate TypeScript content
-            ts_content = self.generate_deployments_ts(contracts_data)
+            # Generate TypeScript content for data only (no modifications needed)
+            ts_content = self.generate_contracts_data_ts(contracts_data)
             
-            # Write to deployments.ts
-            with open(self.deployments_ts, 'w') as f:
+            # Ensure config directory exists
+            config_dir = self.contracts_data_ts.parent
+            config_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Write to contracts-data.ts
+            with open(self.contracts_data_ts, 'w') as f:
                 f.write(ts_content)
                 
-            print(f"   ✅ Updated {self.deployments_ts}")
+            print(f"   ✅ Updated {self.contracts_data_ts}")
             return True
             
         except Exception as e:
             print(f"   ❌ Error converting contracts.json: {e}")
             return False
+
+    def should_quote_key(self, key: Union[str, int]) -> bool:
+        """Determine if a key should be quoted in TypeScript"""
+        # Convert to string for checking
+        key_str = str(key)
+        
+        # Check if it's a valid JavaScript identifier
+        # Valid identifiers: start with letter, $, or _, followed by letters, digits, $, or _
+        js_identifier_pattern = r'^[a-zA-Z_$][a-zA-Z0-9_$]*$'
+        
+        # Check if it's a valid numeric key (pure numbers are valid unquoted)
+        if key_str.isdigit():
+            return False
+            
+        # Check if it's a valid identifier
+        if re.match(js_identifier_pattern, key_str):
+            return False
+            
+        # If it contains special characters or doesn't match identifier pattern, quote it
+        return True
     
-    def generate_deployments_ts(self, contracts_data):
-        """Generate TypeScript content for deployments.ts"""
+    def generate_contracts_data_ts(self, contracts_data: Dict[str, Any]) -> str:
+        """Generate TypeScript content for contracts-data.ts (data only)"""
         
         # Convert Python dict to TypeScript object format
-        def dict_to_ts_object(obj, indent=0):
+        def dict_to_ts_object(obj: Any, indent: int = 0) -> str:
             if isinstance(obj, dict):
                 lines = ["{"]
                 for key, value in obj.items():
-                    quoted_key = f'"{key}"' if not key.replace('_', '').replace('.', '').isalnum() else key
+                    # Only quote keys that need quoting (special characters, reserved words, etc.)
+                    if self.should_quote_key(key):
+                        quoted_key = f'"{key}"'
+                    else:
+                        quoted_key = str(key)
+                    
                     ts_value = dict_to_ts_object(value, indent + 2)
                     type_annotation = ""
                     
@@ -123,239 +153,19 @@ class ContractSyncer:
         
         contracts_ts_obj = dict_to_ts_object(contracts_data)
         
-        ts_content = f'''import {{ isTestnetMode }} from '../config/wagmi';
+        # Generate timestamp for when this was generated
+        timestamp = datetime.now().isoformat()
+        
+        ts_content = f'''// Auto-generated contract deployment data
+// This file is generated by sync-contracts.py - DO NOT EDIT MANUALLY
+// Generated on: {timestamp}
 
-// Contract deployment data - converted from contracts.json to avoid Vite JSON parsing issues
-const contractsData = {contracts_ts_obj};
-
-// Type definitions matching the deployment utils
-export interface NetworkConfig {{
-  name: string;
-  chainId: number;
-  type: 'testnet' | 'mainnet';
-  rpc?: string;
-  explorer?: string;
-  contracts: {{
-    [contractName: string]: string;
-  }};
-  tokens: {{
-    [tokenSymbol: string]: string;
-  }};
-}}
-
-export interface DeploymentConfig {{
-  networks: {{
-    [chainId: string]: NetworkConfig;
-  }};
-  deployments: {{
-    lastUpdated: string;
-    deployer: string;
-  }};
-}}
-
-// Cast the imported data to our type
-const deployments: DeploymentConfig = contractsData as DeploymentConfig;
-
-/**
- * Get available networks based on current environment
- */
-export function getAvailableNetworks(): NetworkConfig[] {{
-  return Object.values(deployments.networks).filter(network => {{
-    return isTestnetMode ? network.type === 'testnet' : network.type === 'mainnet';
-  }});
-}}
-
-/**
- * Get network configuration by chain ID
- */
-export function getNetworkConfig(chainId: number): NetworkConfig | null {{
-  const chainIdStr = chainId.toString();
-  const network = deployments.networks[chainIdStr];
-
-  if (!network) {{
-    return null;
-  }}
-
-  // Only return if it matches current environment
-  if (isTestnetMode && network.type !== 'testnet') {{
-    return null;
-  }}
-  if (!isTestnetMode && network.type !== 'mainnet') {{
-    return null;
-  }}
-
-  return network;
-}}
-
-/**
- * Get contract address by name and chain ID
- */
-export function getContractAddress(contractName: string, chainId: number): string | null {{
-  const network = getNetworkConfig(chainId);
-  if (!network) {{
-    return null;
-  }}
-
-  const address = network.contracts[contractName];
-  if (!address || address === '0x0000000000000000000000000000000000000000') {{
-    return null;
-  }}
-
-  return address;
-}}
-
-/**
- * Get token address by symbol and chain ID
- */
-export function getTokenAddress(tokenSymbol: string, chainId: number): string | null {{
-  const network = getNetworkConfig(chainId);
-  if (!network) {{
-    return null;
-  }}
-
-  const address = network.tokens[tokenSymbol];
-  if (!address || address === '0x0') {{
-    return null;
-  }}
-
-  // Allow zero address for native ETH
-  return address;
-}}
-
-/**
- * Get all deployed contract addresses for a chain
- */
-export function getAllContracts(chainId: number): Record<string, string> | null {{
-  const network = getNetworkConfig(chainId);
-  if (!network) {{
-    return null;
-  }}
-
-  // Filter out zero addresses
-  const validContracts: Record<string, string> = {{}};
-  for (const [name, address] of Object.entries(network.contracts)) {{
-    if (address && address !== '0x0000000000000000000000000000000000000000') {{
-      validContracts[name] = address;
-    }}
-  }}
-
-  return validContracts;
-}}
-
-/**
- * Get all token addresses for a chain
- */
-export function getAllTokens(chainId: number): Record<string, string> | null {{
-  const network = getNetworkConfig(chainId);
-  if (!network) {{
-    return null;
-  }}
-
-  // Filter out invalid addresses but allow zero address for native ETH
-  const validTokens: Record<string, string> = {{}};
-  for (const [symbol, address] of Object.entries(network.tokens)) {{
-    if (address && address !== '0x0') {{
-      validTokens[symbol] = address;
-    }}
-  }}
-
-  return validTokens;
-}}
-
-/**
- * Check if a contract is deployed on a specific chain
- */
-export function isContractDeployed(contractName: string, chainId: number): boolean {{
-  const address = getContractAddress(contractName, chainId);
-  return address !== null;
-}}
-
-/**
- * Check if a token is available on a specific chain
- */
-export function isTokenAvailable(tokenSymbol: string, chainId: number): boolean {{
-  const address = getTokenAddress(tokenSymbol, chainId);
-  return address !== null;
-}}
-
-/**
- * Get deployment info
- */
-export function getDeploymentInfo() {{
-  return deployments.deployments;
-}}
-
-/**
- * Get supported chain IDs for current environment
- */
-export function getSupportedChainIds(): number[] {{
-  return getAvailableNetworks().map(network => network.chainId);
-}}
-
-// Supported chain constants for type safety
-export const SupportedChain = {{
-  ZETA_TESTNET: 7001,
-  ARBITRUM_SEPOLIA: 421614,
-  ETHEREUM_SEPOLIA: 11155111,
-}} as const;
-
-export type SupportedChainId = typeof SupportedChain[keyof typeof SupportedChain];
-
-// Helper to check if a chain ID is supported
-export const isSupportedChain = (chainId: number): chainId is SupportedChainId => {{
-  return Object.values(SupportedChain).includes(chainId as SupportedChainId);
-}};
-
-// Predefined contract and token names for type safety
-export const CONTRACT_NAMES = {{
-  SIMPLE_LENDING_PROTOCOL: 'SimpleLendingProtocol',
-  UNIVERSAL_LENDING_PROTOCOL: 'UniversalLendingProtocol',
-  DEPOSIT_CONTRACT: 'DepositContract',
-  PRICE_ORACLE: 'PriceOracle',
-  MOCK_PRICE_ORACLE: 'MockPriceOracle',
-  GATEWAY: 'Gateway',
-}} as const;
-
-export const TOKEN_SYMBOLS = {{
-  ETH_ARBI: 'ETH.ARBI',
-  USDC_ARBI: 'USDC.ARBI',
-  ETH_ETH: 'ETH.ETH',
-  USDC_ETH: 'USDC.ETH',
-  ZETA: 'ZETA',
-  ETH: 'ETH',
-  USDC: 'USDC',
-}} as const;
-
-// Helper functions with predefined contract names
-export const getSimpleLendingProtocolAddress = (chainId: number) =>
-  getContractAddress(CONTRACT_NAMES.SIMPLE_LENDING_PROTOCOL, chainId);
-
-export const getUniversalLendingProtocolAddress = (chainId: number) =>
-  getContractAddress(CONTRACT_NAMES.UNIVERSAL_LENDING_PROTOCOL, chainId);
-
-export const getDepositContractAddress = (chainId: number) =>
-  getContractAddress(CONTRACT_NAMES.DEPOSIT_CONTRACT, chainId);
-
-export const getPriceOracleAddress = (chainId: number) =>
-  getContractAddress(CONTRACT_NAMES.PRICE_ORACLE, chainId);
-
-// Helper functions for tokens
-export const getEthArbiAddress = (chainId: number) =>
-  getTokenAddress(TOKEN_SYMBOLS.ETH_ARBI, chainId);
-
-export const getUsdcArbiAddress = (chainId: number) =>
-  getTokenAddress(TOKEN_SYMBOLS.USDC_ARBI, chainId);
-
-export const getEthEthAddress = (chainId: number) =>
-  getTokenAddress(TOKEN_SYMBOLS.ETH_ETH, chainId);
-
-export const getUsdcEthAddress = (chainId: number) =>
-  getTokenAddress(TOKEN_SYMBOLS.USDC_ETH, chainId);
+export const contractsData = {contracts_ts_obj};
 '''
         
         return ts_content
     
-    def print_summary(self, contracts_data):
+    def print_summary(self, contracts_data: Dict[str, Any]) -> None:
         """Print a summary of the sync operation"""
         print("\n📋 Sync Summary:")
         print("=" * 50)
@@ -371,6 +181,14 @@ export const getUsdcEthAddress = (chainId: number) =>
             for chain_id, network in contracts_data["networks"].items():
                 print(f"\n🌐 {network.get('name', 'Unknown')} (Chain ID: {chain_id}):")
                 
+                # Explorer URL
+                if network.get("explorer"):
+                    print(f"   🔗 Explorer: {network['explorer']}")
+                
+                # RPC URL
+                if network.get("rpc"):
+                    print(f"   🌐 RPC: {network['rpc']}")
+                
                 # Deployed contracts
                 contracts = network.get("contracts", {})
                 deployed_contracts = [name for name, addr in contracts.items() 
@@ -384,8 +202,12 @@ export const getUsdcEthAddress = (chainId: number) =>
                                   if addr and addr != "0x0"]
                 if available_tokens:
                     print(f"   🪙 Available Tokens: {', '.join(available_tokens)}")
+
+        print("\n📁 Generated Files:")
+        print(f"   - {self.contracts_data_ts}")
+        print(f"   - {self.typechain_target}")
     
-    def run(self):
+    def run(self) -> None:
         """Main sync process"""
         print("🚀 ZetaChain Cross-Chain Lending Protocol - Contract Sync")
         print("=" * 60)
@@ -397,7 +219,7 @@ export const getUsdcEthAddress = (chainId: number) =>
         # Load contracts.json for summary
         try:
             with open(self.contracts_json, 'r') as f:
-                contracts_data = json.load(f)
+                contracts_data: Dict[str, Any] = json.load(f)
         except Exception as e:
             print(f"❌ Error reading contracts.json: {e}")
             sys.exit(1)
@@ -409,8 +231,8 @@ export const getUsdcEthAddress = (chainId: number) =>
         if not self.sync_typechains():
             success = False
             
-        # 2. Convert contracts.json to deployments.ts
-        if not self.convert_contracts_json_to_deployments_ts():
+        # 2. Convert contracts.json to contracts-data.ts
+        if not self.convert_contracts_json_to_data_ts():
             success = False
         
         if success:

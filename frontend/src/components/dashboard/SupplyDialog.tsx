@@ -14,7 +14,7 @@ import { Input } from '../ui/input';
 import { TokenNetworkIcon } from '../ui/token-network-icon';
 import { Spinner } from '../ui/spinner';
 import { useContracts } from '../../hooks/useContracts';
-import { isSupportedChain, type SupportedChainId } from '../../contracts/deployments';
+import { isSupportedChain, type SupportedChainId, getTransactionUrl } from '../../contracts/deployments';
 import type { TokenBalance } from '../../hooks/useMultiChainBalances';
 
 interface SupplyDialogProps {
@@ -343,7 +343,15 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
             {/* Show approval transaction hash */}
             {approvalHash && (currentStep === 'approving' || currentStep === 'deposit' || currentStep === 'depositing' || currentStep === 'success') && (
               <div className="mt-2 text-xs text-muted-foreground">
-                Approval: {approvalHash.slice(0, 6)}...{approvalHash.slice(-4)}
+                Approval:
+                <a
+                  href={getTransactionUrl(chainId, approvalHash) || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-1 text-blue-500 hover:text-blue-700 underline"
+                >
+                  {approvalHash.slice(0, 6)}...{approvalHash.slice(-4)}
+                </a>
                 {isApprovingTx && <span className="ml-2">⏳</span>}
                 {isApprovalSuccess && <span className="ml-2 text-green-500">✓</span>}
               </div>
@@ -352,7 +360,15 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
             {/* Show deposit transaction hash */}
             {depositHash && (currentStep === 'depositing' || currentStep === 'success') && (
               <div className="mt-1 text-xs text-muted-foreground">
-                Deposit: {depositHash.slice(0, 6)}...{depositHash.slice(-4)}
+                Deposit:
+                <a
+                  href={getTransactionUrl(chainId, depositHash) || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-1 text-blue-500 hover:text-blue-700 underline"
+                >
+                  {depositHash.slice(0, 6)}...{depositHash.slice(-4)}
+                </a>
                 {isDepositingTx && <span className="ml-2">⏳</span>}
                 {isDepositSuccess && <span className="ml-2 text-green-500">✓</span>}
               </div>
@@ -361,7 +377,15 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
             {/* Show current transaction hash for approval/deposit steps */}
             {hash && (currentStep === 'approve' || currentStep === 'deposit') && (
               <div className="mt-2 text-xs text-muted-foreground">
-                Transaction: {hash.slice(0, 6)}...{hash.slice(-4)}
+                Transaction:
+                <a
+                  href={getTransactionUrl(chainId, hash) || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-1 text-blue-500 hover:text-blue-700 underline"
+                >
+                  {hash.slice(0, 6)}...{hash.slice(-4)}
+                </a>
               </div>
             )}
           </div>
@@ -378,7 +402,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
                 onClick={handleSubmit}
                 disabled={!isValidAmount || isSubmitting || !address}
               >
-{isSubmitting && <Spinner variant="white" size="xs" className="mr-2" />}
+                {isSubmitting && <Spinner variant="white" size="xs" className="mr-2" />}
                 {isSubmitting ? 'Submitting...' : 'Supply'}
               </Button>
             </>
