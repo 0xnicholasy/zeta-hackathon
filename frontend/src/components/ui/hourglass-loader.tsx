@@ -1,15 +1,15 @@
 import * as React from "react"
-import { ColorRing } from "react-loader-spinner"
+import { Hourglass } from "react-loader-spinner"
 import { cn } from "@/lib/utils"
 
 const sizeMap = {
-  xs: 12,
-  sm: 16,
-  default: 20,
-  lg: 24,
-  xl: 32,
-  "2xl": 40,
-  "3xl": 48,
+  xs: 16,
+  sm: 20,
+  default: 24,
+  lg: 32,
+  xl: 40,
+  "2xl": 48,
+  "3xl": 56,
 }
 
 const colorMap = {
@@ -20,54 +20,57 @@ const colorMap = {
   accent: "#8b5cf6", // Purple
   destructive: "#ef4444", // Red
   white: "#ffffff",
+  success: "#10b981", // Green
+  warning: "#f59e0b", // Amber
 }
-export interface SpinnerProps extends React.HTMLAttributes<HTMLDivElement> {
+
+export interface HourglassLoaderProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
-   * Color variant of the spinner
+   * Color variant of the hourglass
    */
   variant?: keyof typeof colorMap
   /**
-   * Size of the spinner
+   * Size of the hourglass
    */
   size?: keyof typeof sizeMap
   /**
-   * Animation speed
-   */
-  /**
-   * Show text alongside the spinner
+   * Show text alongside the hourglass
    */
   text?: string
   /**
-   * Position of the text relative to spinner
+   * Position of the text relative to hourglass
    */
   textPosition?: "right" | "bottom"
 }
 
-const Spinner = React.forwardRef<HTMLDivElement, SpinnerProps>(
-  ({
-    className,
-    variant = "default",
-    size = "default",
-    text,
-    textPosition = "right",
-    ...props
-  }, ref) => {
-    const spinnerElement = (
+const HourglassLoader = React.forwardRef<HTMLDivElement, HourglassLoaderProps>(
+  (
+    {
+      className,
+      variant = "zeta",
+      size = "default",
+      text,
+      textPosition = "bottom",
+      ...props
+    },
+    ref
+  ) => {
+    const hourglassElement = (
       <div
-        className={cn("inline-block", className)}
+        className={cn("inline-flex items-center justify-center", className)}
         role="status"
         aria-label="Loading"
         {...props}
         ref={ref}
       >
-        <ColorRing
+        <Hourglass
           height={sizeMap[size]}
           width={sizeMap[size]}
-          colors={[colorMap[variant], colorMap[variant], colorMap[variant], colorMap[variant], colorMap[variant]]}
+          colors={[colorMap[variant], colorMap[variant]]}
           wrapperStyle={{}}
           wrapperClass=""
           visible={true}
-          ariaLabel="loading"
+          ariaLabel="hourglass-loading"
         />
       </div>
     )
@@ -80,15 +83,16 @@ const Spinner = React.forwardRef<HTMLDivElement, SpinnerProps>(
             textPosition === "bottom" ? "flex-col gap-2" : "gap-2"
           )}
         >
-          {spinnerElement}
+          {hourglassElement}
           <span className="text-sm text-muted-foreground">{text}</span>
         </div>
       )
     }
 
-    return spinnerElement
+    return hourglassElement
   }
 )
-Spinner.displayName = "Spinner"
 
-export { Spinner }
+HourglassLoader.displayName = "HourglassLoader"
+
+export { HourglassLoader }

@@ -29,7 +29,6 @@ import type {
 
 export interface MockZRC20Interface extends utils.Interface {
   functions: {
-    "GAS_COIN()": FunctionFragment;
     "PROTOCOL_FLAT_FEE()": FunctionFragment;
     "allowance(address,address)": FunctionFragment;
     "approve(address,uint256)": FunctionFragment;
@@ -37,8 +36,10 @@ export interface MockZRC20Interface extends utils.Interface {
     "burn(address,uint256)": FunctionFragment;
     "decimals()": FunctionFragment;
     "deposit(address,uint256)": FunctionFragment;
+    "gasToken()": FunctionFragment;
     "mint(address,uint256)": FunctionFragment;
     "name()": FunctionFragment;
+    "setGasToken(address)": FunctionFragment;
     "symbol()": FunctionFragment;
     "totalSupply()": FunctionFragment;
     "transfer(address,uint256)": FunctionFragment;
@@ -49,7 +50,6 @@ export interface MockZRC20Interface extends utils.Interface {
 
   getFunction(
     nameOrSignatureOrTopic:
-      | "GAS_COIN"
       | "PROTOCOL_FLAT_FEE"
       | "allowance"
       | "approve"
@@ -57,8 +57,10 @@ export interface MockZRC20Interface extends utils.Interface {
       | "burn"
       | "decimals"
       | "deposit"
+      | "gasToken"
       | "mint"
       | "name"
+      | "setGasToken"
       | "symbol"
       | "totalSupply"
       | "transfer"
@@ -67,7 +69,6 @@ export interface MockZRC20Interface extends utils.Interface {
       | "withdrawGasFee"
   ): FunctionFragment;
 
-  encodeFunctionData(functionFragment: "GAS_COIN", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "PROTOCOL_FLAT_FEE",
     values?: undefined
@@ -93,11 +94,16 @@ export interface MockZRC20Interface extends utils.Interface {
     functionFragment: "deposit",
     values: [PromiseOrValue<string>, PromiseOrValue<BigNumberish>]
   ): string;
+  encodeFunctionData(functionFragment: "gasToken", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "mint",
     values: [PromiseOrValue<string>, PromiseOrValue<BigNumberish>]
   ): string;
   encodeFunctionData(functionFragment: "name", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "setGasToken",
+    values: [PromiseOrValue<string>]
+  ): string;
   encodeFunctionData(functionFragment: "symbol", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "totalSupply",
@@ -124,7 +130,6 @@ export interface MockZRC20Interface extends utils.Interface {
     values?: undefined
   ): string;
 
-  decodeFunctionResult(functionFragment: "GAS_COIN", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "PROTOCOL_FLAT_FEE",
     data: BytesLike
@@ -135,8 +140,13 @@ export interface MockZRC20Interface extends utils.Interface {
   decodeFunctionResult(functionFragment: "burn", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "decimals", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "deposit", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "gasToken", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "mint", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "name", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "setGasToken",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "symbol", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "totalSupply",
@@ -213,8 +223,6 @@ export interface MockZRC20 extends BaseContract {
   removeListener: OnEvent<this>;
 
   functions: {
-    GAS_COIN(overrides?: CallOverrides): Promise<[string]>;
-
     PROTOCOL_FLAT_FEE(overrides?: CallOverrides): Promise<[BigNumber]>;
 
     allowance(
@@ -248,6 +256,8 @@ export interface MockZRC20 extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
+    gasToken(overrides?: CallOverrides): Promise<[string]>;
+
     mint(
       to: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
@@ -255,6 +265,11 @@ export interface MockZRC20 extends BaseContract {
     ): Promise<ContractTransaction>;
 
     name(overrides?: CallOverrides): Promise<[string]>;
+
+    setGasToken(
+      _gasToken: PromiseOrValue<string>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<ContractTransaction>;
 
     symbol(overrides?: CallOverrides): Promise<[string]>;
 
@@ -281,8 +296,6 @@ export interface MockZRC20 extends BaseContract {
 
     withdrawGasFee(overrides?: CallOverrides): Promise<[string, BigNumber]>;
   };
-
-  GAS_COIN(overrides?: CallOverrides): Promise<string>;
 
   PROTOCOL_FLAT_FEE(overrides?: CallOverrides): Promise<BigNumber>;
 
@@ -317,6 +330,8 @@ export interface MockZRC20 extends BaseContract {
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
+  gasToken(overrides?: CallOverrides): Promise<string>;
+
   mint(
     to: PromiseOrValue<string>,
     amount: PromiseOrValue<BigNumberish>,
@@ -324,6 +339,11 @@ export interface MockZRC20 extends BaseContract {
   ): Promise<ContractTransaction>;
 
   name(overrides?: CallOverrides): Promise<string>;
+
+  setGasToken(
+    _gasToken: PromiseOrValue<string>,
+    overrides?: Overrides & { from?: PromiseOrValue<string> }
+  ): Promise<ContractTransaction>;
 
   symbol(overrides?: CallOverrides): Promise<string>;
 
@@ -351,8 +371,6 @@ export interface MockZRC20 extends BaseContract {
   withdrawGasFee(overrides?: CallOverrides): Promise<[string, BigNumber]>;
 
   callStatic: {
-    GAS_COIN(overrides?: CallOverrides): Promise<string>;
-
     PROTOCOL_FLAT_FEE(overrides?: CallOverrides): Promise<BigNumber>;
 
     allowance(
@@ -386,6 +404,8 @@ export interface MockZRC20 extends BaseContract {
       overrides?: CallOverrides
     ): Promise<boolean>;
 
+    gasToken(overrides?: CallOverrides): Promise<string>;
+
     mint(
       to: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
@@ -393,6 +413,11 @@ export interface MockZRC20 extends BaseContract {
     ): Promise<void>;
 
     name(overrides?: CallOverrides): Promise<string>;
+
+    setGasToken(
+      _gasToken: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<void>;
 
     symbol(overrides?: CallOverrides): Promise<string>;
 
@@ -445,8 +470,6 @@ export interface MockZRC20 extends BaseContract {
   };
 
   estimateGas: {
-    GAS_COIN(overrides?: CallOverrides): Promise<BigNumber>;
-
     PROTOCOL_FLAT_FEE(overrides?: CallOverrides): Promise<BigNumber>;
 
     allowance(
@@ -480,6 +503,8 @@ export interface MockZRC20 extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
+    gasToken(overrides?: CallOverrides): Promise<BigNumber>;
+
     mint(
       to: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
@@ -487,6 +512,11 @@ export interface MockZRC20 extends BaseContract {
     ): Promise<BigNumber>;
 
     name(overrides?: CallOverrides): Promise<BigNumber>;
+
+    setGasToken(
+      _gasToken: PromiseOrValue<string>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<BigNumber>;
 
     symbol(overrides?: CallOverrides): Promise<BigNumber>;
 
@@ -515,8 +545,6 @@ export interface MockZRC20 extends BaseContract {
   };
 
   populateTransaction: {
-    GAS_COIN(overrides?: CallOverrides): Promise<PopulatedTransaction>;
-
     PROTOCOL_FLAT_FEE(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     allowance(
@@ -550,6 +578,8 @@ export interface MockZRC20 extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 
+    gasToken(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
     mint(
       to: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
@@ -557,6 +587,11 @@ export interface MockZRC20 extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     name(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
+    setGasToken(
+      _gasToken: PromiseOrValue<string>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<PopulatedTransaction>;
 
     symbol(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 

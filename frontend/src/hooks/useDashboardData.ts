@@ -235,6 +235,7 @@ export function useDashboardData() {
                         maximumFractionDigits: 6,
                     }),
                     externalChainId,
+                    decimals,
                 });
             });
 

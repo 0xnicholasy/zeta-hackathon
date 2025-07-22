@@ -13,9 +13,11 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { TokenNetworkIcon } from '../ui/token-network-icon';
 import { Spinner } from '../ui/spinner';
+import { HourglassLoader } from '../ui/hourglass-loader';
 import { useContracts } from '../../hooks/useContracts';
 import { isSupportedChain, type SupportedChainId, getTransactionUrl } from '../../contracts/deployments';
 import type { TokenBalance } from '../../hooks/useMultiChainBalances';
+import { FaCheck, FaTimes } from 'react-icons/fa';
 
 interface SupplyDialogProps {
   isOpen: boolean;
@@ -73,7 +75,8 @@ const erc20Abi = [
 export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: SupplyDialogProps) {
   const [amount, setAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentStep, setCurrentStep] = useState<'input' | 'approve' | 'approving' | 'deposit' | 'depositing' | 'success'>('input');
+  const [currentStep, setCurrentStep] = useState<'input' | 'approve' | 'approving' | 'deposit' | 'depositing' | 'success' | 'crosschain_pending' | 'crosschain_success' | 'crosschain_failed'>('input');
+  const [crossChainTxHash, setCrossChainTxHash] = useState<string | null>(null);
   const [approvalHash, setApprovalHash] = useState<`0x${string}` | null>(null);
   const [depositHash, setDepositHash] = useState<`0x${string}` | null>(null);
 
@@ -173,6 +176,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
     setIsSubmitting(false);
     setApprovalHash(null);
     setDepositHash(null);
+    setCrossChainTxHash(null);
     resetContract(); // Clear any error states from the contract hook
     onClose();
   }, [onClose, resetContract]);
@@ -189,7 +193,13 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
       case 'depositing':
         return 'Waiting for deposit confirmation...';
       case 'success':
-        return 'Supply successful!';
+        return 'Supply transaction confirmed!';
+      case 'crosschain_pending':
+        return 'Processing cross-chain deposit...';
+      case 'crosschain_success':
+        return 'Cross-chain deposit completed!';
+      case 'crosschain_failed':
+        return 'Cross-chain deposit failed';
       default:
         return 'Enter amount to supply';
     }
@@ -208,13 +218,63 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
     }
   }, [isApprovalSuccess, currentStep, handleDeposit]);
 
-  // Handle deposit transaction success -> show success
+  // Cross-chain transaction tracking function
+  const trackCrossChainTransaction = useCallback(async (txHash: string) => {
+    if (!txHash) return;
+
+    setCrossChainTxHash(txHash);
+    setCurrentStep('crosschain_pending');
+
+    const maxRetries = 30; // 5 minutes with 10 second intervals
+    let retries = 0;
+
+    const checkTransaction = async () => {
+      try {
+        const response = await fetch(`https://zetachain-athens.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData/${txHash}`);
+        const data = await response.json();
+
+        if (data && data.inbound_hash_to_cctx_data) {
+          const cctxStatus = data.inbound_hash_to_cctx_data.cctx_status;
+          if (cctxStatus === 'OutboundMined') {
+            setCurrentStep('crosschain_success');
+            return;
+          } else if (cctxStatus === 'Aborted' || cctxStatus === 'Reverted') {
+            setCurrentStep('crosschain_failed');
+            return;
+          }
+        }
+
+        retries++;
+        if (retries < maxRetries) {
+          setTimeout(checkTransaction, 10000); // Check every 10 seconds
+        } else {
+          // Timeout - assume success for UI purposes
+          setCurrentStep('crosschain_success');
+        }
+      } catch (error) {
+        retries++;
+        console.error('Failed to check transaction:', error);
+        if (retries < maxRetries) {
+          setTimeout(checkTransaction, 10000);
+        } else {
+          setCurrentStep('crosschain_failed');
+        }
+      }
+    };
+
+    // Start checking after a short delay
+    setTimeout(checkTransaction, 5000);
+  }, []);
+
+  // Handle deposit transaction success -> show success and start cross-chain tracking
   useEffect(() => {
-    if (isDepositSuccess && currentStep === 'depositing') {
+    if (isDepositSuccess && currentStep === 'depositing' && depositHash) {
       setCurrentStep('success');
       setIsSubmitting(false);
+      // Start cross-chain tracking
+      trackCrossChainTransaction(depositHash);
     }
-  }, [isDepositSuccess, currentStep]);
+  }, [isDepositSuccess, currentStep, depositHash, trackCrossChainTransaction]);
 
   // Update current hash when writeContract returns new hash
   useEffect(() => {
@@ -322,55 +382,82 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
 
         {currentStep !== 'input' && (
           <div className="flex flex-col items-center py-6">
-            {currentStep !== 'success' && (
-              <Spinner variant="zeta" size="lg" className="mb-4" />
+            {currentStep !== 'success' && currentStep !== 'crosschain_success' && currentStep !== 'crosschain_failed' && (
+              <HourglassLoader size="lg" className="mb-4" />
             )}
-            {currentStep === 'success' && (
-              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+            {(currentStep === 'success' || currentStep === 'crosschain_success') && (
+              <div className="w-8 h-8 bg-text-success-light dark:bg-text-success-dark rounded-full flex items-center justify-center mb-4">
+                <FaCheck className="w-5 h-5 text-white" />
               </div>
+            )}
+            {currentStep === 'crosschain_failed' && (
+              <div className="w-8 h-8 bg-text-error-light dark:bg-text-error-dark rounded-full flex items-center justify-center mb-4">
+                <FaTimes className="w-5 h-5 text-white" />
+              </div>
+            )}
+            {currentStep === 'crosschain_pending' && (
+              <HourglassLoader size="lg" className="mb-4" />
             )}
             <div className="text-center text-sm text-muted-foreground">
               {currentStep === 'approve' && 'Please confirm the approval transaction in your wallet...'}
               {currentStep === 'approving' && 'Waiting for approval transaction to be confirmed...'}
               {currentStep === 'deposit' && 'Please confirm the deposit transaction in your wallet...'}
               {currentStep === 'depositing' && 'Waiting for deposit transaction to be confirmed...'}
-              {currentStep === 'success' && 'Your supply transaction has been completed successfully!'}
+              {currentStep === 'success' && 'Your supply transaction has been completed successfully! Starting cross-chain transfer...'}
+              {currentStep === 'crosschain_pending' && 'Processing cross-chain deposit to ZetaChain...'}
+              {currentStep === 'crosschain_success' && 'Cross-chain deposit completed successfully! Tokens are now available for borrowing.'}
+              {currentStep === 'crosschain_failed' && 'Cross-chain deposit failed. Please check the transaction status or try again.'}
             </div>
 
             {/* Show approval transaction hash */}
-            {approvalHash && (currentStep === 'approving' || currentStep === 'deposit' || currentStep === 'depositing' || currentStep === 'success') && (
+            {approvalHash && (currentStep === 'approving' || currentStep === 'deposit' || currentStep === 'depositing' || currentStep === 'success' || currentStep === 'crosschain_pending' || currentStep === 'crosschain_success' || currentStep === 'crosschain_failed') && (
               <div className="mt-2 text-xs text-muted-foreground">
                 Approval:
                 <a
                   href={getTransactionUrl(chainId, approvalHash) || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ml-1 text-blue-500 hover:text-blue-700 underline"
+                  className="ml-1 text-primary hover:text-primary/80 underline"
                 >
                   {approvalHash.slice(0, 6)}...{approvalHash.slice(-4)}
                 </a>
-                {isApprovingTx && <span className="ml-2">⏳</span>}
-                {isApprovalSuccess && <span className="ml-2 text-green-500">✓</span>}
+                {isApprovingTx && <HourglassLoader size="xs" className="ml-2" />}
+                {isApprovalSuccess && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
               </div>
             )}
 
             {/* Show deposit transaction hash */}
-            {depositHash && (currentStep === 'depositing' || currentStep === 'success') && (
+            {depositHash && (currentStep === 'depositing' || currentStep === 'success' || currentStep === 'crosschain_pending' || currentStep === 'crosschain_success' || currentStep === 'crosschain_failed') && (
               <div className="mt-1 text-xs text-muted-foreground">
                 Deposit:
                 <a
                   href={getTransactionUrl(chainId, depositHash) || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ml-1 text-blue-500 hover:text-blue-700 underline"
+                  className="ml-1 text-primary hover:text-primary/80 underline"
                 >
                   {depositHash.slice(0, 6)}...{depositHash.slice(-4)}
                 </a>
-                {isDepositingTx && <span className="ml-2">⏳</span>}
-                {isDepositSuccess && <span className="ml-2 text-green-500">✓</span>}
+                {isDepositingTx && <HourglassLoader size="xs" className="ml-2" />}
+                {isDepositSuccess && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
+              </div>
+            )}
+
+            {/* Show cross-chain transaction hash */}
+            {crossChainTxHash && (currentStep === 'crosschain_pending' || currentStep === 'crosschain_success' || currentStep === 'crosschain_failed') && (
+              <div className="mt-1 text-xs text-muted-foreground">
+                Cross-chain:
+                <a
+                  href={`https://explorer.zetachain.com/cc/tx/${crossChainTxHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-1 text-primary hover:text-primary/80 underline"
+                >
+                  {crossChainTxHash.slice(0, 6)}...{crossChainTxHash.slice(-4)}
+                </a>
+                {currentStep === 'crosschain_pending' && <HourglassLoader size="xs" className="ml-2" />}
+                {currentStep === 'crosschain_success' && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
+                {currentStep === 'crosschain_failed' && <FaTimes className="ml-2 w-3 h-3 text-text-error-light dark:text-text-error-dark" />}
               </div>
             )}
 

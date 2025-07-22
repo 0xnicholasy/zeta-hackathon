@@ -7,8 +7,8 @@ import "../interfaces/IZRC20.sol";
 
 contract MockZRC20 is ERC20, IZRC20 {
     uint8 private _decimals;
-    uint256 public constant PROTOCOL_FLAT_FEE = 0.001 ether;
-    address public constant GAS_COIN = address(0);
+    uint256 public constant PROTOCOL_FLAT_FEE = 0.00003 ether; // More realistic 0.00003 ETH gas fee
+    address public gasToken;
 
     constructor(
         string memory name,
@@ -18,6 +18,7 @@ contract MockZRC20 is ERC20, IZRC20 {
     ) ERC20(name, symbol) {
         _decimals = decimals_;
         _mint(msg.sender, initialSupply);
+        gasToken = address(this); // For testing, use self as gas token
     }
 
     function decimals() public view override returns (uint8) {
@@ -43,11 +44,15 @@ contract MockZRC20 is ERC20, IZRC20 {
 
     function withdrawGasFee()
         external
-        pure
+        view
         override
         returns (address, uint256)
     {
-        return (GAS_COIN, PROTOCOL_FLAT_FEE);
+        return (gasToken, PROTOCOL_FLAT_FEE);
+    }
+    
+    function setGasToken(address _gasToken) external {
+        gasToken = _gasToken;
     }
 
     function mint(address to, uint256 amount) external {

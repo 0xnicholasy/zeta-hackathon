@@ -48,6 +48,27 @@ const _abi = [
     type: "error",
   },
   {
+    inputs: [
+      {
+        internalType: "address",
+        name: "gasTokenAddress",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "required",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "available",
+        type: "uint256",
+      },
+    ],
+    name: "InsufficientGasFee",
+    type: "error",
+  },
+  {
     inputs: [],
     name: "InsufficientLiquidity",
     type: "error",

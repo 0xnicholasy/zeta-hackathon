@@ -172,11 +172,11 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                 chainId={parseInt(selectedChain)}
             />
 
-            <WithdrawDialog
+            {selectedAssetForWithdraw && <WithdrawDialog
                 isOpen={isWithdrawDialogOpen}
                 onClose={() => setIsWithdrawDialogOpen(false)}
                 selectedAsset={selectedAssetForWithdraw}
-            />
+            />}
         </Card>
     );
 }

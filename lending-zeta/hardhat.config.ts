@@ -1,5 +1,6 @@
 import "@nomicfoundation/hardhat-toolbox";
 import "./tasks/deploy";
+import "./tasks/withdraw-local";
 import "@zetachain/localnet/tasks";
 import "@zetachain/toolkit/tasks";
 

@@ -9,7 +9,7 @@ import {RevertOptions} from "@zetachain/protocol-contracts/contracts/Revert.sol"
 import {MockZRC20} from "../contracts/mocks/MockZRC20.sol";
 import {MockPriceOracle} from "../contracts/mocks/MockPriceOracle.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ILendingProtocol} from "../contracts/interfaces/ILendingProtocol.sol";
+import {IUniversalLendingProtocol} from "../contracts/interfaces/IUniversalLendingProtocol.sol";
 
 contract UniversalLendingProtocolTest is Test {
     UniversalLendingProtocol public lendingProtocol;
@@ -169,7 +169,7 @@ contract UniversalLendingProtocolTest is Test {
     }
 
     function testAssetConfiguration() public view {
-        ILendingProtocol.AssetConfig memory config = lendingProtocol
+        IUniversalLendingProtocol.AssetConfig memory config = lendingProtocol
             .getAssetConfig(address(ethToken));
         assertTrue(config.isSupported);
         assertEq(config.collateralFactor, ETH_COLLATERAL_FACTOR);
@@ -384,7 +384,7 @@ contract UniversalLendingProtocolTest is Test {
             supplyAmount
         );
 
-        ILendingProtocol.AssetConfig memory config = lendingProtocol
+        IUniversalLendingProtocol.AssetConfig memory config = lendingProtocol
             .getAssetConfig(address(ethToken));
         assertEq(config.totalSupply, supplyAmount);
     }
@@ -662,7 +662,7 @@ contract UniversalLendingProtocolTest is Test {
             0.1e18 // 10% liquidation bonus
         );
 
-        ILendingProtocol.AssetConfig memory config = lendingProtocol
+        IUniversalLendingProtocol.AssetConfig memory config = lendingProtocol
             .getAssetConfig(newAsset);
         assertTrue(config.isSupported);
         assertEq(config.collateralFactor, 0.7e18);
@@ -834,5 +834,116 @@ contract UniversalLendingProtocolTest is Test {
         );
 
         lendingProtocol.onRevert(revertContext);
+    }
+
+    // ============ Decimal Normalization Tests for Universal Protocol ============
+
+    function testUniversalDecimalNormalizationForUSDC() public {
+        // Test that USDC (6 decimals) operations work correctly in Universal Protocol
+        uint256 supplyAmount = 1000 * 10 ** 6; // 1000 USDC (6 decimals)
+        uint256 borrowAmount = 500 * 10 ** 6; // 500 USDC (6 decimals)
+        
+        // First supply some ETH as collateral
+        _supplyAsset(user1, address(ethToken), 2 * 10 ** 18);
+        
+        vm.startPrank(user1);
+        usdcToken.approve(address(lendingProtocol), supplyAmount);
+        lendingProtocol.supply(address(usdcToken), supplyAmount);
+        
+        // This should work with proper decimal normalization
+        lendingProtocol.borrow(address(usdcToken), borrowAmount);
+        
+        vm.stopPrank();
+        
+        // Verify the operations succeeded
+        assertEq(lendingProtocol.getSupplyBalance(user1, address(usdcToken)), supplyAmount);
+        assertEq(lendingProtocol.getBorrowBalance(user1, address(usdcToken)), borrowAmount);
+    }
+
+    function testUniversalCrossChainWithMixedDecimals() public {
+        // Test cross-chain operations with different decimal precision tokens
+        uint256 ethAmount = 1 * 10 ** 18; // 1 ETH (18 decimals)
+        uint256 usdcAmount = 2000 * 10 ** 6; // 2000 USDC (6 decimals)
+        
+        // Supply different decimal tokens
+        _supplyAsset(user1, address(ethToken), ethAmount);
+        _supplyAsset(user1, address(usdcToken), usdcAmount);
+        
+        // Cross-chain operations should work with both
+        vm.startPrank(user1);
+        
+        // Borrow cross-chain with both token types
+        lendingProtocol.borrowCrossChain(
+            address(ethToken),
+            ethAmount / 4, // 0.25 ETH
+            ARBITRUM_CHAIN_ID,
+            user1,
+            RevertOptions({
+                revertAddress: address(0),
+                callOnRevert: false,
+                abortAddress: address(0),
+                revertMessage: "",
+                onRevertGasLimit: 0
+            })
+        );
+        
+        lendingProtocol.borrowCrossChain(
+            address(usdcToken),
+            usdcAmount / 4, // 500 USDC
+            ETHEREUM_CHAIN_ID,
+            user1,
+            RevertOptions({
+                revertAddress: address(0),
+                callOnRevert: false,
+                abortAddress: address(0),
+                revertMessage: "",
+                onRevertGasLimit: 0
+            })
+        );
+        
+        vm.stopPrank();
+        
+        // Both operations should succeed despite different decimals
+        assertGt(lendingProtocol.getBorrowBalance(user1, address(ethToken)), 0);
+        assertGt(lendingProtocol.getBorrowBalance(user1, address(usdcToken)), 0);
+    }
+
+    function testUniversalLiquidationWithDifferentDecimals() public {
+        // Test liquidation works correctly with mixed decimal tokens
+        uint256 ethSupply = 1 * 10 ** 18; // 1 ETH
+        uint256 usdcBorrow = 1500 * 10 ** 6; // 1500 USDC (close to liquidation)
+        
+        // Setup position
+        _supplyAsset(user2, address(ethToken), ethSupply);
+        
+        vm.prank(user2);
+        lendingProtocol.borrow(address(usdcToken), usdcBorrow);
+        
+        // Price drop to trigger liquidation
+        priceOracle.setPrice(address(ethToken), 1600 * 1e18); // ETH drops to $1600
+        
+        // Liquidate
+        vm.startPrank(liquidator);
+        usdcToken.approve(address(lendingProtocol), 500 * 10 ** 6);
+        
+        lendingProtocol.liquidate(
+            user2,
+            address(ethToken),
+            address(usdcToken),
+            500 * 10 ** 6 // Repay 500 USDC
+        );
+        vm.stopPrank();
+        
+        // Liquidation should work despite decimal differences
+        assertLt(lendingProtocol.getBorrowBalance(user2, address(usdcToken)), usdcBorrow);
+        assertLt(lendingProtocol.getSupplyBalance(user2, address(ethToken)), ethSupply);
+    }
+
+    // Helper function for supplying assets
+    function _supplyAsset(address user, address asset, uint256 amount) internal {
+        vm.startPrank(user);
+        MockZRC20(asset).approve(address(lendingProtocol), amount);
+        lendingProtocol.supply(asset, amount);
+        vm.stopPrank();
     }
 }

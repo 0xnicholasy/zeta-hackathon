@@ -245,4 +245,58 @@ abstract contract SimpleLendingProtocolBase is UniversalContract, ISimpleLending
         if (!assets[asset].isSupported) revert AssetNotSupported(asset);
         return IZRC20(asset).withdrawGasFee();
     }
+
+    /**
+     * @dev Normalize amount to 18 decimals for comparison purposes
+     * @param amount The amount to normalize
+     * @param decimals The current decimal places of the amount
+     * @return normalizedAmount The amount normalized to 18 decimals
+     */
+    function _normalizeToDecimals(uint256 amount, uint256 decimals) internal pure returns (uint256 normalizedAmount) {
+        if (decimals < 18) {
+            normalizedAmount = amount * (10 ** (18 - decimals));
+        } else if (decimals > 18) {
+            normalizedAmount = amount / (10 ** (decimals - 18));
+        } else {
+            normalizedAmount = amount;
+        }
+    }
+
+    /**
+     * @dev Check if withdrawal amount is sufficient to cover gas fees with proper decimal normalization
+     * @param asset The asset being withdrawn
+     * @param amount The withdrawal amount in asset decimals
+     * @param gasToken The gas token address
+     * @param gasFee The gas fee amount in gas token decimals
+     * @return true if amount > gas fee after normalization
+     */
+    function _isAmountSufficientForGas(
+        address asset,
+        uint256 amount,
+        address gasToken,
+        uint256 gasFee
+    ) internal view returns (bool) {
+        // Get decimals for both tokens
+        uint256 assetDecimals = IERC20Metadata(asset).decimals();
+        uint256 gasTokenDecimals = IERC20Metadata(gasToken).decimals();
+        
+        // Normalize both amounts to 18 decimals for comparison
+        uint256 normalizedAmount = _normalizeToDecimals(amount, assetDecimals);
+        uint256 normalizedGasFee = _normalizeToDecimals(gasFee, gasTokenDecimals);
+        
+        return normalizedAmount > normalizedGasFee;
+    }
+
+    /**
+     * @dev Validate that withdrawal amount is greater than gas fee, reverts if not
+     * @param asset The asset being withdrawn
+     * @param amount The withdrawal amount in asset decimals
+     */
+    function _validateAmountVsGasFee(address asset, uint256 amount) internal view {
+        (address gasToken, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
+        
+        if (!_isAmountSufficientForGas(asset, amount, gasToken, gasFee)) {
+            revert InvalidAmount();
+        }
+    }
 }

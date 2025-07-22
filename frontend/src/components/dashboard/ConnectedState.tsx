@@ -8,6 +8,7 @@ import { AccountHealth } from './AccountHealth';
 import { SupplyCard } from './SupplyCard';
 import { BorrowCard } from './BorrowCard';
 import { useDashboardData } from '../../hooks/useDashboardData';
+import { FaChevronDown } from 'react-icons/fa';
 
 export function ConnectedState() {
     const walletChainId = useChainId();
@@ -76,14 +77,7 @@ export function ConnectedState() {
                     >
                         <NetworkIcon name={currentChain.icon} className="w-4 h-4" />
                         <span>{currentChain.name}</span>
-                        <svg
-                            className="w-4 h-4 ml-auto"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+                        <FaChevronDown className="w-4 h-4 ml-auto" />
                     </Button>
                 </div>
 

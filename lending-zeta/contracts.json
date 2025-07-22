@@ -7,7 +7,7 @@
       "rpc": "https://zetachain-athens-evm.blockpi.network/v1/rpc/public",
       "explorer": "https://athens.explorer.zetachain.com",
       "contracts": {
-        "SimpleLendingProtocol": "0x540E30c2866DE055758D424BFA65412E3B5D73Cd",
+        "SimpleLendingProtocol": "0x7556b48A21b486194F75717440FfAf780F23441b",
         "UniversalLendingProtocol": "0x0000000000000000000000000000000000000000",
         "PriceOracle": "0x0000000000000000000000000000000000000000",
         "MockPriceOracle": "0x0000000000000000000000000000000000000000",
@@ -27,7 +27,7 @@
       "type": "testnet",
       "explorer": "https://sepolia.arbiscan.io",
       "contracts": {
-        "DepositContract": "0xA95399DfcDf40D5c18132a5f1b34cd4dF9678656",
+        "DepositContract": "0xcD5e2ed10e5030c9d55e7Bb7Cd666940F713F1e4",
         "Gateway": "0x0dA86Dc3F9B71F84a0E97B0e2291e50B7a5df10f"
       },
       "tokens": {
@@ -41,7 +41,7 @@
       "type": "testnet",
       "explorer": "https://sepolia.etherscan.io",
       "contracts": {
-        "DepositContract": "0xf5a08c144F78c45aC12E07A1323f21c986Ae80Ca",
+        "DepositContract": "0x62DAeb4aCB10e945cb397072973466b8A817Fa67",
         "Gateway": "0x0c487a766110c85d301d96e33579c5b317fa4995"
       },
       "tokens": {
@@ -51,7 +51,7 @@
     }
   },
   "deployments": {
-    "lastUpdated": "2025-07-22T05:11:31.610Z",
+    "lastUpdated": "2025-07-22T08:10:28.161Z",
     "deployer": "0xe1C5Bf97A7Ffb50988DeF972E1E242072298a59C"
   }
 }

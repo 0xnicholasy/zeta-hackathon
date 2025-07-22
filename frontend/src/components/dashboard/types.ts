@@ -14,4 +14,5 @@ export interface UserAssetData {
     externalBalance?: string;
     formattedExternalBalance?: string;
     externalChainId?: number;
+    decimals: number;
 }

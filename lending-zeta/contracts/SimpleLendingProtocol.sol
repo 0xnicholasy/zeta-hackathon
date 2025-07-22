@@ -61,11 +61,11 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
         if (!canBorrow(msg.sender, asset, amount)) revert InsufficientCollateral();
 
-        (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
-        if (amount <= gasFee) revert InvalidAmount();
+        _validateAmountVsGasFee(asset, amount);
 
         userBorrows[msg.sender][asset] += amount;
 
+        (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
         uint256 withdrawalAmount = amount;
         uint256 approvalAmount = amount;
 
@@ -120,11 +120,11 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         if (userSupplies[msg.sender][asset] < amount) revert InsufficientBalance();
         if (!canWithdraw(msg.sender, asset, amount)) revert InsufficientCollateral();
 
-        (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
-        if (amount <= gasFee) revert InvalidAmount();
+        _validateAmountVsGasFee(asset, amount);
 
         userSupplies[msg.sender][asset] -= amount;
 
+        (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
         uint256 withdrawalAmount = amount;
         uint256 approvalAmount = amount;
 
@@ -237,11 +237,11 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
         if (!canBorrow(user, asset, amount)) revert InsufficientCollateral();
 
-        (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
-        if (amount <= gasFee) revert InvalidAmount();
+        _validateAmountVsGasFee(asset, amount);
 
         userBorrows[user][asset] += amount;
 
+        (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
         uint256 withdrawalAmount = amount;
         uint256 approvalAmount = amount;
 
@@ -289,11 +289,11 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         if (userSupplies[user][asset] < amount) revert InsufficientBalance();
         if (!canWithdraw(user, asset, amount)) revert InsufficientCollateral();
 
-        (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
-        if (amount <= gasFee) revert InvalidAmount();
+        _validateAmountVsGasFee(asset, amount);
 
         userSupplies[user][asset] -= amount;
 
+        (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
         uint256 withdrawalAmount = amount;
         uint256 approvalAmount = amount;
 

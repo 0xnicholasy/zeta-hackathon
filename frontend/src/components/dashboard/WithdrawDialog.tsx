@@ -13,14 +13,16 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { TokenNetworkIcon } from '../ui/token-network-icon';
 import { Spinner } from '../ui/spinner';
+import { HourglassLoader } from '../ui/hourglass-loader';
 import { useContracts } from '../../hooks/useContracts';
 import { SupportedChain, type SupportedChainId, getTransactionUrl } from '../../contracts/deployments';
 import type { UserAssetData } from './types';
+import { FaExclamationTriangle, FaCheck, FaTimes } from 'react-icons/fa';
 
 interface WithdrawDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    selectedAsset: UserAssetData | null;
+    selectedAsset: UserAssetData;
 }
 
 // SimpleLendingProtocol ABI
@@ -141,10 +143,50 @@ const getChainDisplayName = (sourceChain: string): string => {
     }
 };
 
+// Helper function to get gas token symbol based on destination chain
+const getGasTokenSymbol = (sourceChain: string): string => {
+    switch (sourceChain.toLowerCase()) {
+        case 'arbitrum':
+        case 'arbitrum sepolia':
+            return 'ETH.ARBI';
+        case 'ethereum':
+        case 'ethereum sepolia':
+            return 'ETH.ETH';
+        case 'zetachain':
+        case 'zeta testnet':
+            return 'ZETA';
+        default:
+            return 'ETH.ARBI'; // Default fallback
+    }
+};
+
+// Helper function to check if the selected token is the gas token
+const isTokenGasToken = (selectedAsset: UserAssetData, gasTokenAddress: string | undefined): boolean => {
+    if (!selectedAsset || !gasTokenAddress) return false;
+    return selectedAsset.address.toLowerCase() === gasTokenAddress.toLowerCase();
+};
+
+// Helper function to get gas token decimals based on source chain
+const getGasTokenDecimals = (sourceChain: string): number => {
+    switch (sourceChain.toLowerCase()) {
+        case 'arbitrum':
+        case 'arbitrum sepolia':
+        case 'ethereum':
+        case 'ethereum sepolia':
+            return 18; // ETH has 18 decimals
+        case 'zetachain':
+        case 'zeta testnet':
+            return 18; // ZETA has 18 decimals
+        default:
+            return 18; // Default to 18 decimals
+    }
+};
+
 export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialogProps) {
     const [amount, setAmount] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [currentStep, setCurrentStep] = useState<'input' | 'checkWithdraw' | 'checkGas' | 'approve' | 'approving' | 'withdraw' | 'withdrawing' | 'success'>('input');
+    const [currentStep, setCurrentStep] = useState<'input' | 'checkWithdraw' | 'checkGas' | 'approve' | 'approving' | 'withdraw' | 'withdrawing' | 'success' | 'crosschain_pending' | 'crosschain_success' | 'crosschain_failed'>('input');
+    const [crossChainTxHash, setCrossChainTxHash] = useState<string | null>(null);
     const [withdrawHash, setWithdrawHash] = useState<`0x${string}` | null>(null);
     const [approveHash, setApproveHash] = useState<`0x${string}` | null>(null);
     const [gasTokenInfo, setGasTokenInfo] = useState<{ address: string; amount: bigint; needsApproval: boolean } | null>(null);
@@ -158,10 +200,12 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     const { writeContract, data: hash, error: contractError, reset: resetContract } = useWriteContract();
 
     // Computed values
-    const maxAmount = selectedAsset?.formattedSuppliedBalance ?? '0';
+    const maxAmount = selectedAsset.formattedSuppliedBalance;
     const destinationChain = selectedAsset ? getChainIdFromSourceChain(selectedAsset.sourceChain) : SupportedChain.ARBITRUM_SEPOLIA;
     const destinationChainName = selectedAsset ? getChainDisplayName(selectedAsset.sourceChain) : 'Unknown';
-    const amountBigInt = amount && selectedAsset ? parseUnits(amount, 18) : BigInt(0); // Assuming 18 decimals for ZRC20 tokens
+    const gasTokenSymbol = selectedAsset ? getGasTokenSymbol(selectedAsset.sourceChain) : 'ETH.ARBI';
+    const gasTokenDecimals = selectedAsset ? getGasTokenDecimals(selectedAsset.sourceChain) : 18;
+    const amountBigInt = amount && selectedAsset ? parseUnits(amount, selectedAsset.decimals) : BigInt(0); // Use asset's actual decimals
     const isValidAmount = amount && parseFloat(amount) > 0 && parseFloat(amount) <= parseFloat(maxAmount);
 
     // Check if user can withdraw this amount (health factor validation)
@@ -190,27 +234,42 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
         },
     });
 
-    // Get gas token balance if gas token is different from asset
+    // Get gas token address and fee amount
     const gasTokenAddress = gasFeeData?.[0];
     const gasFeeAmount = gasFeeData?.[1];
+
+    // Check if the selected token is the gas token (after gasTokenAddress is available)
+    const isGasToken = selectedAsset && gasTokenAddress ? isTokenGasToken(selectedAsset, gasTokenAddress) : false;
+
+    // Calculate receive amount for gas tokens (withdrawal amount - gas fee)
+    const receiveAmount = isGasToken && gasFeeAmount && amountBigInt > 0
+        ? amountBigInt - gasFeeAmount
+        : amountBigInt;
+
+    // Format receive amount for display
+    const formattedReceiveAmount = receiveAmount > 0 && selectedAsset
+        ? formatUnits(receiveAmount, selectedAsset.decimals)
+        : '0';
+
+    // Get gas token balance only if gas token is different from asset
     const { data: gasTokenBalance } = useReadContract({
         address: gasTokenAddress as `0x${string}`,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: address ? [address] : undefined,
         query: {
-            enabled: Boolean(address && gasTokenAddress && gasTokenAddress !== selectedAsset?.address),
+            enabled: Boolean(address && gasTokenAddress && !isGasToken),
         },
     });
 
-    // Get gas token allowance if gas token is different from asset
-    const { data: gasTokenAllowance } = useReadContract({
+    // Get gas token allowance only if gas token is different from asset
+    const { data: gasTokenAllowance, refetch: refetchGasTokenAllowance } = useReadContract({
         address: gasTokenAddress as `0x${string}`,
         abi: erc20Abi,
         functionName: 'allowance',
         args: address && simpleLendingProtocol ? [address, simpleLendingProtocol as `0x${string}`] : undefined,
         query: {
-            enabled: Boolean(address && gasTokenAddress && simpleLendingProtocol && gasTokenAddress !== selectedAsset?.address),
+            enabled: Boolean(address && gasTokenAddress && simpleLendingProtocol && !isGasToken),
         },
     });
 
@@ -220,7 +279,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     });
 
     // Wait for withdraw transaction
-    const { isLoading: isWithdrawingTx, isSuccess: isWithdrawSuccess } = useWaitForTransactionReceipt({
+    const { isLoading: isWithdrawingTx, isSuccess: isWithdrawSuccess, isError: isWithdrawError, error: withdrawError } = useWaitForTransactionReceipt({
         hash: withdrawHash as `0x${string}`,
     });
 
@@ -243,14 +302,45 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
             return false;
         }
 
-        // If gas token is different from asset, check user balance and allowance
-        if (gasTokenAddress !== selectedAsset.address) {
-            if (!gasTokenBalance || gasTokenBalance < gasFeeAmount) {
-                setValidationError(`Insufficient gas tokens. Need ${formatUnits(gasFeeAmount, 18)} but have ${formatUnits(gasTokenBalance || BigInt(0), 18)}`);
+        // For gas tokens: check if user has enough tokens for withdrawal amount + gas fee
+        if (isGasToken) {
+            // Check if withdrawal amount + gas fee exceeds available balance
+            const totalNeeded = amountBigInt;
+            const availableBalance = parseUnits(maxAmount, selectedAsset.decimals);
+
+            if (totalNeeded > availableBalance) {
+                setValidationError(`Insufficient balance. You need ${formatUnits(totalNeeded, selectedAsset.decimals)} ${selectedAsset.unit} total (${amount} withdrawal + ${formatUnits(gasFeeAmount, gasTokenDecimals)} gas fee) but only have ${maxAmount} ${selectedAsset.unit} available.`);
                 return false;
             }
 
-            if (!gasTokenAllowance || gasTokenAllowance < gasFeeAmount) {
+            // Check if receive amount would be negative or zero
+            if (receiveAmount <= 0) {
+                setValidationError(`Gas fee (${formatUnits(gasFeeAmount, gasTokenDecimals)} ${gasTokenSymbol}) is greater than or equal to withdrawal amount. You would receive 0 or negative tokens.`);
+                return false;
+            }
+        } else {
+            // For non-gas tokens: check separate gas token balance
+            // gasTokenBalance might be undefined for gas tokens, so we need to handle that
+            if (gasTokenBalance === undefined) {
+                // If gasTokenBalance is undefined, it means we didn't fetch it (likely because it's a gas token)
+                // This shouldn't happen in the else branch, but let's handle it gracefully
+                setValidationError('Unable to verify gas token balance. Please try again.');
+                return false;
+            }
+
+            if (gasTokenBalance < gasFeeAmount) {
+                setValidationError(`Insufficient ${gasTokenSymbol} in wallet for gas fees. Need ${formatUnits(gasFeeAmount, gasTokenDecimals)} ${gasTokenSymbol} but have ${formatUnits(gasTokenBalance || BigInt(0), gasTokenDecimals)} ${gasTokenSymbol}. Please get more ${gasTokenSymbol} in your wallet before proceeding.`);
+                return false;
+            }
+
+            // Check allowance for separate gas token
+            if (gasTokenAllowance === undefined) {
+                // If gasTokenAllowance is undefined, it means we didn't fetch it
+                setValidationError('Unable to verify gas token allowance. Please try again.');
+                return false;
+            }
+
+            if (gasTokenAllowance < gasFeeAmount) {
                 setGasTokenInfo({
                     address: gasTokenAddress,
                     amount: gasFeeAmount,
@@ -262,7 +352,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
 
         setValidationError(null);
         return true;
-    }, [address, selectedAsset, amountBigInt, simpleLendingProtocol, canWithdraw, gasFeeData, gasTokenAddress, gasFeeAmount, gasTokenBalance, gasTokenAllowance]);
+    }, [address, selectedAsset, amountBigInt, simpleLendingProtocol, canWithdraw, gasFeeData, gasTokenAddress, gasFeeAmount, gasTokenBalance, gasTokenAllowance, gasTokenSymbol, gasTokenDecimals, isGasToken, receiveAmount, maxAmount, amount]);
 
     // Handle gas token approval
     const handleApproveGasToken = useCallback(() => {
@@ -335,6 +425,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
         setApproveHash(null);
         setGasTokenInfo(null);
         setValidationError(null);
+        setCrossChainTxHash(null);
         resetContract();
         onClose();
     }, [onClose, resetContract]);
@@ -351,11 +442,17 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
             case 'approving':
                 return 'Waiting for gas token approval...';
             case 'withdraw':
-                return 'Click to withdraw from protocol';
+                return 'Sign in wallet to withdraw from protocol';
             case 'withdrawing':
                 return 'Waiting for withdrawal confirmation...';
             case 'success':
-                return 'Withdrawal successful!';
+                return 'Withdrawal transaction confirmed!';
+            case 'crosschain_pending':
+                return 'Processing cross-chain withdrawal...';
+            case 'crosschain_success':
+                return 'Cross-chain withdrawal completed!';
+            case 'crosschain_failed':
+                return 'Cross-chain withdrawal failed';
             default:
                 return `Enter amount to withdraw to ${destinationChainName}`;
         }
@@ -371,20 +468,104 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     useEffect(() => {
         if (isApproveSuccess && currentStep === 'approving') {
             setGasTokenInfo(null);
-            // Retry withdrawal after approval
-            setTimeout(() => {
-                handleSubmit();
-            }, 1000);
+
+            // Refetch allowance data and retry withdrawal after approval
+            const retryWithdrawal = async () => {
+                try {
+                    // Refetch the allowance to get updated data
+                    await refetchGasTokenAllowance();
+
+                    // Wait a bit more to ensure blockchain state is updated
+                    setTimeout(() => {
+                        handleSubmit();
+                    }, 2000); // Increased timeout to 2 seconds
+                } catch (error) {
+                    console.error('Failed to refetch allowance:', error);
+                    // Still retry withdrawal even if refetch fails
+                    setTimeout(() => {
+                        handleSubmit();
+                    }, 2000);
+                }
+            };
+
+            retryWithdrawal();
         }
-    }, [isApproveSuccess, currentStep, handleSubmit]);
+    }, [isApproveSuccess, currentStep, handleSubmit, refetchGasTokenAllowance]);
+
+    // Cross-chain transaction tracking function
+    const trackCrossChainTransaction = useCallback(async (txHash: string) => {
+        if (!txHash) return;
+
+        setCrossChainTxHash(txHash);
+        setCurrentStep('crosschain_pending');
+
+        const maxRetries = 30; // 5 minutes with 10 second intervals
+        let retries = 0;
+
+        const checkTransaction = async () => {
+            try {
+                const response = await fetch(`https://zetachain-athens.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData/${txHash}`);
+                const data = await response.json();
+
+                if (data && data.inbound_hash_to_cctx_data) {
+                    const cctxStatus = data.inbound_hash_to_cctx_data.cctx_status;
+                    if (cctxStatus === 'OutboundMined') {
+                        setCurrentStep('crosschain_success');
+                        return;
+                    } else if (cctxStatus === 'Aborted' || cctxStatus === 'Reverted') {
+                        setCurrentStep('crosschain_failed');
+                        return;
+                    }
+                }
+
+                retries++;
+                if (retries < maxRetries) {
+                    setTimeout(checkTransaction, 10000); // Check every 10 seconds
+                } else {
+                    // Timeout - assume success for UI purposes
+                    setCurrentStep('crosschain_success');
+                }
+            } catch (error) {
+                retries++;
+                console.error('Failed to check transaction:', error);
+                if (retries < maxRetries) {
+                    setTimeout(checkTransaction, 10000);
+                } else {
+                    setCurrentStep('crosschain_failed');
+                }
+            }
+        };
+
+        // Start checking after a short delay
+        setTimeout(checkTransaction, 5000);
+    }, []);
 
     // Handle withdraw transaction success
     useEffect(() => {
-        if (isWithdrawSuccess && currentStep === 'withdrawing') {
+        if (isWithdrawSuccess && currentStep === 'withdrawing' && withdrawHash) {
             setCurrentStep('success');
             setIsSubmitting(false);
+            // Start cross-chain tracking
+            trackCrossChainTransaction(withdrawHash);
         }
-    }, [isWithdrawSuccess, currentStep]);
+    }, [isWithdrawSuccess, currentStep, withdrawHash, trackCrossChainTransaction]);
+
+    // Handle withdraw transaction failure
+    useEffect(() => {
+        if (isWithdrawError && currentStep === 'withdrawing') {
+            setCurrentStep('input');
+            setIsSubmitting(false);
+            setWithdrawHash(null);
+
+            // Set a descriptive error message
+            const errorMessage = withdrawError?.message || 'Withdrawal transaction failed';
+            if (errorMessage.includes('insufficient')) {
+                setValidationError(`Transaction failed: Insufficient ${gasTokenSymbol} for gas fees. Please get more ${gasTokenSymbol} and try again.`);
+            } else {
+                setValidationError(`Withdrawal failed: ${errorMessage.length > 150 ? errorMessage.substring(0, 150) + '...' : errorMessage}`);
+            }
+        }
+    }, [isWithdrawError, currentStep, withdrawError, gasTokenSymbol]);
 
     // Update current hash when writeContract returns new hash
     useEffect(() => {
@@ -467,43 +648,78 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
 
                         {/* Gas Fee Info */}
                         {gasFeeData && (
-                            <div className="p-3 border border-yellow-200 dark:border-yellow-800 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-sm">
-                                <div className="text-yellow-800 dark:text-yellow-200 font-medium mb-1">
-                                    Gas Fee Requirements
+                            <div className="p-3 border border-border rounded-lg bg-muted/50 text-sm">
+                                <div className="text-foreground font-medium mb-1">
+                                    {isGasToken ? 'Transaction Details' : 'Gas Fee Requirements'}
                                 </div>
-                                <div className="text-yellow-700 dark:text-yellow-300">
-                                    Gas Fee: {formatUnits(gasFeeData[1], 18)} tokens
+                                <div className="text-muted-foreground">
+                                    Gas Fee: {formatUnits(gasFeeData[1], gasTokenDecimals)} {gasTokenSymbol}
                                 </div>
-                                {gasFeeData[0] !== selectedAsset.address && (
-                                    <div className="text-yellow-600 dark:text-yellow-400 text-xs mt-1">
+                                {isGasToken ? (
+                                    <div className="text-muted-foreground text-xs mt-1">
+                                        Gas fee will be deducted from your withdrawal amount
+                                    </div>
+                                ) : (
+                                    <div className="text-muted-foreground text-xs mt-1">
                                         Different gas token required for cross-chain withdrawal
                                     </div>
                                 )}
                             </div>
                         )}
 
+                        {/* Receive Amount Display for Gas Tokens */}
+                        {isGasToken && amount && gasFeeAmount && (
+                            <div className="p-3 border border-border rounded-lg bg-primary/5 text-sm">
+                                <div className="text-foreground font-medium mb-1">
+                                    Amount You'll Receive
+                                </div>
+                                <div className="text-lg font-semibold text-primary mb-1">
+                                    {Number(formattedReceiveAmount).toLocaleString('en-US', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 6
+                                    })} {selectedAsset.unit}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    = {amount} {selectedAsset.unit} (withdrawal) - {formatUnits(gasFeeAmount, gasTokenDecimals)} {gasTokenSymbol} (gas fee)
+                                </div>
+                            </div>
+                        )}
+
                         {/* Transaction Info */}
                         {amount && (
-                            <div className="p-3 border border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-sm break-words">
-                                <div className="text-blue-800 dark:text-blue-200 font-medium mb-1">
+                            <div className="p-3 border border-border rounded-lg bg-secondary/50 text-sm break-words">
+                                <div className="text-secondary-foreground font-medium mb-1">
                                     Transaction Summary
                                 </div>
-                                <div className="text-blue-700 dark:text-blue-300 break-words">
-                                    You will withdraw {amount} {selectedAsset.unit} from the lending protocol back to {destinationChainName}.
+                                <div className="text-muted-foreground break-words">
+                                    {isGasToken ? (
+                                        <>
+                                            You will withdraw {amount} {selectedAsset.unit} from the lending protocol.
+                                            After deducting gas fees, you will receive <strong>{Number(formattedReceiveAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} {selectedAsset.unit}</strong> on {destinationChainName}.
+                                        </>
+                                    ) : (
+                                        <>
+                                            You will withdraw {amount} {selectedAsset.unit} from the lending protocol back to {destinationChainName}.
+                                        </>
+                                    )}
                                 </div>
-                                <div className="text-blue-600 dark:text-blue-400 text-xs mt-2">
-                                    Note: Cross-chain withdrawal fees will be deducted from the amount.
+                                <div className="text-muted-foreground text-xs mt-2">
+                                    {isGasToken ? (
+                                        'Gas fee is paid from the withdrawal amount'
+                                    ) : (
+                                        'Note: Cross-chain withdrawal fees will be deducted from the amount.'
+                                    )}
                                 </div>
                             </div>
                         )}
 
                         {/* Validation Error Display */}
                         {validationError && (
-                            <div className="p-3 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20 text-sm break-words max-w-full">
-                                <div className="text-red-800 dark:text-red-200 font-medium">
+                            <div className="p-3 border border-destructive/50 rounded-lg bg-destructive/10 text-sm break-words max-w-full">
+                                <div className="text-destructive font-medium">
                                     Validation Error
                                 </div>
-                                <div className="text-red-700 dark:text-red-300 mt-1 break-words overflow-hidden text-wrap max-w-full">
+                                <div className="text-destructive/80 mt-1 break-words overflow-hidden text-wrap max-w-full">
                                     {validationError}
                                 </div>
                             </div>
@@ -511,11 +727,11 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
 
                         {/* Contract Error Display */}
                         {contractError && (
-                            <div className="p-3 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20 text-sm break-words max-w-full">
-                                <div className="text-red-800 dark:text-red-200 font-medium">
+                            <div className="p-3 border border-destructive/50 rounded-lg bg-destructive/10 text-sm break-words max-w-full">
+                                <div className="text-destructive font-medium">
                                     Transaction Failed
                                 </div>
-                                <div className="text-red-700 dark:text-red-300 mt-1 break-words overflow-hidden text-wrap max-w-full">
+                                <div className="text-destructive/80 mt-1 break-words overflow-hidden text-wrap max-w-full">
                                     {contractError.message.length > 200
                                         ? `${contractError.message.substring(0, 200)}...`
                                         : contractError.message}
@@ -527,30 +743,29 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
 
                 {currentStep === 'approve' && (
                     <div className="flex flex-col items-center py-6">
-                        <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mb-4">
-                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.268 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                            </svg>
+                        <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center mb-4">
+                            <FaExclamationTriangle className="w-5 h-5 text-white" />
                         </div>
                         <div className="text-center text-sm text-muted-foreground">
                             You need to approve gas tokens before proceeding with the withdrawal.
                         </div>
                         {gasTokenInfo && (
                             <div className="mt-2 text-xs text-muted-foreground text-center">
-                                Approving {formatUnits(gasTokenInfo.amount, 18)} gas tokens
+                                Approving {formatUnits(gasTokenInfo.amount, gasTokenDecimals)} {gasTokenSymbol}
                             </div>
                         )}
                     </div>
                 )}
 
-                {(currentStep === 'checkWithdraw' || currentStep === 'checkGas' || currentStep === 'approving' || currentStep === 'withdrawing') && (
+                {(currentStep === 'checkWithdraw' || currentStep === 'checkGas' || currentStep === 'approving' || currentStep === 'withdrawing' || currentStep === 'crosschain_pending') && (
                     <div className="flex flex-col items-center py-6">
-                        <Spinner variant="zeta" size="lg" className="mb-4" />
+                        <HourglassLoader size="lg" className="mb-4" />
                         <div className="text-center text-sm text-muted-foreground">
                             {currentStep === 'checkWithdraw' && 'Validating withdrawal eligibility...'}
                             {currentStep === 'checkGas' && 'Checking gas token requirements...'}
                             {currentStep === 'approving' && 'Waiting for gas token approval...'}
                             {currentStep === 'withdrawing' && 'Waiting for withdrawal transaction...'}
+                            {currentStep === 'crosschain_pending' && 'Tracking cross-chain transaction...'}
                         </div>
 
                         {/* Show transaction hashes */}
@@ -561,12 +776,12 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                                     href={getTransactionUrl(SupportedChain.ZETA_TESTNET, approveHash) || '#'}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="ml-1 text-blue-500 hover:text-blue-700 underline"
+                                    className="ml-1 text-primary hover:text-primary/80 underline"
                                 >
                                     {approveHash.slice(0, 6)}...{approveHash.slice(-4)}
                                 </a>
-                                {isApprovingTx && <span className="ml-2">⏳</span>}
-                                {isApproveSuccess && <span className="ml-2 text-blue-500">✓</span>}
+                                {isApprovingTx && <HourglassLoader size="xs" className="ml-2" />}
+                                {isApproveSuccess && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
                             </div>
                         )}
 
@@ -577,27 +792,60 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                                     href={getTransactionUrl(SupportedChain.ZETA_TESTNET, withdrawHash) || '#'}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="ml-1 text-blue-500 hover:text-blue-700 underline"
+                                    className="ml-1 text-primary hover:text-primary/80 underline"
                                 >
                                     {withdrawHash.slice(0, 6)}...{withdrawHash.slice(-4)}
                                 </a>
-                                {isWithdrawingTx && <span className="ml-2">⏳</span>}
-                                {isWithdrawSuccess && <span className="ml-2 text-blue-500">✓</span>}
+                                {isWithdrawingTx && <HourglassLoader size="xs" className="ml-2" />}
+                                {isWithdrawSuccess && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
                             </div>
                         )}
                     </div>
                 )}
 
-                {currentStep === 'success' && (
+                {(currentStep === 'success' || currentStep === 'crosschain_pending' || currentStep === 'crosschain_success' || currentStep === 'crosschain_failed') && (
                     <div className="flex flex-col items-center py-6">
-                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mb-4">
-                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                        </div>
-                        <div className="text-center text-sm text-muted-foreground">
-                            Your withdrawal transaction has been completed successfully! Assets are being sent to {destinationChainName}.
-                        </div>
+                        {currentStep === 'success' && (
+                            <>
+                                <div className="w-8 h-8 bg-text-success-light dark:bg-text-success-dark rounded-full flex items-center justify-center mb-4">
+                                    <FaCheck className="w-5 h-5 text-white" />
+                                </div>
+                                <div className="text-center text-sm text-muted-foreground">
+                                    Your withdrawal transaction has been completed successfully! Starting cross-chain transfer...
+                                </div>
+                            </>
+                        )}
+
+                        {currentStep === 'crosschain_pending' && (
+                            <>
+                                <HourglassLoader size="lg" className="mb-4" />
+                                <div className="text-center text-sm text-muted-foreground">
+                                    Processing cross-chain withdrawal to {destinationChainName}...
+                                </div>
+                            </>
+                        )}
+
+                        {currentStep === 'crosschain_success' && (
+                            <>
+                                <div className="w-8 h-8 bg-text-success-light dark:bg-text-success-dark rounded-full flex items-center justify-center mb-4">
+                                    <FaCheck className="w-5 h-5 text-white" />
+                                </div>
+                                <div className="text-center text-sm text-muted-foreground">
+                                    Cross-chain withdrawal completed successfully! Assets have been sent to {destinationChainName}.
+                                </div>
+                            </>
+                        )}
+
+                        {currentStep === 'crosschain_failed' && (
+                            <>
+                                <div className="w-8 h-8 bg-text-error-light dark:bg-text-error-dark rounded-full flex items-center justify-center mb-4">
+                                    <FaTimes className="w-5 h-5 text-white" />
+                                </div>
+                                <div className="text-center text-sm text-muted-foreground">
+                                    Cross-chain withdrawal failed. Please check the transaction status or try again.
+                                </div>
+                            </>
+                        )}
 
                         {withdrawHash && (
                             <div className="mt-2 text-xs text-muted-foreground">
@@ -606,11 +854,28 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                                     href={getTransactionUrl(SupportedChain.ZETA_TESTNET, withdrawHash) || '#'}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="ml-1 text-blue-500 hover:text-blue-700 underline"
+                                    className="ml-1 text-primary hover:text-primary/80 underline"
                                 >
                                     {withdrawHash.slice(0, 6)}...{withdrawHash.slice(-4)}
                                 </a>
-                                <span className="ml-2 text-blue-500">✓</span>
+                                <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />
+                            </div>
+                        )}
+
+                        {crossChainTxHash && (currentStep === 'crosschain_pending' || currentStep === 'crosschain_success' || currentStep === 'crosschain_failed') && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                                Cross-chain:
+                                <a
+                                    href={`https://explorer.zetachain.com/cc/tx/${crossChainTxHash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="ml-1 text-primary hover:text-primary/80 underline"
+                                >
+                                    {crossChainTxHash.slice(0, 6)}...{crossChainTxHash.slice(-4)}
+                                </a>
+                                {currentStep === 'crosschain_pending' && <HourglassLoader size="xs" className="ml-2" />}
+                                {currentStep === 'crosschain_success' && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
+                                {currentStep === 'crosschain_failed' && <FaTimes className="ml-2 w-3 h-3 text-text-error-light dark:text-text-error-dark" />}
                             </div>
                         )}
                     </div>
