@@ -81,12 +81,6 @@ const DebuggingPage = () => {
     { size: '3xl' as const, name: '3X Large' },
   ];
 
-  const spinnerSpeeds = [
-    { speed: 'slow' as const, name: 'Slow' },
-    { speed: 'normal' as const, name: 'Normal' },
-    { speed: 'fast' as const, name: 'Fast' },
-  ];
-
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -145,23 +139,6 @@ const DebuggingPage = () => {
           </div>
         </section>
 
-        {/* Spinner Speeds Section */}
-        <section className="space-y-4">
-          <h2 className="text-2xl font-semibold">Spinner Speeds</h2>
-          <div className="bg-card rounded-lg border border-border p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {spinnerSpeeds.map(({ speed, name }) => (
-                <div key={speed} className="text-center space-y-3">
-                  <div className="font-medium">{name}</div>
-                  <div className="flex justify-center">
-                    <Spinner variant="zeta" size="xl" speed={speed} text={`${name} speed`} textPosition="bottom" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Combined Examples Section */}
         <section className="space-y-4">
           <h2 className="text-2xl font-semibold">Combined Examples</h2>
@@ -174,13 +151,13 @@ const DebuggingPage = () => {
             <div className="bg-card rounded-lg border border-border p-6 text-center space-y-4">
               <h3 className="font-medium">Fast White Spinner</h3>
               <div className="bg-slate-800 rounded p-4">
-                <Spinner variant="white" size="lg" speed="fast" text="Processing..." textPosition="right" />
+                <Spinner variant="white" size="lg" text="Processing..." textPosition="right" />
               </div>
             </div>
 
             <div className="bg-card rounded-lg border border-border p-6 text-center space-y-4">
               <h3 className="font-medium">Slow Destructive</h3>
-              <Spinner variant="destructive" size="2xl" speed="slow" text="Error occurred" textPosition="bottom" />
+              <Spinner variant="destructive" size="2xl" text="Error occurred" textPosition="bottom" />
             </div>
           </div>
         </section>

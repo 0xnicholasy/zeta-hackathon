@@ -95,4 +95,37 @@ const HourglassLoader = React.forwardRef<HTMLDivElement, HourglassLoaderProps>(
 
 HourglassLoader.displayName = "HourglassLoader"
 
-export { HourglassLoader }
+// Static hourglass icon (non-animated) for inline use
+const StaticHourglass = React.forwardRef<HTMLDivElement, Omit<HourglassLoaderProps, 'text' | 'textPosition'>>(
+  (
+    {
+      className,
+      variant = "muted",
+      size = "xs",
+      ...props
+    },
+    ref
+  ) => {
+    return (
+      <div
+        className={cn("inline-flex items-center justify-center", className)}
+        role="status"
+        aria-label="Processing"
+        {...props}
+        ref={ref}
+      >
+        {/* Static hourglass using a simple SVG or Unicode symbol */}
+        <span 
+          className={cn("inline-block", `text-[${sizeMap[size]}px]`)}
+          style={{ fontSize: `${sizeMap[size]}px`, color: colorMap[variant] }}
+        >
+          ⧗
+        </span>
+      </div>
+    );
+  }
+);
+
+StaticHourglass.displayName = "StaticHourglass";
+
+export { HourglassLoader, StaticHourglass }
