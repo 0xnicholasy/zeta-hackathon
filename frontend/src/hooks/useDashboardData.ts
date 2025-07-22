@@ -6,7 +6,7 @@ import { useMultiChainBalances } from './useMultiChainBalances';
 import { SupportedChain, TOKEN_SYMBOLS, getTokenAddress } from '../contracts/deployments';
 import { SimpleLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/SimpleLendingProtocol__factory';
 import type { UserAssetData } from '../components/dashboard/types';
-import { safeEVMAddress, ZERO_ADDRESS } from '../components/dashboard/types';
+import { safeEVMAddress, safeEVMAddressOrZeroAddress } from '../components/dashboard/types';
 
 export function useDashboardData() {
     const { isConnected, address } = useAccount();
@@ -43,7 +43,7 @@ export function useDashboardData() {
     // Get user supplies and borrows
     const { data: userSupplies } = useReadContracts({
         contracts: assetAddresses.map(asset => ({
-            address: safeEVMAddress(simpleLendingProtocol),
+            address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
             abi: SimpleLendingProtocol__factory.abi,
             functionName: 'getSupplyBalance',
             args: [address, asset],
@@ -55,7 +55,7 @@ export function useDashboardData() {
 
     const { data: userBorrows } = useReadContracts({
         contracts: assetAddresses.map(asset => ({
-            address: safeEVMAddress(simpleLendingProtocol),
+            address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
             abi: SimpleLendingProtocol__factory.abi,
             functionName: 'getBorrowBalance',
             args: [address, asset],
@@ -67,7 +67,7 @@ export function useDashboardData() {
 
     const { data: assetConfigs } = useReadContracts({
         contracts: assetAddresses.map(asset => ({
-            address: safeEVMAddress(simpleLendingProtocol),
+            address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
             abi: SimpleLendingProtocol__factory.abi,
             functionName: 'getAssetConfig',
             args: [asset],
@@ -83,7 +83,7 @@ export function useDashboardData() {
             address: safeEVMAddress(simpleLendingProtocol),
             abi: SimpleLendingProtocol__factory.abi,
             functionName: 'getHealthFactor',
-            args: [address || ZERO_ADDRESS],
+            args: [safeEVMAddressOrZeroAddress(address)],
         }],
         query: {
             enabled: !!simpleLendingProtocol && !!address && isConnected,
@@ -103,7 +103,7 @@ export function useDashboardData() {
 
     const { data: assetDecimals } = useReadContracts({
         contracts: assetAddresses.map(asset => ({
-            address: safeEVMAddress(asset),
+            address: safeEVMAddressOrZeroAddress(asset),
             abi: erc20Abi,
             functionName: 'decimals',
         })),
