@@ -10,6 +10,7 @@
     ],
     "module": "ESNext",
     "skipLibCheck": true,
+    "typeRoots": ["./node_modules/@types"],
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
@@ -24,22 +25,19 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    /* Path mapping for typechain types */
+    /* Path mapping */
     "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "@contracts/*": [
-        "../lending-zeta/typechain-types/*"
-      ],
-      "@contracts": [
-        "../lending-zeta/typechain-types"
       ]
     }
   },
   "include": [
-    "src",
-    "../lending-zeta/typechain-types"
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
   ]
 }

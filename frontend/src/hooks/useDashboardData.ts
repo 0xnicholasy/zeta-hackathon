@@ -4,7 +4,7 @@ import { formatUnits } from 'viem';
 import { useContracts } from './useContracts';
 import { useMultiChainBalances } from './useMultiChainBalances';
 import { SupportedChain, TOKEN_SYMBOLS, getTokenAddress } from '../contracts/deployments';
-import { SimpleLendingProtocol__factory } from '../contracts/types';
+import { SimpleLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/SimpleLendingProtocol__factory';
 import type { UserAssetData } from '../components/dashboard/types';
 
 export function useDashboardData() {

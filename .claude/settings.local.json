@@ -32,7 +32,10 @@
       "WebFetch(domain:rainbowkit.com)",
       "mcp__ide__executeCode",
       "Bash(node:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(bun run:*)",
+      "Bash(bun install:*)",
+      "Bash(bun remove:*)"
     ],
     "deny": []
   }

@@ -3,7 +3,7 @@ import { useReadContract, useReadContracts } from 'wagmi';
 import { formatUnits } from 'viem';
 import { useContracts } from '../../hooks/useContracts';
 import { SupportedChain, TOKEN_SYMBOLS, getTokenAddress } from '../../contracts/deployments';
-import { SimpleLendingProtocol__factory } from '../../contracts/types';
+import { SimpleLendingProtocol__factory } from '../../contracts/typechain-types/factories/contracts/SimpleLendingProtocol__factory';
 import { TokenIcon, NetworkIcon, } from '@web3icons/react';
 
 interface AssetData {
@@ -78,7 +78,7 @@ export default function Stats() {
 
   // Get supported asset addresses for comparison
   const supportedAssetAddresses = useMemo(() => {
-    return supportedAssets?.map(result => result.result as string).filter(Boolean) || [];
+    return supportedAssets?.map(result => result.result as unknown as string).filter(Boolean) || [];
   }, [supportedAssets]);
 
   // Use all assets for display

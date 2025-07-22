@@ -1,17 +1,12 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
+import path from "path"
+import react from "@vitejs/plugin-react"
+import { defineConfig } from "vite"
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@contracts': path.resolve(__dirname, '../lending-zeta/typechain-types'),
-      '@deployments': path.resolve(__dirname, '../lending-zeta'),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
-  // Remove the problematic assetsInclude line
-  // assetsInclude: ['**/*.json'], // This was causing the issue
 })

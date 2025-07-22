@@ -60,9 +60,9 @@
 
 ## Contract Integration
 
-The frontend is configured to access contract types from `../lending-zeta/typechain-types/` using the `@contracts` alias.
+The frontend is standalone and does not directly depend on the lending-zeta workspace. If you need to use contract types, manually copy the required TypeScript definitions from `../lending-zeta/typechain-types/` to your frontend `src/contracts/` directory.
 
-Example usage:
-```typescript
-import { SimpleLendingProtocol__factory } from '@contracts/factories/contracts/SimpleLendingProtocol__factory';
-```
+Example workflow:
+1. Generate contract types in lending-zeta: `cd ../lending-zeta && bun run compile`
+2. Copy needed types: `cp ../lending-zeta/typechain-types/contracts/SimpleLendingProtocol.ts src/contracts/`
+3. Use in your code: `import { SimpleLendingProtocol } from './contracts/SimpleLendingProtocol';`
