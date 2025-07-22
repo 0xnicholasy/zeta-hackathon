@@ -23,9 +23,10 @@ import type {
     EVMTransactionHash
 } from './types';
 import {
+    addressesEqual,
     safeEVMAddress,
-    safeEVMTransactionHash,
-    addressesEqual
+    safeEVMAddressOrZeroAddress,
+    safeEVMTransactionHashOrZeroTransactionHash
 } from './types';
 import { FaCheck, FaTimes, FaClock, FaFileSignature } from 'react-icons/fa';
 import { ERC20__factory, SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
@@ -126,7 +127,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     const crossChain = useCrossChainTracking();
 
     const { address } = useAccount();
-    const safeAddress = safeEVMAddress(address);
+    const safeAddress = safeEVMAddressOrZeroAddress(address);
 
     // Use ZetaChain for lending protocol operations
     const { simpleLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
@@ -169,7 +170,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     });
 
     // Get gas token address and fee amount
-    const gasTokenAddress = gasFeeData?.[0] ? safeEVMAddress(gasFeeData[0]) : undefined;
+    const gasTokenAddress = gasFeeData?.[0] ? safeEVMAddressOrZeroAddress(gasFeeData[0]) : undefined;
     const gasFeeAmount = gasFeeData?.[1];
 
     // Check if the selected token is the gas token (after gasTokenAddress is available)
@@ -201,7 +202,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
         address: gasTokenAddress,
         abi: erc20Abi,
         functionName: 'allowance',
-        args: [safeAddress, safeEVMAddress(simpleLendingProtocol)],
+        args: [safeAddress, safeEVMAddressOrZeroAddress(simpleLendingProtocol)],
         query: {
             enabled: Boolean(gasTokenAddress && simpleLendingProtocol && !isGasToken),
         },
@@ -303,7 +304,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
             address: gasTokenInfo.address,
             abi: erc20Abi,
             functionName: 'approve',
-            args: [safeEVMAddress(simpleLendingProtocol), gasTokenInfo.amount],
+            args: [safeEVMAddressOrZeroAddress(simpleLendingProtocol), gasTokenInfo.amount],
         });
     }, [gasTokenInfo, simpleLendingProtocol, writeContract]);
 
@@ -337,7 +338,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
         // Step 3: Proceed with withdrawal
         setCurrentStep('withdraw');
         writeContract({
-            address: safeEVMAddress(simpleLendingProtocol),
+            address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
             abi: lendingProtocolAbi,
             functionName: 'withdrawCrossChain',
             args: [
@@ -368,7 +369,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
         crossChain.reset();
         resetContract();
         onClose();
-    }, [onClose, resetContract]);
+    }, [onClose, resetContract, crossChain]);
 
     // Get step text
     const getStepText = useCallback(() => {
@@ -465,13 +466,12 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     // Update current hash when writeContract returns new hash
     useEffect(() => {
         if (hash) {
+            const validHash = safeEVMTransactionHashOrZeroTransactionHash(hash);
             if (currentStep === 'approving') {
-                const validHash = safeEVMTransactionHash(hash);
                 if (validHash) {
                     setApprovalHash(validHash);
                 }
             } else if (currentStep === 'withdraw') {
-                const validHash = safeEVMTransactionHash(hash);
                 if (validHash) {
                     setWithdrawHash(validHash);
                     setCurrentStep('withdrawing');

@@ -19,7 +19,7 @@ import { useContracts } from '../../hooks/useContracts';
 import { type SupportedChainId, getTransactionUrl } from '../../contracts/deployments';
 import type { TokenBalance } from '../../hooks/useMultiChainBalances';
 import type { EVMTransactionHash } from './types';
-import { safeEVMAddress, safeEVMTransactionHash } from './types';
+import { safeEVMAddress, safeEVMAddressOrZeroAddress, safeEVMTransactionHashOrZeroTransactionHash } from './types';
 import { FaCheck, FaTimes, FaClock } from 'react-icons/fa';
 import { DepositContract__factory, ERC20__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
@@ -131,7 +131,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
           address: safeEVMAddress(selectedToken.tokenAddress),
           abi: erc20Abi,
           functionName: 'approve',
-          args: [safeEVMAddress(depositContract), amountBigInt],
+          args: [safeEVMAddressOrZeroAddress(depositContract), amountBigInt],
         });
       }
     } catch (error) {
@@ -205,7 +205,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
   // Update current hash when writeContract returns new hash
   useEffect(() => {
     if (hash) {
-      const validHash = safeEVMTransactionHash(hash);
+      const validHash = safeEVMTransactionHashOrZeroTransactionHash(hash);
       if (validHash) {
         if (currentStep === 'approve') {
           setApprovalHash(validHash);

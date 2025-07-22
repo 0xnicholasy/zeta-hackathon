@@ -43,30 +43,32 @@ export function validateEVMTransactionHash(value: string): EVMTransactionHash {
 }
 
 // Safe conversion functions that return null instead of throwing
-export function safeEVMAddress(value: string | null | undefined): EVMAddress {
-    if (!value) return ZERO_ADDRESS;
-    return isEVMAddress(value) ? value : ZERO_ADDRESS;
-}
-
-export function safeEVMTransactionHash(value: string | null | undefined): EVMTransactionHash {
-    if (!value) return ZERO_TRANSACTION_HASH;
-    return isEVMTransactionHash(value) ? value : ZERO_TRANSACTION_HASH;
-}
-
-// Checksum validation for addresses (optional, more thorough validation)
-export function toChecksumAddress(address: string): EVMAddress {
-    if (!isEVMAddress(address)) {
-        throw new Error(`Invalid address format: ${address}`);
+export function safeEVMAddress<T>(value: string | null | undefined, fallback?: T): EVMAddress | T {
+    if (!value || !isEVMAddress(value)) {
+        if (fallback) {
+            return fallback;
+        }
+        throw new Error(`Invalid EVM address: ${value}. Expected format: 0x followed by 40 hex characters.`);
     }
+    return value;
+}
 
-    // Simple checksum implementation - in production, you might want to use a library like ethers
-    const hex = address.slice(2).toLowerCase();
-    const hash = Array.from(hex).map((char) => {
-        // Simple checksum logic (simplified for demo)
-        return char;
-    }).join('');
+export function safeEVMTransactionHash<T>(value: string | null | undefined, fallback?: T): EVMTransactionHash | T {
+    if (!value || !isEVMTransactionHash(value)) {
+        if (fallback) {
+            return fallback;
+        }
+        throw new Error(`Invalid EVM transaction hash: ${value}. Expected format: 0x followed by 64 hex characters.`);
+    }
+    return value;
+}
 
-    return `0x${hash}` as EVMAddress;
+export function safeEVMAddressOrZeroAddress(value: string | null | undefined): EVMAddress {
+    return safeEVMAddress(value, ZERO_ADDRESS);
+}
+
+export function safeEVMTransactionHashOrZeroTransactionHash(value: string | null | undefined): EVMTransactionHash {
+    return safeEVMTransactionHash(value, ZERO_TRANSACTION_HASH);
 }
 
 // Utility function to check if two addresses are equal (case-insensitive)

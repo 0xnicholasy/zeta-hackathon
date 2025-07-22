@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import type { EVMTransactionHash } from '../components/dashboard/types';
-import { safeEVMTransactionHash } from '../components/dashboard/types';
+import { safeEVMTransactionHash, ZERO_TRANSACTION_HASH } from '../components/dashboard/types';
 
 export type CrossChainStatus = 'idle' | 'submitted' | 'pending' | 'success' | 'failed';
 
@@ -100,7 +100,7 @@ export function useCrossChainTracking(): CrossChainTrackingResult {
     if (!transactionHash || isTrackingRef.current) return;
 
     // Validate and convert transaction hash
-    const validTxHash = safeEVMTransactionHash(transactionHash);
+    const validTxHash = safeEVMTransactionHash(transactionHash, ZERO_TRANSACTION_HASH);
     if (!validTxHash) {
       console.error('Invalid transaction hash provided:', transactionHash);
       return;
@@ -116,7 +116,7 @@ export function useCrossChainTracking(): CrossChainTrackingResult {
     setTxHash(validTxHash);
     setStatus('submitted');
 
-    const maxRetries = 30; // 5 minutes with 10 second intervals
+    const maxRetries = 30; // 2.5 minutes with 10 second intervals
     const retryInterval = 5000; // 5 seconds
     let retries = 0;
 
@@ -131,7 +131,6 @@ export function useCrossChainTracking(): CrossChainTrackingResult {
         }
 
         const data: ResponseJson = await response.json();
-        console.log("🚀 ~ checkTransaction ~ data:", data)
 
         // Validate response structure using the defined interfaces
         if (data?.CrossChainTxs?.length > 0) {

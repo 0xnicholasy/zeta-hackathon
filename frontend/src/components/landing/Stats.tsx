@@ -4,7 +4,7 @@ import { formatUnits } from 'viem';
 import { useContracts } from '../../hooks/useContracts';
 import { SupportedChain, TOKEN_SYMBOLS, getTokenAddress } from '../../contracts/deployments';
 import { SimpleLendingProtocol__factory } from '../../contracts/typechain-types/factories/contracts/SimpleLendingProtocol__factory';
-import { EVMAddress, safeEVMAddress } from '../dashboard/types';
+import { EVMAddress, isZeroAddress, safeEVMAddressOrZeroAddress } from '../dashboard/types';
 import { TokenIcon, NetworkIcon, } from '@web3icons/react';
 import { ERC20__factory } from '@/contracts/typechain-types';
 
@@ -54,13 +54,14 @@ export default function Stats() {
     })).filter(asset => asset.address); // Only include assets with valid addresses
   }, []);
 
+  const simpleLendingProtocolAddress = safeEVMAddressOrZeroAddress(simpleLendingProtocol);
   // Get supported assets count from protocol
   const { data: supportedAssetsCount } = useReadContract({
-    address: safeEVMAddress(simpleLendingProtocol),
+    address: simpleLendingProtocolAddress,
     abi: SimpleLendingProtocol__factory.abi,
     functionName: 'getSupportedAssetsCount',
     query: {
-      enabled: !!simpleLendingProtocol,
+      enabled: !isZeroAddress(simpleLendingProtocolAddress),
     },
   });
 
@@ -68,19 +69,19 @@ export default function Stats() {
   const { data: supportedAssets } = useReadContracts({
     contracts: supportedAssetsCount ?
       Array.from({ length: Number(supportedAssetsCount) }, (_, i) => ({
-        address: safeEVMAddress(simpleLendingProtocol),
+        address: simpleLendingProtocolAddress,
         abi: SimpleLendingProtocol__factory.abi,
         functionName: 'getSupportedAsset',
         args: [BigInt(i)],
       })) : [],
     query: {
-      enabled: !!simpleLendingProtocol && !!supportedAssetsCount,
+      enabled: !isZeroAddress(simpleLendingProtocolAddress) && !!supportedAssetsCount,
     },
   });
 
   // Get supported asset addresses for comparison
   const supportedAssetAddresses: EVMAddress[] = useMemo(() => {
-    return supportedAssets?.map(result => safeEVMAddress(result.result as unknown as string)).filter(Boolean) || [];
+    return supportedAssets?.map(result => safeEVMAddressOrZeroAddress(result.result as unknown as string)).filter(Boolean) || [];
   }, [supportedAssets]);
 
   // Use all assets for display
@@ -90,13 +91,13 @@ export default function Stats() {
 
   const { data: assetConfigs } = useReadContracts({
     contracts: assetAddresses.map(asset => ({
-      address: safeEVMAddress(simpleLendingProtocol),
+      address: simpleLendingProtocolAddress,
       abi: SimpleLendingProtocol__factory.abi,
       functionName: 'getAssetConfig',
       args: [asset],
     })),
     query: {
-      enabled: assetAddresses.length > 0,
+      enabled: assetAddresses.length > 0 && !isZeroAddress(simpleLendingProtocolAddress),
     },
   });
 
@@ -106,19 +107,19 @@ export default function Stats() {
   // Get contract balance for each asset to calculate TVL
   const { data: assetBalances } = useReadContracts({
     contracts: assetAddresses.map(asset => ({
-      address: safeEVMAddress(asset),
+      address: safeEVMAddressOrZeroAddress(asset),
       abi: erc20Abi,
       functionName: 'balanceOf',
-      args: [simpleLendingProtocol],
+      args: [simpleLendingProtocolAddress],
     })),
     query: {
-      enabled: assetAddresses.length > 0 && !!simpleLendingProtocol,
+      enabled: assetAddresses.length > 0 && !isZeroAddress(simpleLendingProtocolAddress),
     },
   });
 
   const { data: assetDecimals } = useReadContracts({
     contracts: assetAddresses.map(asset => ({
-      address: safeEVMAddress(asset),
+      address: safeEVMAddressOrZeroAddress(asset),
       abi: erc20Abi,
       functionName: 'decimals',
     })),
@@ -129,7 +130,7 @@ export default function Stats() {
 
   const { data: assetSymbols } = useReadContracts({
     contracts: assetAddresses.map(asset => ({
-      address: safeEVMAddress(asset),
+      address: safeEVMAddressOrZeroAddress(asset),
       abi: erc20Abi,
       functionName: 'symbol',
     })),
