@@ -112,7 +112,6 @@ export function ConnectedState() {
                 />
                 <BorrowCard
                     userAssets={userAssets}
-                    selectedChain={selectedChain}
                 />
             </div>
             {/* Account Health */}

@@ -110,7 +110,7 @@ export interface UserAssetData {
     isSupported: boolean;
     externalBalance?: string;
     formattedExternalBalance?: string;
-    externalChainId?: number | undefined;
+    externalChainId: number;
     decimals: number;
 }
 

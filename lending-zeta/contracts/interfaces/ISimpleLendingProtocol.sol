@@ -129,4 +129,6 @@ interface ISimpleLendingProtocol {
     function maxAvailableBorrowsInUsd(
         address user
     ) external view returns (uint256);
+
+    function maxAvailableAmount(address asset) external view returns (uint256);
 }

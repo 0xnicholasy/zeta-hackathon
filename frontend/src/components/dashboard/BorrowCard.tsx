@@ -11,10 +11,9 @@ import { RepayDialog } from './RepayDialog';
 
 interface BorrowCardProps {
     userAssets: UserAssetData[];
-    selectedChain: string;
 }
 
-export function BorrowCard({ userAssets, selectedChain }: BorrowCardProps) {
+export function BorrowCard({ userAssets }: BorrowCardProps) {
     // Dialog state
     const [isBorrowDialogOpen, setIsBorrowDialogOpen] = useState(false);
     const [isRepayDialogOpen, setIsRepayDialogOpen] = useState(false);
@@ -22,22 +21,22 @@ export function BorrowCard({ userAssets, selectedChain }: BorrowCardProps) {
 
     // Show borrowed assets from all supported foreign chains
     const borrowedAssets = userAssets.filter(asset => {
-        return (asset.externalChainId === SupportedChain.ARBITRUM_SEPOLIA || 
-                asset.externalChainId === SupportedChain.ETHEREUM_SEPOLIA) && 
-               Number(asset.borrowedBalance) > 0;
+        return (asset.externalChainId === SupportedChain.ARBITRUM_SEPOLIA ||
+            asset.externalChainId === SupportedChain.ETHEREUM_SEPOLIA) &&
+            Number(asset.borrowedBalance) > 0;
     });
 
     // Show all assets available to borrow from all supported foreign chains, sorted by chain
     const availableForBorrow = userAssets
         .filter(asset => {
-            return (asset.externalChainId === SupportedChain.ARBITRUM_SEPOLIA || 
-                    asset.externalChainId === SupportedChain.ETHEREUM_SEPOLIA) && 
-                   asset.isSupported;
+            return (asset.externalChainId === SupportedChain.ARBITRUM_SEPOLIA ||
+                asset.externalChainId === SupportedChain.ETHEREUM_SEPOLIA) &&
+                asset.isSupported;
         })
         .sort((a, b) => {
             // Sort by chain first, then by symbol
             if (a.externalChainId !== b.externalChainId) {
-                return (a.externalChainId || 0) - (b.externalChainId || 0);
+                return (a.externalChainId ?? 0) - (b.externalChainId ?? 0);
             }
             return a.unit.localeCompare(b.unit);
         });
@@ -92,15 +91,15 @@ export function BorrowCard({ userAssets, selectedChain }: BorrowCardProps) {
                                         <div>
                                             <div className="font-medium text-sm">{asset.unit}</div>
                                             <div className="text-xs text-muted-foreground">
-                                                {asset.borrowedUsdValue} • {getChainDisplayNameFromId(asset.externalChainId!)}
+                                                {asset.borrowedUsdValue} • {getChainDisplayNameFromId(asset.externalChainId)}
                                             </div>
                                         </div>
                                     </div>
                                     <div className="text-right">
                                         <div className="text-sm font-medium">{asset.formattedBorrowedBalance}</div>
-                                        <Button 
-                                            variant="zeta-outline" 
-                                            size="sm" 
+                                        <Button
+                                            variant="zeta-outline"
+                                            size="sm"
                                             className="mt-1 h-7 text-xs"
                                             onClick={() => handleRepayClick(asset)}
                                         >
@@ -134,15 +133,15 @@ export function BorrowCard({ userAssets, selectedChain }: BorrowCardProps) {
                                         <div>
                                             <div className="font-medium text-sm">{asset.unit}</div>
                                             <div className="text-xs text-muted-foreground">
-                                                {asset.price} • To {getChainDisplayNameFromId(asset.externalChainId!)}
+                                                {asset.price} • To {getChainDisplayNameFromId(asset.externalChainId)}
                                             </div>
                                         </div>
                                     </div>
                                     <div className="text-right">
                                         <div className="text-sm font-medium text-muted-foreground">Available</div>
-                                        <Button 
-                                            variant="zeta-outline" 
-                                            size="sm" 
+                                        <Button
+                                            variant="zeta-outline"
+                                            size="sm"
                                             className="mt-1 h-7 text-xs"
                                             onClick={() => handleBorrowClick(asset)}
                                         >

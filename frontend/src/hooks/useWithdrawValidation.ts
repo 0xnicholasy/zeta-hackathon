@@ -26,6 +26,7 @@ const EMPTY_ASSET: UserAssetData = {
     borrowedUsdValue: '0',
     price: '0',
     isSupported: false,
+    externalChainId: 7001, // Default to ZetaChain testnet
     decimals: 18,
 };
 

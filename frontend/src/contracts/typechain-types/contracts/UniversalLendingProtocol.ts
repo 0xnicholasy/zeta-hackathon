@@ -131,6 +131,7 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
     "lastInterestUpdate(address,address)": FunctionFragment;
     "liquidate(address,address,address,uint256)": FunctionFragment;
     "mapZRC20Asset(address,uint256,string)": FunctionFragment;
+    "maxAvailableAmount(address)": FunctionFragment;
     "maxAvailableBorrows(address,address)": FunctionFragment;
     "maxAvailableBorrowsInUsd(address)": FunctionFragment;
     "onCall((bytes,address,uint256),address,uint256,bytes)": FunctionFragment;
@@ -186,6 +187,7 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
       | "lastInterestUpdate"
       | "liquidate"
       | "mapZRC20Asset"
+      | "maxAvailableAmount"
       | "maxAvailableBorrows"
       | "maxAvailableBorrowsInUsd"
       | "onCall"
@@ -359,6 +361,10 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
       PromiseOrValue<BigNumberish>,
       PromiseOrValue<string>
     ]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "maxAvailableAmount",
+    values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
     functionFragment: "maxAvailableBorrows",
@@ -567,6 +573,10 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
   decodeFunctionResult(functionFragment: "liquidate", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "mapZRC20Asset",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "maxAvailableAmount",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -1018,6 +1028,11 @@ export interface UniversalLendingProtocol extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
+    maxAvailableAmount(
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber] & { amount: BigNumber }>;
+
     maxAvailableBorrows(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -1330,6 +1345,11 @@ export interface UniversalLendingProtocol extends BaseContract {
     symbol: PromiseOrValue<string>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
+
+  maxAvailableAmount(
+    asset: PromiseOrValue<string>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
 
   maxAvailableBorrows(
     user: PromiseOrValue<string>,
@@ -1645,6 +1665,11 @@ export interface UniversalLendingProtocol extends BaseContract {
       symbol: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<void>;
+
+    maxAvailableAmount(
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
 
     maxAvailableBorrows(
       user: PromiseOrValue<string>,
@@ -2052,6 +2077,11 @@ export interface UniversalLendingProtocol extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
+    maxAvailableAmount(
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
     maxAvailableBorrows(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -2338,6 +2368,11 @@ export interface UniversalLendingProtocol extends BaseContract {
       chainId: PromiseOrValue<BigNumberish>,
       symbol: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<PopulatedTransaction>;
+
+    maxAvailableAmount(
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
     maxAvailableBorrows(

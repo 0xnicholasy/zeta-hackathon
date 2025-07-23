@@ -88,6 +88,7 @@ export interface SimpleLendingProtocolInterface extends utils.Interface {
     "isAssetAdded(address)": FunctionFragment;
     "isLiquidatable(address)": FunctionFragment;
     "liquidate(address,address,address,uint256)": FunctionFragment;
+    "maxAvailableAmount(address)": FunctionFragment;
     "maxAvailableBorrows(address,address)": FunctionFragment;
     "maxAvailableBorrowsInUsd(address)": FunctionFragment;
     "onCall((bytes,address,uint256),address,uint256,bytes)": FunctionFragment;
@@ -128,6 +129,7 @@ export interface SimpleLendingProtocolInterface extends utils.Interface {
       | "isAssetAdded"
       | "isLiquidatable"
       | "liquidate"
+      | "maxAvailableAmount"
       | "maxAvailableBorrows"
       | "maxAvailableBorrowsInUsd"
       | "onCall"
@@ -247,6 +249,10 @@ export interface SimpleLendingProtocolInterface extends utils.Interface {
       PromiseOrValue<string>,
       PromiseOrValue<BigNumberish>
     ]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "maxAvailableAmount",
+    values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
     functionFragment: "maxAvailableBorrows",
@@ -394,6 +400,10 @@ export interface SimpleLendingProtocolInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "liquidate", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "maxAvailableAmount",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "maxAvailableBorrows",
     data: BytesLike
@@ -674,6 +684,11 @@ export interface SimpleLendingProtocol extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
+    maxAvailableAmount(
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber] & { amount: BigNumber }>;
+
     maxAvailableBorrows(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -694,7 +709,7 @@ export interface SimpleLendingProtocol extends BaseContract {
     ): Promise<ContractTransaction>;
 
     onRevert(
-      revertContext: RevertContextStruct,
+      arg0: RevertContextStruct,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
@@ -878,6 +893,11 @@ export interface SimpleLendingProtocol extends BaseContract {
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
+  maxAvailableAmount(
+    asset: PromiseOrValue<string>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
+
   maxAvailableBorrows(
     user: PromiseOrValue<string>,
     asset: PromiseOrValue<string>,
@@ -898,7 +918,7 @@ export interface SimpleLendingProtocol extends BaseContract {
   ): Promise<ContractTransaction>;
 
   onRevert(
-    revertContext: RevertContextStruct,
+    arg0: RevertContextStruct,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
@@ -1084,6 +1104,11 @@ export interface SimpleLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<void>;
 
+    maxAvailableAmount(
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
     maxAvailableBorrows(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -1104,7 +1129,7 @@ export interface SimpleLendingProtocol extends BaseContract {
     ): Promise<void>;
 
     onRevert(
-      revertContext: RevertContextStruct,
+      arg0: RevertContextStruct,
       overrides?: CallOverrides
     ): Promise<void>;
 
@@ -1359,6 +1384,11 @@ export interface SimpleLendingProtocol extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
+    maxAvailableAmount(
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
     maxAvailableBorrows(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -1379,7 +1409,7 @@ export interface SimpleLendingProtocol extends BaseContract {
     ): Promise<BigNumber>;
 
     onRevert(
-      revertContext: RevertContextStruct,
+      arg0: RevertContextStruct,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
@@ -1566,6 +1596,11 @@ export interface SimpleLendingProtocol extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 
+    maxAvailableAmount(
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
     maxAvailableBorrows(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -1586,7 +1621,7 @@ export interface SimpleLendingProtocol extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     onRevert(
-      revertContext: RevertContextStruct,
+      arg0: RevertContextStruct,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 

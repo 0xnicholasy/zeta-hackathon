@@ -735,6 +735,25 @@ const _abi = [
     inputs: [
       {
         internalType: "address",
+        name: "asset",
+        type: "address",
+      },
+    ],
+    name: "maxAvailableAmount",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
         name: "user",
         type: "address",
       },

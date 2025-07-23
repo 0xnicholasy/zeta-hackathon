@@ -342,6 +342,24 @@ abstract contract SimpleLendingProtocolBase is
         } else {
             maxBorrowAmount = maxBorrowValueNormalized;
         }
+        
+        // Limit by contract's available balance
+        uint256 contractBalance = IERC20(asset).balanceOf(address(this));
+        if (maxBorrowAmount > contractBalance) {
+            maxBorrowAmount = contractBalance;
+        }
+    }
+
+    /**
+     * @dev Get the maximum amount of an asset available in the contract
+     * @param asset The asset address
+     * @return amount The maximum available amount in asset decimals
+     */
+    function maxAvailableAmount(
+        address asset
+    ) public view virtual returns (uint256 amount) {
+        if (!assets[asset].isSupported) return 0;
+        return IERC20(asset).balanceOf(address(this));
     }
 
     function getSupportedAssetsCount() external view virtual returns (uint256) {

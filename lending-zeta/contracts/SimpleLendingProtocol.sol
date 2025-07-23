@@ -310,7 +310,7 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
     }
 
     function onRevert(
-        RevertContext calldata revertContext
+        RevertContext calldata /*revertContext*/
     ) external virtual onlyGateway {
         emit Withdraw(address(0), address(0), 0);
     }
@@ -377,7 +377,7 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         address asset,
         uint256 amount,
         address user,
-        uint256 destinationChain,
+        uint256 /*destinationChain*/,
         address recipient
     ) internal {
         if (!assets[asset].isSupported) revert AssetNotSupported(asset);

@@ -150,7 +150,7 @@ export function useDashboardData() {
                 // Get external chain balance for this asset
                 let externalBalance = '0';
                 let formattedExternalBalance = '0';
-                let externalChainId: number | undefined;
+                let externalChainId: number = SupportedChain.ZETA_TESTNET; // Default to ZETA_TESTNET
 
                 // Map asset to its source chain and token symbol
                 if (asset.sourceChain === 'ARBI') {

@@ -20,6 +20,9 @@ export default defineConfig({
         // Treat warnings as errors during build
         if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return
         if (warning.code === 'CIRCULAR_DEPENDENCY') return
+        if (warning.code === 'THIS_IS_UNDEFINED') return
+        // Ignore pure annotation warnings from dependencies
+        if (warning.message?.includes('/*#__PURE__*/')) return
         // eslint-disable-next-line no-console
         console.error(`Build warning treated as error: ${warning.message}`)
         throw new Error(`Build failed due to warning: ${warning.message}`)
