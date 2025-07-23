@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { globalIgnores } from 'eslint/config'
 
 export default tseslint.config([
-  globalIgnores(['dist', ".vite", '**/typechain-types/**']),
+  globalIgnores(['dist', ".vite", 'src/contracts/typechain-types/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

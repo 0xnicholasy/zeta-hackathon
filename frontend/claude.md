@@ -100,6 +100,10 @@ frontend/
    - Don't display emoji texts in the UI
    - Use `react-icons` or `web3-icons` for icons instead
 
+8. **Typescript Practices**
+   - Avoid using type `<some type> | null` or `<some type> | undefined` or <some type> | "" where possible
+   - reference @frontend/src/components/dashboard/types.ts for better type handling types for EVM addresses and hashes
+
 ## Development Workflow
 
 1. Create a new branch for each feature

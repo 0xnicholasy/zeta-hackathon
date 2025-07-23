@@ -1,0 +1,175 @@
+import { FaCheck, FaTimes, FaClock, FaFileSignature } from 'react-icons/fa';
+import { HourglassLoader } from './hourglass-loader';
+import { getTransactionUrl, SupportedChain } from '../../contracts/deployments';
+import { formatHexString } from '../../utils/formatHexString';
+import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
+import type { EVMTransactionHash } from '../dashboard/types';
+import type { TransactionStep } from '../../hooks/useTransactionFlow';
+
+interface TransactionStatusProps {
+    currentStep: TransactionStep;
+    approvalHash?: EVMTransactionHash | null;
+    transactionHash?: EVMTransactionHash | null;
+    isApprovingTx?: boolean;
+    isApprovalSuccess?: boolean;
+    isTransactionTx?: boolean;
+    isTransactionSuccess?: boolean;
+    chainId?: number;
+    crossChain?: ReturnType<typeof useCrossChainTracking>;
+    gasTokenInfo?: { amount: bigint; needsApproval: boolean } | null;
+    gasTokenSymbol?: string;
+    // gasTokenDecimals?: number;
+    destinationChainName?: string;
+    transactionType?: 'supply' | 'withdraw';
+}
+
+export function TransactionStatus({
+    currentStep,
+    approvalHash,
+    transactionHash,
+    isApprovingTx,
+    isApprovalSuccess,
+    isTransactionTx,
+    isTransactionSuccess,
+    chainId = SupportedChain.ZETA_TESTNET,
+    crossChain,
+    gasTokenInfo,
+    gasTokenSymbol = 'ETH',
+    // gasTokenDecimals = 18,
+    destinationChainName = 'Unknown Chain',
+    transactionType = 'supply',
+}: TransactionStatusProps) {
+    // Approval step
+    if (currentStep === 'approve') {
+        return (
+            <div className="flex flex-col items-center py-6">
+                <div className="size-9 bg-zeta-500 rounded-full flex items-center justify-center mb-4">
+                    <FaFileSignature className="w-5 h-5 text-white ml-1" />
+                </div>
+                <div className="text-center text-md text-muted-foreground">
+                    You need to approve {transactionType === 'withdraw' ? 'gas tokens' : 'tokens'} before proceeding.
+                </div>
+                {gasTokenInfo && transactionType === 'withdraw' && (
+                    <div className="mt-2 text-sm text-muted-foreground text-center">
+                        Approving {gasTokenInfo.amount.toString()} {gasTokenSymbol}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Loading states
+    if (['checkWithdraw', 'checkGas', 'approving', 'depositing', 'withdrawing'].includes(currentStep)) {
+        return (
+            <div className="flex flex-col items-center py-6">
+                <HourglassLoader size="lg" className="mb-4" />
+                <div className="text-center text-sm text-muted-foreground">
+                    {currentStep === 'checkWithdraw' && 'Validating withdrawal eligibility...'}
+                    {currentStep === 'checkGas' && 'Checking gas token requirements...'}
+                    {currentStep === 'approving' && 'Waiting for approval transaction...'}
+                    {currentStep === 'depositing' && 'Waiting for deposit transaction...'}
+                    {currentStep === 'withdrawing' && 'Waiting for withdrawal transaction...'}
+                </div>
+
+                {/* Show transaction hashes */}
+                {approvalHash && currentStep === 'approving' && (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                        Approval:
+                        <a
+                            href={getTransactionUrl(chainId, approvalHash) || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-1 text-primary hover:text-primary/80 underline"
+                        >
+                            {formatHexString(approvalHash)}
+                        </a>
+                        {isApprovingTx && <FaClock className="ml-2 w-3 h-3 text-muted-foreground" />}
+                        {isApprovalSuccess && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
+                    </div>
+                )}
+
+                {transactionHash && (currentStep === 'depositing' || currentStep === 'withdrawing') && (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                        {transactionType === 'supply' ? 'Deposit' : 'Withdrawal'}:
+                        <a
+                            href={getTransactionUrl(chainId, transactionHash) || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-1 text-primary hover:text-primary/80 underline"
+                        >
+                            {formatHexString(transactionHash)}
+                        </a>
+                        {isTransactionTx && <FaClock className="ml-2 w-3 h-3 text-muted-foreground" />}
+                        {isTransactionSuccess && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Success state
+    if (currentStep === 'success') {
+        return (
+            <div className="flex flex-col items-center py-6">
+                {/* Show appropriate icon based on cross-chain status */}
+                {crossChain?.status === 'pending' && (
+                    <HourglassLoader size="lg" className="mb-4" />
+                )}
+                {(crossChain?.status === 'success' || crossChain?.status === 'idle' || !crossChain) && (
+                    <div className="w-8 h-8 bg-text-success-light dark:bg-text-success-dark rounded-full flex items-center justify-center mb-4">
+                        <FaCheck className="w-5 h-5 text-white" />
+                    </div>
+                )}
+                {crossChain?.status === 'failed' && (
+                    <div className="w-8 h-8 bg-text-error-light dark:bg-text-error-dark rounded-full flex items-center justify-center mb-4">
+                        <FaTimes className="w-5 h-5 text-white" />
+                    </div>
+                )}
+
+                <div className="text-center text-sm text-muted-foreground">
+                    {!crossChain && `Your ${transactionType} transaction has been completed successfully!`}
+                    {crossChain?.status === 'pending' && `Processing cross-chain ${transactionType} ${transactionType === 'withdraw' ? `to ${destinationChainName}` : 'to ZetaChain'}...`}
+                    {crossChain?.status === 'success' && `Cross-chain ${transactionType} completed successfully! ${transactionType === 'supply' ? 'Tokens are now available for borrowing.' : `Assets have been sent to ${destinationChainName}.`}`}
+                    {crossChain?.status === 'failed' && `Cross-chain ${transactionType} failed. Please check the transaction status or try again.`}
+                    {crossChain?.status === 'idle' && `Your ${transactionType} transaction has been completed successfully! Starting cross-chain transfer...`}
+                </div>
+
+                {/* Show transaction hashes */}
+                {transactionHash && (
+                    <div className="mt-2 text-xs text-muted-foreground flex items-center">
+                        <span>{transactionType === 'supply' ? 'Deposit' : 'Withdrawal'}:</span>
+                        <a
+                            href={getTransactionUrl(chainId, transactionHash) || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-1 text-primary hover:text-primary/80 underline"
+                        >
+                            {formatHexString(transactionHash)}
+                        </a>
+                        <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />
+                    </div>
+                )}
+
+                {/* Show cross-chain transaction hash */}
+                {crossChain?.txHash && crossChain?.status !== 'idle' && (
+                    <div className="mt-1 text-xs text-muted-foreground flex items-center">
+                        <span>Cross-chain:</span>
+                        <a
+                            href={`https://zetachain-athens.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData/${crossChain.txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-1 text-primary hover:text-primary/80 underline"
+                        >
+                            {formatHexString(crossChain.txHash)}
+                        </a>
+                        {crossChain.status === 'pending' && <FaClock className="ml-2 w-3 h-3 text-muted-foreground" />}
+                        {crossChain.status === 'success' && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
+                        {crossChain.status === 'failed' && <FaTimes className="ml-2 w-3 h-3 text-text-error-light dark:text-text-error-dark" />}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    return null;
+}

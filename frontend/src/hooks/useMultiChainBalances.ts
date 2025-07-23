@@ -12,6 +12,7 @@ import {
   getSupportedChainIds,
   getNetworkConfig
 } from '../contracts/deployments';
+import { ERC20__factory } from '@/contracts/typechain-types';
 
 export interface TokenBalance {
   chainId: number;
@@ -35,22 +36,7 @@ export interface ChainTokenBalance {
 }
 
 // ERC20 ABI for balance and decimals
-const erc20Abi = [
-  {
-    name: 'balanceOf',
-    type: 'function' as const,
-    stateMutability: 'view' as const,
-    inputs: [{ name: 'account', type: 'address' as const }],
-    outputs: [{ name: '', type: 'uint256' as const }],
-  },
-  {
-    name: 'decimals',
-    type: 'function' as const,
-    stateMutability: 'view' as const,
-    inputs: [],
-    outputs: [{ name: '', type: 'uint8' as const }],
-  },
-] as const;
+const erc20Abi = ERC20__factory.abi;
 
 /**
  * Hook to fetch user token balances across all supported chains
