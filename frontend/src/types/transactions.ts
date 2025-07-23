@@ -6,7 +6,7 @@ export type TransactionType = 'supply' | 'withdraw' | 'borrow' | 'repay';
 /**
  * Common transaction steps shared across all transaction types
  */
-export type CommonTransactionStep = 'input' | 'approve' | 'approving' | 'success';
+export type CommonTransactionStep = 'input' | 'approve' | 'approving' | 'success' | 'failed';
 
 /**
  * Supply transaction specific steps
@@ -36,12 +36,12 @@ export type TransactionStep = SupplyTransactionStep | WithdrawTransactionStep | 
 /**
  * Type mapping for transaction types to their specific steps
  */
-export type TransactionStepMap = {
+export interface TransactionStepMap {
     supply: SupplyTransactionStep;
     withdraw: WithdrawTransactionStep;
     borrow: BorrowTransactionStep;
     repay: RepayTransactionStep;
-};
+}
 
 /**
  * Helper type to get the specific step type for a transaction type

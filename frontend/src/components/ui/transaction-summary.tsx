@@ -1,17 +1,15 @@
 import { formatUnits } from 'viem';
 import { formatHexString } from '../../utils/formatHexString';
 import { TransactionType } from '../../types/transactions';
+import { EVMAddress } from '../dashboard/types';
 
 interface TransactionSummaryProps {
     transactionType: TransactionType;
     amount: string;
     tokenSymbol: string;
     destinationChain?: string;
-    recipientAddress?: string;
+    recipientAddress?: EVMAddress;
     isGasToken?: boolean;
-    // gasFeeAmount?: bigint;
-    // gasTokenSymbol?: string;
-    // gasTokenDecimals?: number;
     formattedReceiveAmount?: string;
     className?: string;
 }
@@ -23,9 +21,6 @@ export function TransactionSummary({
     destinationChain,
     recipientAddress,
     isGasToken = false,
-    // gasFeeAmount,
-    // gasTokenSymbol,
-    // gasTokenDecimals = 18,
     formattedReceiveAmount,
     className = '',
 }: TransactionSummaryProps) {
@@ -68,7 +63,7 @@ export function TransactionSummary({
                 )}
                 {isBorrow && (
                     <>
-                        You will borrow {amount} {tokenSymbol} from the lending protocol using your collateral. The borrowed amount will be sent to your wallet on {destinationChain || 'the selected chain'}.
+                        You will borrow {amount} {tokenSymbol} from the lending protocol using your collateral. The borrowed amount will be sent to your wallet on {destinationChain ?? 'the selected chain'}.
                     </>
                 )}
                 {isRepay && (

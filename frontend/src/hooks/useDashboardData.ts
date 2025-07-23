@@ -49,7 +49,7 @@ export function useDashboardData() {
             args: [address, asset],
         })),
         query: {
-            enabled: !!simpleLendingProtocol && !!address && isConnected,
+            enabled: Boolean(simpleLendingProtocol) && Boolean(address) && isConnected,
         },
     });
 
@@ -61,7 +61,7 @@ export function useDashboardData() {
             args: [address, asset],
         })),
         query: {
-            enabled: !!simpleLendingProtocol && !!address && isConnected,
+            enabled: Boolean(simpleLendingProtocol) && Boolean(address) && isConnected,
         },
     });
 
@@ -73,7 +73,7 @@ export function useDashboardData() {
             args: [asset],
         })),
         query: {
-            enabled: assetAddresses.length > 0 && !!simpleLendingProtocol,
+            enabled: assetAddresses.length > 0 && Boolean(simpleLendingProtocol),
         },
     });
 
@@ -86,7 +86,7 @@ export function useDashboardData() {
             args: [safeEVMAddressOrZeroAddress(address)],
         }],
         query: {
-            enabled: !!simpleLendingProtocol && !!address && isConnected,
+            enabled: Boolean(simpleLendingProtocol) && Boolean(address) && isConnected,
         },
     });
 
@@ -257,7 +257,7 @@ export function useDashboardData() {
     }, [userSupplies, userBorrows, assetConfigs, assetDecimals, allAssets, isConnected, externalBalances]);
 
     useEffect(() => {
-        if (userHealthFactor && userHealthFactor[0]?.result && userHealthFactor[0].status === 'success') {
+        if (userHealthFactor?.[0]?.result && userHealthFactor[0].status === 'success') {
             const healthFactorValue = userHealthFactor[0].result as unknown as bigint;
             const formattedHealthFactor = Number(formatUnits(healthFactorValue, 18));
 

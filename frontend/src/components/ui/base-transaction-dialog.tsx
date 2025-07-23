@@ -24,6 +24,7 @@ interface BaseTransactionDialogProps {
     isSubmitting?: boolean;
     onSubmit?: () => void;
     onApprove?: () => void;
+    onRetry?: () => void;
     isValidAmount?: boolean;
     isConnected?: boolean;
     submitButtonText?: string;
@@ -44,6 +45,7 @@ export function BaseTransactionDialog({
     isSubmitting = false,
     onSubmit,
     onApprove,
+    onRetry,
     isValidAmount = false,
     isConnected = false,
     submitButtonText = 'Submit',
@@ -86,6 +88,21 @@ export function BaseTransactionDialog({
                     >
                         {approveButtonText}
                     </Button>
+                </>
+            );
+        }
+
+        if (currentStep === 'failed') {
+            return (
+                <>
+                    <Button variant="outline" onClick={onClose}>
+                        Close
+                    </Button>
+                    {onRetry && (
+                        <Button variant="zeta" onClick={onRetry}>
+                            Try Again
+                        </Button>
+                    )}
                 </>
             );
         }

@@ -1,9 +1,10 @@
-import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { ROUTES } from '@/config/routes';
+import { useNavigateTo } from '@/types/routes';
 
 function NotFoundPage() {
-    const navigate = useNavigate();
+    const navigate = useNavigateTo();
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-zeta-50 to-zeta-100 dark:from-background dark:to-secondary flex items-center justify-center">
@@ -16,7 +17,7 @@ function NotFoundPage() {
                 </CardHeader>
                 <CardContent className="text-center space-y-4">
                     <Button
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate(ROUTES.HOME)}
                         className="w-full bg-zeta-500 hover:bg-zeta-600"
                     >
                         Go Home

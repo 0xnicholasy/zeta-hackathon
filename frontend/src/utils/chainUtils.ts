@@ -34,6 +34,20 @@ export const getChainDisplayName = (sourceChain: string): string => {
     }
 };
 
+// Helper function to get chain display name from chain ID
+export const getChainDisplayNameFromId = (chainId: number): string => {
+    switch (chainId) {
+        case SupportedChain.ARBITRUM_SEPOLIA:
+            return 'Arbitrum Sepolia';
+        case SupportedChain.ETHEREUM_SEPOLIA:
+            return 'Ethereum Sepolia';
+        case SupportedChain.ZETA_TESTNET:
+            return 'ZetaChain Testnet';
+        default:
+            return 'Unknown Chain';
+    }
+};
+
 // Helper function to get gas token symbol based on destination chain
 export const getGasTokenSymbol = (sourceChain: string): string => {
     sourceChain = sourceChain.toLowerCase();

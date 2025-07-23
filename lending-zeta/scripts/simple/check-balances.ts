@@ -58,10 +58,15 @@ async function main() {
   // Get account data
   console.log("\n=== User Account Data ===");
   try {
-    const accountData = await simpleLendingProtocol.getUserAccountData(user.address);
-    console.log("Total Collateral Value:", utils.formatEther(accountData.totalCollateralValue), "USD");
-    console.log("Total Debt Value:", utils.formatEther(accountData.totalDebtValue), "USD");
-    console.log("Health Factor:", accountData.healthFactor.eq(ethers.constants.MaxUint256) ? "∞" : utils.formatEther(accountData.healthFactor));
+    const totalCollateralValue = await simpleLendingProtocol.getTotalCollateralValue(user.address);
+    const totalDebtValue = await simpleLendingProtocol.getTotalDebtValue(user.address);
+    const healthFactor = await simpleLendingProtocol.getHealthFactor(user.address);
+    const maxAvailableBorrowsInUsd = await simpleLendingProtocol.maxAvailableBorrowsInUsd(user.address);
+    
+    console.log("Total Collateral Value:", utils.formatEther(totalCollateralValue), "USD");
+    console.log("Total Debt Value:", utils.formatEther(totalDebtValue), "USD");
+    console.log("Max Available Borrows:", utils.formatEther(maxAvailableBorrowsInUsd), "USD");
+    console.log("Health Factor:", healthFactor.eq(ethers.constants.MaxUint256) ? "∞" : utils.formatEther(healthFactor));
   } catch (error: any) {
     console.error("Error getting account data:", error.message);
   }

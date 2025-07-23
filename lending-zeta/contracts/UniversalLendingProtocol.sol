@@ -11,7 +11,10 @@ import "./libraries/LiquidationLogic.sol";
  * @title UniversalLendingProtocol
  * @dev Enhanced lending protocol that extends SimpleLendingProtocol with advanced features
  */
-contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingProtocol {
+contract UniversalLendingProtocol is
+    SimpleLendingProtocol,
+    IUniversalLendingProtocol
+{
     using SafeERC20 for IERC20;
     using InterestRateModel for *;
     using LiquidationLogic for *;
@@ -39,7 +42,10 @@ contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingPro
     }
 
     // Enhanced admin functions
-    function setAllowedSourceChain(uint256 chainId, bool allowed) external onlyOwner {
+    function setAllowedSourceChain(
+        uint256 chainId,
+        bool allowed
+    ) external onlyOwner {
         allowedSourceChains[chainId] = allowed;
         emit AllowedChainUpdated(chainId, allowed);
     }
@@ -118,12 +124,21 @@ contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingPro
 
         // Use SimpleLendingProtocol's approach for message handling
         if (message.length == 64) {
-            (string memory action, address onBehalfOf) = abi.decode(message, (string, address));
+            (string memory action, address onBehalfOf) = abi.decode(
+                message,
+                (string, address)
+            );
 
-            if (keccak256(abi.encodePacked(action)) == keccak256(abi.encodePacked("supply"))) {
+            if (
+                keccak256(abi.encodePacked(action)) ==
+                keccak256(abi.encodePacked("supply"))
+            ) {
                 _handleCrossChainSupply(onBehalfOf, zrc20, amount, context);
                 return;
-            } else if (keccak256(abi.encodePacked(action)) == keccak256(abi.encodePacked("repay"))) {
+            } else if (
+                keccak256(abi.encodePacked(action)) ==
+                keccak256(abi.encodePacked("repay"))
+            ) {
                 _handleCrossChainRepay(onBehalfOf, zrc20, amount, context);
                 return;
             }
@@ -134,13 +149,34 @@ contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingPro
                 uint256 operationAmount,
                 uint256 destinationChain,
                 address recipient
-            ) = abi.decode(message, (string, address, uint256, uint256, address));
+            ) = abi.decode(
+                    message,
+                    (string, address, uint256, uint256, address)
+                );
 
-            if (keccak256(abi.encodePacked(action)) == keccak256(abi.encodePacked("borrowCrossChain"))) {
-                _borrowCrossChainFromCall(zrc20, operationAmount, user, destinationChain, recipient);
+            if (
+                keccak256(abi.encodePacked(action)) ==
+                keccak256(abi.encodePacked("borrowCrossChain"))
+            ) {
+                _borrowCrossChainFromCall(
+                    zrc20,
+                    operationAmount,
+                    user,
+                    destinationChain,
+                    recipient
+                );
                 return;
-            } else if (keccak256(abi.encodePacked(action)) == keccak256(abi.encodePacked("withdrawCrossChain"))) {
-                _withdrawCrossChainFromCall(zrc20, operationAmount, user, destinationChain, recipient);
+            } else if (
+                keccak256(abi.encodePacked(action)) ==
+                keccak256(abi.encodePacked("withdrawCrossChain"))
+            ) {
+                _withdrawCrossChainFromCall(
+                    zrc20,
+                    operationAmount,
+                    user,
+                    destinationChain,
+                    recipient
+                );
                 return;
             }
         }
@@ -148,11 +184,16 @@ contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingPro
         revert("Invalid operation or message format");
     }
 
-    function onRevert(RevertContext calldata revertContext) external override onlyGateway {
+    function onRevert(
+        RevertContext calldata revertContext
+    ) external override onlyGateway {
         // Enhanced revert handling
         uint256 destinationChain = 0;
         if (revertContext.revertMessage.length >= 32) {
-            (destinationChain) = abi.decode(revertContext.revertMessage, (uint256));
+            (destinationChain) = abi.decode(
+                revertContext.revertMessage,
+                (uint256)
+            );
         }
 
         emit CrossChainWithdrawal(
@@ -210,11 +251,25 @@ contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingPro
         }
 
         emit Repay(user, zrc20, amountToRepay);
-        emit CrossChainDeposit(user, zrc20, amount, context.chainID, keccak256(context.sender));
+        emit CrossChainDeposit(
+            user,
+            zrc20,
+            amount,
+            context.chainID,
+            keccak256(context.sender)
+        );
     }
 
     // Override core functions to include interest rate updates
-    function supply(address asset, uint256 amount, address onBehalfOf) external override(ISimpleLendingProtocol, SimpleLendingProtocol) nonReentrant {
+    function supply(
+        address asset,
+        uint256 amount,
+        address onBehalfOf
+    )
+        external
+        override(ISimpleLendingProtocol, SimpleLendingProtocol)
+        nonReentrant
+    {
         if (!enhancedAssets[asset].isSupported) revert AssetNotSupported(asset);
         if (amount == 0) revert InvalidAmount();
 
@@ -229,10 +284,19 @@ contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingPro
         emit Supply(onBehalfOf, asset, amount);
     }
 
-    function borrow(address asset, uint256 amount, address to) external override(ISimpleLendingProtocol, SimpleLendingProtocol) nonReentrant {
+    function borrow(
+        address asset,
+        uint256 amount,
+        address to
+    )
+        external
+        override(ISimpleLendingProtocol, SimpleLendingProtocol)
+        nonReentrant
+    {
         if (!enhancedAssets[asset].isSupported) revert AssetNotSupported(asset);
         if (amount == 0) revert InvalidAmount();
-        if (amount > _getAvailableBorrow(msg.sender, asset)) revert InsufficientCollateral();
+        if (amount > _getAvailableBorrow(msg.sender, asset))
+            revert InsufficientCollateral();
 
         _updateInterest(asset);
 
@@ -251,8 +315,15 @@ contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingPro
         address collateralAsset,
         address debtAsset,
         uint256 repayAmount
-    ) external override(ISimpleLendingProtocol, SimpleLendingProtocol) nonReentrant {
-        if (!enhancedAssets[collateralAsset].isSupported || !enhancedAssets[debtAsset].isSupported) revert AssetNotSupported(collateralAsset);
+    )
+        external
+        override(ISimpleLendingProtocol, SimpleLendingProtocol)
+        nonReentrant
+    {
+        if (
+            !enhancedAssets[collateralAsset].isSupported ||
+            !enhancedAssets[debtAsset].isSupported
+        ) revert AssetNotSupported(collateralAsset);
 
         uint256 healthFactor = getHealthFactor(user);
         if (healthFactor >= LIQUIDATION_THRESHOLD) revert HealthFactorTooLow();
@@ -266,16 +337,22 @@ contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingPro
         uint256 debtPrice = priceOracle.getPrice(debtAsset);
         uint256 collateralPrice = priceOracle.getPrice(collateralAsset);
 
-        uint256 liquidatedCollateral = LiquidationLogic.calculateLiquidationAmount(
-            repayAmount,
-            debtPrice,
-            collateralPrice,
-            enhancedAssets[collateralAsset].liquidationBonus
+        uint256 liquidatedCollateral = LiquidationLogic
+            .calculateLiquidationAmount(
+                repayAmount,
+                debtPrice,
+                collateralPrice,
+                enhancedAssets[collateralAsset].liquidationBonus
+            );
+
+        if (userSupplies[user][collateralAsset] < liquidatedCollateral)
+            revert InsufficientCollateral();
+
+        IERC20(debtAsset).safeTransferFrom(
+            msg.sender,
+            address(this),
+            repayAmount
         );
-
-        if (userSupplies[user][collateralAsset] < liquidatedCollateral) revert InsufficientCollateral();
-
-        IERC20(debtAsset).safeTransferFrom(msg.sender, address(this), repayAmount);
 
         userBorrows[user][debtAsset] -= repayAmount;
         userSupplies[user][collateralAsset] -= liquidatedCollateral;
@@ -283,34 +360,87 @@ contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingPro
 
         IERC20(collateralAsset).safeTransfer(msg.sender, liquidatedCollateral);
 
-        emit Liquidate(msg.sender, user, collateralAsset, debtAsset, repayAmount, liquidatedCollateral);
-    }
-
-    // Enhanced health factor calculation
-    function getHealthFactor(address user) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (uint256) {
-        (
-            uint256 totalCollateralValue,
-            uint256 totalDebtValue,
-            ,
-            uint256 currentLiquidationThreshold,
-
-        ) = getUserAccountData(user);
-
-        return LiquidationLogic.calculateHealthFactor(
-            totalCollateralValue,
-            totalDebtValue,
-            currentLiquidationThreshold
+        emit Liquidate(
+            msg.sender,
+            user,
+            collateralAsset,
+            debtAsset,
+            repayAmount,
+            liquidatedCollateral
         );
     }
 
+    // Enhanced health factor calculation
+    function getHealthFactor(
+        address user
+    )
+        public
+        view
+        override(ISimpleLendingProtocol, SimpleLendingProtocolBase)
+        returns (uint256)
+    {
+        uint256 totalDebtValue = getTotalDebtValue(user);
+        
+        if (totalDebtValue == 0) {
+            return type(uint256).max;
+        }
+
+        // Calculate weighted collateral value using liquidation thresholds
+        uint256 totalWeightedCollateral = 0;
+        
+        for (uint256 i = 0; i < supportedAssets.length; i++) {
+            address asset = supportedAssets[i];
+            uint256 supplyBalance = userSupplies[user][asset];
+            
+            if (supplyBalance > 0) {
+                uint256 assetPrice = priceOracle.getPrice(asset);
+                uint256 collateralValue = (supplyBalance * assetPrice) / PRECISION;
+                
+                // Apply both collateral factor and liquidation threshold for health factor calculation
+                uint256 adjustedCollateral = (collateralValue * enhancedAssets[asset].collateralFactor) / PRECISION;
+                uint256 weightedCollateral = (adjustedCollateral * enhancedAssets[asset].liquidationThreshold) / PRECISION;
+                totalWeightedCollateral += weightedCollateral;
+            }
+        }
+
+        return (totalWeightedCollateral * PRECISION) / totalDebtValue;
+    }
+
+    // Override to use price oracle instead of fixed prices
+    function getDebtValue(
+        address user,
+        address asset
+    ) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (uint256) {
+        uint256 amount = userBorrows[user][asset];
+        uint256 price = priceOracle.getPrice(asset);
+
+        uint256 decimals = IERC20Metadata(asset).decimals();
+        uint256 normalizedAmount = amount;
+
+        if (decimals < 18) {
+            normalizedAmount = amount * (10 ** (18 - decimals));
+        } else if (decimals > 18) {
+            normalizedAmount = amount / (10 ** (decimals - 18));
+        }
+
+        return (normalizedAmount * price) / PRECISION;
+    }
+
     // Enhanced user account data with weighted liquidation thresholds
-    function getUserAccountData(address user) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (
-        uint256 totalCollateralValue,
-        uint256 totalDebtValue,
-        uint256 availableBorrows,
-        uint256 currentLiquidationThreshold,
-        uint256 healthFactor
-    ) {
+    function getUserAccountData(
+        address user
+    )
+        public
+        view
+        override
+        returns (
+            uint256 totalCollateralValue,
+            uint256 totalDebtValue,
+            uint256 availableBorrows,
+            uint256 currentLiquidationThreshold,
+            uint256 healthFactor
+        )
+    {
         uint256 totalCollateral;
         uint256 totalDebt;
         uint256 weightedLiquidationThreshold;
@@ -321,21 +451,28 @@ contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingPro
             uint256 borrowBalance = userBorrows[user][asset];
 
             if (supplyBalance > 0 || borrowBalance > 0) {
-                uint256 price = priceOracle.getPrice(asset);
+                // uint256 price = priceOracle.getPrice(asset);
 
                 if (supplyBalance > 0) {
-                    uint256 collateralValue = LiquidationLogic.calculateCollateralValue(
-                        asset,
-                        supplyBalance,
-                        enhancedAssets[asset].collateralFactor,
-                        priceOracle
-                    );
+                    uint256 collateralValue = LiquidationLogic
+                        .calculateCollateralValue(
+                            asset,
+                            supplyBalance,
+                            enhancedAssets[asset].collateralFactor,
+                            priceOracle
+                        );
                     totalCollateral += collateralValue;
-                    weightedLiquidationThreshold += collateralValue * enhancedAssets[asset].liquidationThreshold;
+                    weightedLiquidationThreshold +=
+                        collateralValue *
+                        enhancedAssets[asset].liquidationThreshold;
                 }
 
                 if (borrowBalance > 0) {
-                    uint256 debtValue = LiquidationLogic.calculateDebtValue(asset, borrowBalance, priceOracle);
+                    uint256 debtValue = LiquidationLogic.calculateDebtValue(
+                        asset,
+                        borrowBalance,
+                        priceOracle
+                    );
                     totalDebt += debtValue;
                 }
             }
@@ -345,9 +482,12 @@ contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingPro
         totalDebtValue = totalDebt;
 
         if (totalCollateral > 0) {
-            currentLiquidationThreshold = weightedLiquidationThreshold / totalCollateral;
+            currentLiquidationThreshold =
+                weightedLiquidationThreshold /
+                totalCollateral;
 
-            uint256 requiredCollateral = (totalDebt * MINIMUM_HEALTH_FACTOR) / PRECISION;
+            uint256 requiredCollateral = (totalDebt * MINIMUM_HEALTH_FACTOR) /
+                PRECISION;
             if (totalCollateral > requiredCollateral) {
                 availableBorrows = totalCollateral - requiredCollateral;
             } else {
@@ -370,12 +510,13 @@ contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingPro
     function _updateInterest(address asset) internal {
         AssetConfig storage assetConfig = enhancedAssets[asset];
 
-        InterestRateModel.RateParams memory params = InterestRateModel.RateParams({
-            baseRate: 0.02e18, // 2%
-            slope1: 0.04e18, // 4%
-            slope2: 0.75e18, // 75%
-            optimalUtilization: 0.8e18 // 80%
-        });
+        InterestRateModel.RateParams memory params = InterestRateModel
+            .RateParams({
+                baseRate: 0.02e18, // 2%
+                slope1: 0.04e18, // 4%
+                slope2: 0.75e18, // 75%
+                optimalUtilization: 0.8e18 // 80%
+            });
 
         uint256 borrowRate = InterestRateModel.calculateBorrowRate(
             assetConfig.totalSupply,
@@ -394,29 +535,85 @@ contract UniversalLendingProtocol is SimpleLendingProtocol, IUniversalLendingPro
         assetConfig.supplyRate = supplyRate;
     }
 
-    function _getAvailableBorrow(address user, address asset) internal view returns (uint256) {
-        (, , uint256 availableBorrows, , ) = getUserAccountData(user);
-        uint256 assetPrice = priceOracle.getPrice(asset);
-        uint8 decimals = IERC20Metadata(asset).decimals();
-
-        uint256 tokenAmount = (availableBorrows * PRECISION) / assetPrice;
-
-        if (decimals < 18) {
-            tokenAmount = tokenAmount / (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            tokenAmount = tokenAmount * (10 ** (decimals - 18));
-        }
-
-        return tokenAmount;
+    function _getAvailableBorrow(
+        address user,
+        address asset
+    ) internal view returns (uint256) {
+        return maxAvailableBorrows(user, asset);
     }
 
     // Override getAssetConfig to return enhanced configuration
-    function getAssetConfig(address asset) external view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (Asset memory) {
+    function getAssetConfig(
+        address asset
+    )
+        external
+        view
+        override(ISimpleLendingProtocol, SimpleLendingProtocolBase)
+        returns (Asset memory)
+    {
         // Return the simple asset config for compatibility
         return assets[asset];
     }
 
-    function getEnhancedAssetConfig(address asset) external view returns (AssetConfig memory) {
+    function getEnhancedAssetConfig(
+        address asset
+    ) external view returns (AssetConfig memory) {
         return enhancedAssets[asset];
+    }
+
+    /**
+     * @dev Calculate the maximum USD value a user can borrow while maintaining minimum health factor
+     * @param user The user address
+     * @return maxBorrowUsdValue The maximum USD value that can be borrowed (in 18 decimals)
+     */
+    function maxAvailableBorrowsInUsd(
+        address user
+    ) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (uint256 maxBorrowUsdValue) {
+        uint256 totalCollateralValue = getTotalCollateralValue(user);
+        uint256 totalDebtValue = getTotalDebtValue(user);
+        
+        if (totalCollateralValue == 0) return 0;
+        
+        // Calculate max total debt value while maintaining minimum health factor
+        // healthFactor = totalCollateralValue / totalDebtValue >= MINIMUM_HEALTH_FACTOR
+        // So: totalDebtValue <= totalCollateralValue / MINIMUM_HEALTH_FACTOR
+        uint256 maxTotalDebtValue = (totalCollateralValue * PRECISION) / MINIMUM_HEALTH_FACTOR;
+        
+        // Calculate how much more we can borrow
+        if (maxTotalDebtValue <= totalDebtValue) return 0;
+        
+        maxBorrowUsdValue = maxTotalDebtValue - totalDebtValue;
+    }
+
+    /**
+     * @dev Calculate the maximum amount of a specific asset a user can borrow
+     * @param user The user address
+     * @param asset The asset address to borrow
+     * @return maxBorrowAmount The maximum amount in asset decimals that can be borrowed
+     */
+    function maxAvailableBorrows(
+        address user,
+        address asset
+    ) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (uint256 maxBorrowAmount) {
+        if (!enhancedAssets[asset].isSupported) return 0;
+        
+        uint256 maxBorrowUsdValue = maxAvailableBorrowsInUsd(user);
+        if (maxBorrowUsdValue == 0) return 0;
+        
+        // Convert USD value to asset amount using the price oracle
+        uint256 assetPrice = priceOracle.getPrice(asset);
+        if (assetPrice == 0) return 0;
+        
+        // Calculate asset amount and denormalize to asset decimals
+        uint256 maxBorrowValueNormalized = (maxBorrowUsdValue * PRECISION) / assetPrice;
+        
+        uint256 decimals = IERC20Metadata(asset).decimals();
+        if (decimals < 18) {
+            maxBorrowAmount = maxBorrowValueNormalized / (10 ** (18 - decimals));
+        } else if (decimals > 18) {
+            maxBorrowAmount = maxBorrowValueNormalized * (10 ** (decimals - 18));
+        } else {
+            maxBorrowAmount = maxBorrowValueNormalized;
+        }
     }
 }

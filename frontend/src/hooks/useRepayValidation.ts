@@ -42,34 +42,58 @@ export function useRepayValidation({
 
     // Get user's current debt for this asset
     const { data: borrowBalance } = useReadContract({
-        address: simpleLendingProtocol || undefined,
+        address: simpleLendingProtocol ?? undefined,
         abi: SimpleLendingProtocol__factory.abi,
         functionName: 'getBorrowBalance',
         args: userAddress && selectedAsset ? [userAddress, selectedAsset.address] : undefined,
         query: {
-            enabled: !!(simpleLendingProtocol && userAddress && selectedAsset),
+            enabled: Boolean(simpleLendingProtocol && userAddress && selectedAsset),
             refetchInterval: 10000,
         },
     });
 
-    // Get user account data for health factor calculation
-    const { data: userAccountData } = useReadContract({
-        address: simpleLendingProtocol || undefined,
+    // Get user's health factor
+    const { data: healthFactor } = useReadContract({
+        address: simpleLendingProtocol ?? undefined,
         abi: SimpleLendingProtocol__factory.abi,
-        functionName: 'getUserAccountData',
+        functionName: 'getHealthFactor',
         args: userAddress ? [userAddress] : undefined,
         query: {
-            enabled: !!(simpleLendingProtocol && userAddress),
+            enabled: Boolean(simpleLendingProtocol && userAddress),
+            refetchInterval: 10000,
+        },
+    });
+
+    // Get user's total collateral value
+    const { data: totalCollateralValue } = useReadContract({
+        address: simpleLendingProtocol ?? undefined,
+        abi: SimpleLendingProtocol__factory.abi,
+        functionName: 'getTotalCollateralValue',
+        args: userAddress ? [userAddress] : undefined,
+        query: {
+            enabled: Boolean(simpleLendingProtocol && userAddress),
+            refetchInterval: 10000,
+        },
+    });
+
+    // Get user's total debt value
+    const { data: totalDebtValue } = useReadContract({
+        address: simpleLendingProtocol ?? undefined,
+        abi: SimpleLendingProtocol__factory.abi,
+        functionName: 'getTotalDebtValue',
+        args: userAddress ? [userAddress] : undefined,
+        query: {
+            enabled: Boolean(simpleLendingProtocol && userAddress),
             refetchInterval: 10000,
         },
     });
 
     // Get user's token balance (ZRC-20 balance on ZetaChain)
     const { data: tokenBalance } = useBalance({
-        address: userAddress || undefined,
+        address: userAddress ?? undefined,
         token: selectedAsset?.address,
         query: {
-            enabled: !!(userAddress && selectedAsset),
+            enabled: Boolean(userAddress && selectedAsset),
             refetchInterval: 10000,
         },
     });
@@ -91,7 +115,7 @@ export function useRepayValidation({
             return;
         }
 
-        if (!borrowBalance || !tokenBalance || !userAccountData) {
+        if (!borrowBalance || !tokenBalance || healthFactor === undefined || totalCollateralValue === undefined || totalDebtValue === undefined) {
             setValidationResult({
                 isValid: false,
                 error: 'Loading data...',
@@ -109,7 +133,7 @@ export function useRepayValidation({
         // Format current debt and available balance
         const currentDebtBigInt = borrowBalance;
         const availableBalanceBigInt = tokenBalance.value;
-        
+
         const currentDebtFormatted = Number(currentDebtBigInt) / Math.pow(10, selectedAsset.decimals);
         const availableBalanceFormatted = Number(availableBalanceBigInt) / Math.pow(10, selectedAsset.decimals);
 
@@ -153,17 +177,10 @@ export function useRepayValidation({
         const isFullRepayment = repayAmount >= currentDebtFormatted;
 
         // Calculate new health factor after repayment
-        const [
-            totalCollateralValue,
-            totalDebtValue,
-            ,
-            ,
-            healthFactor
-        ] = userAccountData;
 
         const assetPriceUsd = parseFloat(selectedAsset.price || '0');
         const repayValueUsd = repayAmount * assetPriceUsd;
-        
+
         const totalCollateralValueFormatted = Number(totalCollateralValue) / 1e18;
         const totalDebtValueFormatted = Number(totalDebtValue) / 1e18;
         const currentHealthFactorFormatted = Number(healthFactor) / 1e18;
@@ -171,7 +188,7 @@ export function useRepayValidation({
         let newHealthFactor = currentHealthFactorFormatted;
         if (totalDebtValueFormatted > 0 && repayValueUsd > 0) {
             const newTotalDebtValue = Math.max(0, totalDebtValueFormatted - repayValueUsd);
-            newHealthFactor = newTotalDebtValue > 0 
+            newHealthFactor = newTotalDebtValue > 0
                 ? (totalCollateralValueFormatted * 0.8) / newTotalDebtValue // Assuming 80% LTV
                 : Infinity; // No debt = infinite health factor
         }
@@ -202,7 +219,7 @@ export function useRepayValidation({
             newHealthFactor,
             isFullRepayment,
         });
-    }, [selectedAsset, userAddress, simpleLendingProtocol, amount, borrowBalance, tokenBalance, userAccountData]);
+    }, [selectedAsset, userAddress, simpleLendingProtocol, amount, borrowBalance, tokenBalance, healthFactor, totalCollateralValue, totalDebtValue]);
 
     // Run validation when dependencies change
     useEffect(() => {

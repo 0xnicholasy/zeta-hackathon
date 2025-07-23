@@ -25,15 +25,9 @@ export interface TokenBalance {
   isNative: boolean;
 }
 
-export interface MultiChainBalances {
-  [chainId: number]: {
-    [tokenSymbol: string]: TokenBalance;
-  };
-}
+export type MultiChainBalances = Record<number, Record<string, TokenBalance>>;
 
-export interface ChainTokenBalance {
-  [tokenSymbol: string]: TokenBalance;
-}
+export type ChainTokenBalance = Record<string, TokenBalance>;
 
 // ERC20 ABI for balance and decimals
 const erc20Abi = ERC20__factory.abi;
@@ -68,11 +62,11 @@ export function useMultiChainBalances() {
       switch (chainId) {
         case SupportedChain.ARBITRUM_SEPOLIA:
           viemChain = arbitrumSepolia;
-          rpcUrl = rpcUrl || arbitrumSepolia.rpcUrls.default.http[0];
+          rpcUrl = rpcUrl ?? arbitrumSepolia.rpcUrls.default.http[0];
           break;
         case SupportedChain.ETHEREUM_SEPOLIA:
           viemChain = sepolia;
-          rpcUrl = rpcUrl || sepolia.rpcUrls.default.http[0];
+          rpcUrl = rpcUrl ?? sepolia.rpcUrls.default.http[0];
           break;
         case SupportedChain.ZETA_TESTNET:
           // For ZetaChain, we'll use wagmi's default handling
@@ -125,7 +119,7 @@ export function useMultiChainBalances() {
             const nativeBalance = await client.getBalance({ address });
             balance = nativeBalance.toString();
             decimals = 18;
-            // console.log(`Fetched native ETH balance for ${tokenSymbol} on ${config.name}: ${formatUnits(nativeBalance, 18)} ETH`);
+
           } else {
             // ERC20 token balance
             const [tokenBalance, tokenDecimals] = await Promise.all([
@@ -157,7 +151,7 @@ export function useMultiChainBalances() {
             isNative: isNativeETH,
           };
         } catch (err) {
-          console.warn(`Failed to fetch ${tokenSymbol} balance on ${config.name}:`, err);
+          console.error('Error fetching balance for token', tokenSymbol, 'on chain', chainId, err);
           // Set zero balance on error
           newBalances[chainId][tokenSymbol] = {
             chainId,
@@ -192,7 +186,7 @@ export function useMultiChainBalances() {
         setBalances(externalBalances);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch balances');
-        console.error('Error fetching multi-chain balances:', err);
+
       } finally {
         setIsLoading(false);
       }
@@ -201,19 +195,21 @@ export function useMultiChainBalances() {
     fetchBalances();
 
     // Refresh balances every 30 seconds
-    const interval = setInterval(fetchBalances, 30000);
+    const interval = setInterval(() => {
+      void fetchBalances();
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [address, isConnected, fetchExternalChainBalances]);
 
   // Helper function to get balance for a specific token on a specific chain
   const getBalance = (chainId: number, tokenSymbol: string): TokenBalance | null => {
-    return balances[chainId]?.[tokenSymbol] || null;
+    return balances[chainId]?.[tokenSymbol] ?? null;
   };
 
   // Helper function to get all balances for a specific chain
   const getChainBalances = (chainId: number): ChainTokenBalance => {
-    return balances[chainId] || {};
+    return balances[chainId] ?? {};
   };
 
   // Helper function to get total balance across all chains for a token
@@ -241,7 +237,7 @@ export function useMultiChainBalances() {
     getTotalBalance,
     supportedChains: supportedChains.map(chain => ({
       chainId: chain.chainId,
-      name: chain.config?.name || '',
+      name: chain.config?.name ?? '',
     })),
   };
 }
@@ -274,10 +270,10 @@ export function useZetaChainBalances() {
       address: token.address,
       abi: erc20Abi,
       functionName: 'balanceOf',
-      args: [address || ZERO_ADDRESS],
+      args: [address ?? ZERO_ADDRESS],
     })),
     query: {
-      enabled: zetaTokens.length > 0 && !!address && isConnected,
+      enabled: zetaTokens.length > 0 && Boolean(address) && isConnected,
     },
   });
 
@@ -289,7 +285,7 @@ export function useZetaChainBalances() {
       functionName: 'decimals',
     })),
     query: {
-      enabled: zetaTokens.length > 0 && !!address && isConnected,
+      enabled: zetaTokens.length > 0 && Boolean(address) && isConnected,
     },
   });
 

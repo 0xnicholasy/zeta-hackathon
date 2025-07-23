@@ -223,10 +223,10 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
             sourceChain={selectedAsset.sourceChain}
             currentStep={txState.currentStep}
             isSubmitting={txState.isSubmitting}
-            onSubmit={handleSubmit}
+            onSubmit={() => { void handleSubmit() }}
             onApprove={handleApproveGasToken}
-            isValidAmount={!!(isValidAmount && validation.isValid)}
-            isConnected={!!address}
+            isValidAmount={Boolean(isValidAmount && validation.isValid)}
+            isConnected={Boolean(address)}
             submitButtonText="Withdraw"
             approveButtonText="Approve Gas Tokens"
             canApprove={validation.gasTokenInfo.needsApproval}
@@ -290,7 +290,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                     )}
 
                     {/* Validation Error Display */}
-                    {validation.error && validation.error.length > 0 && (
+                    {validation.error && validation.error.length > 0 && Boolean(amount) && (
                         <div className="p-3 border border-destructive/50 rounded-lg bg-destructive/10 text-sm break-words max-w-full">
                             <div className="text-destructive font-medium">
                                 Validation Error
@@ -327,7 +327,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                 isTransactionSuccess={contractState.isTransactionSuccess}
                 chainId={SupportedChain.ZETA_TESTNET}
                 crossChain={crossChain}
-                gasTokenInfo={validation.gasTokenInfo.needsApproval ? validation.gasTokenInfo : undefined}
+                gasTokenInfo={validation.gasTokenInfo.needsApproval ? validation.gasTokenInfo : null}
                 destinationChainName={destinationChainName}
                 transactionType="withdraw"
             />

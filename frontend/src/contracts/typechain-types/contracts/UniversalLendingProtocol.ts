@@ -131,6 +131,8 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
     "lastInterestUpdate(address,address)": FunctionFragment;
     "liquidate(address,address,address,uint256)": FunctionFragment;
     "mapZRC20Asset(address,uint256,string)": FunctionFragment;
+    "maxAvailableBorrows(address,address)": FunctionFragment;
+    "maxAvailableBorrowsInUsd(address)": FunctionFragment;
     "onCall((bytes,address,uint256),address,uint256,bytes)": FunctionFragment;
     "onRevert((address,address,uint256,bytes))": FunctionFragment;
     "owner()": FunctionFragment;
@@ -184,6 +186,8 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
       | "lastInterestUpdate"
       | "liquidate"
       | "mapZRC20Asset"
+      | "maxAvailableBorrows"
+      | "maxAvailableBorrowsInUsd"
       | "onCall"
       | "onRevert"
       | "owner"
@@ -355,6 +359,14 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
       PromiseOrValue<BigNumberish>,
       PromiseOrValue<string>
     ]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "maxAvailableBorrows",
+    values: [PromiseOrValue<string>, PromiseOrValue<string>]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "maxAvailableBorrowsInUsd",
+    values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
     functionFragment: "onCall",
@@ -555,6 +567,14 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
   decodeFunctionResult(functionFragment: "liquidate", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "mapZRC20Asset",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "maxAvailableBorrows",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "maxAvailableBorrowsInUsd",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "onCall", data: BytesLike): Result;
@@ -830,7 +850,7 @@ export interface UniversalLendingProtocol extends BaseContract {
     borrowCrossChain(
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
+      arg2: PromiseOrValue<BigNumberish>,
       recipient: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
@@ -998,6 +1018,17 @@ export interface UniversalLendingProtocol extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
+    maxAvailableBorrows(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber] & { maxBorrowAmount: BigNumber }>;
+
+    maxAvailableBorrowsInUsd(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber] & { maxBorrowUsdValue: BigNumber }>;
+
     onCall(
       context: MessageContextStruct,
       zrc20: PromiseOrValue<string>,
@@ -1087,7 +1118,7 @@ export interface UniversalLendingProtocol extends BaseContract {
     withdrawCrossChain(
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
+      arg2: PromiseOrValue<BigNumberish>,
       recipient: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
@@ -1132,7 +1163,7 @@ export interface UniversalLendingProtocol extends BaseContract {
   borrowCrossChain(
     asset: PromiseOrValue<string>,
     amount: PromiseOrValue<BigNumberish>,
-    destinationChain: PromiseOrValue<BigNumberish>,
+    arg2: PromiseOrValue<BigNumberish>,
     recipient: PromiseOrValue<string>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
@@ -1300,6 +1331,17 @@ export interface UniversalLendingProtocol extends BaseContract {
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
+  maxAvailableBorrows(
+    user: PromiseOrValue<string>,
+    asset: PromiseOrValue<string>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
+
+  maxAvailableBorrowsInUsd(
+    user: PromiseOrValue<string>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
+
   onCall(
     context: MessageContextStruct,
     zrc20: PromiseOrValue<string>,
@@ -1389,7 +1431,7 @@ export interface UniversalLendingProtocol extends BaseContract {
   withdrawCrossChain(
     asset: PromiseOrValue<string>,
     amount: PromiseOrValue<BigNumberish>,
-    destinationChain: PromiseOrValue<BigNumberish>,
+    arg2: PromiseOrValue<BigNumberish>,
     recipient: PromiseOrValue<string>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
@@ -1436,7 +1478,7 @@ export interface UniversalLendingProtocol extends BaseContract {
     borrowCrossChain(
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
+      arg2: PromiseOrValue<BigNumberish>,
       recipient: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<void>;
@@ -1604,6 +1646,17 @@ export interface UniversalLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<void>;
 
+    maxAvailableBorrows(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    maxAvailableBorrowsInUsd(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
     onCall(
       context: MessageContextStruct,
       zrc20: PromiseOrValue<string>,
@@ -1691,7 +1744,7 @@ export interface UniversalLendingProtocol extends BaseContract {
     withdrawCrossChain(
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
+      arg2: PromiseOrValue<BigNumberish>,
       recipient: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<void>;
@@ -1859,7 +1912,7 @@ export interface UniversalLendingProtocol extends BaseContract {
     borrowCrossChain(
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
+      arg2: PromiseOrValue<BigNumberish>,
       recipient: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
@@ -1999,6 +2052,17 @@ export interface UniversalLendingProtocol extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
+    maxAvailableBorrows(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    maxAvailableBorrowsInUsd(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
     onCall(
       context: MessageContextStruct,
       zrc20: PromiseOrValue<string>,
@@ -2088,7 +2152,7 @@ export interface UniversalLendingProtocol extends BaseContract {
     withdrawCrossChain(
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
+      arg2: PromiseOrValue<BigNumberish>,
       recipient: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
@@ -2134,7 +2198,7 @@ export interface UniversalLendingProtocol extends BaseContract {
     borrowCrossChain(
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
+      arg2: PromiseOrValue<BigNumberish>,
       recipient: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
@@ -2276,6 +2340,17 @@ export interface UniversalLendingProtocol extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 
+    maxAvailableBorrows(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    maxAvailableBorrowsInUsd(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
     onCall(
       context: MessageContextStruct,
       zrc20: PromiseOrValue<string>,
@@ -2365,7 +2440,7 @@ export interface UniversalLendingProtocol extends BaseContract {
     withdrawCrossChain(
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
+      arg2: PromiseOrValue<BigNumberish>,
       recipient: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;

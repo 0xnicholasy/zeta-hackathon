@@ -25,10 +25,10 @@ interface BorrowDialogProps {
 // Contract ABI
 const lendingProtocolAbi = SimpleLendingProtocol__factory.abi;
 
-export function BorrowDialog({ 
-    isOpen, 
-    onClose, 
-    selectedAsset 
+export function BorrowDialog({
+    isOpen,
+    onClose,
+    selectedAsset
 }: BorrowDialogProps) {
     const [amount, setAmount] = useState('');
 
@@ -42,7 +42,7 @@ export function BorrowDialog({
     // Validation hook
     const validation = useBorrowValidation({
         selectedAsset,
-        amount,
+        amountToBorrow: amount,
         simpleLendingProtocol: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
         userAddress: safeAddress,
     });
@@ -75,7 +75,7 @@ export function BorrowDialog({
                 ],
             });
         } catch (error) {
-            console.error('Borrow failed:', error);
+            console.error('Error borrowing', error);
             txActions.setIsSubmitting(false);
             txActions.setCurrentStep('input');
         }
@@ -111,6 +111,8 @@ export function BorrowDialog({
                 } else {
                     return 'Borrow transaction confirmed!';
                 }
+            case 'failed':
+                return 'Borrow transaction failed';
             default:
                 return `Enter amount to borrow ${selectedAsset.unit}`;
         }
@@ -120,6 +122,13 @@ export function BorrowDialog({
     const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         setAmount(e.target.value);
     }, []);
+
+    // Handle retry after failure
+    const handleRetry = useCallback(() => {
+        txActions.resetContract();
+        txActions.setCurrentStep('input');
+        txActions.setIsSubmitting(false);
+    }, [txActions]);
 
     // Handle borrow transaction success
     useEffect(() => {
@@ -133,10 +142,18 @@ export function BorrowDialog({
     // Handle borrow transaction failure
     useEffect(() => {
         if (contractState.isTransactionError && txState.currentStep === 'borrowing') {
-            txActions.setCurrentStep('input');
+            txActions.setCurrentStep('failed');
             txActions.setIsSubmitting(false);
         }
     }, [contractState.isTransactionError, txState.currentStep, txActions]);
+
+    // Handle contract write errors (before transaction is submitted)
+    useEffect(() => {
+        if (contractState.error && (txState.currentStep === 'borrow' || txState.currentStep === 'borrowing')) {
+            txActions.setCurrentStep('failed');
+            txActions.setIsSubmitting(false);
+        }
+    }, [contractState.error, txState.currentStep, txActions]);
 
     // Early return after all hooks
     if (!selectedAsset || !simpleLendingProtocol) return null;
@@ -151,12 +168,13 @@ export function BorrowDialog({
             sourceChain={selectedAsset.sourceChain}
             currentStep={txState.currentStep}
             isSubmitting={txState.isSubmitting}
-            onSubmit={handleSubmit}
+            onSubmit={() => { void handleSubmit() }}
+            onRetry={handleRetry}
             isValidAmount={validation.isValid}
-            isConnected={!!address}
+            isConnected={Boolean(address)}
             submitButtonText="Borrow"
         >
-            {txState.currentStep === 'input' && (
+            {(txState.currentStep === 'input' || txState.currentStep === 'failed') && (
                 <div className="space-y-4 w-full overflow-hidden">
                     {/* Amount Input */}
                     <div className="space-y-2">
@@ -201,15 +219,34 @@ export function BorrowDialog({
                         </div>
                     </div>
 
-                    {/* Health Factor Warning */}
-                    {amount && validation.estimatedHealthFactor < 1.5 && validation.estimatedHealthFactor > 0 && (
-                        <div className="p-3 border border-yellow-200 dark:border-yellow-800 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-sm">
-                            <div className="text-yellow-800 dark:text-yellow-200 font-medium">
-                                Health Factor Warning
+                    {/* Health Factor Display */}
+                    {validation.currentHealthFactor > 0 && (
+                        <div className="p-3 bg-muted rounded-lg text-sm">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="font-medium">Health Factor</span>
+                                <span className="text-xs text-muted-foreground">Minimum: 1.50</span>
                             </div>
-                            <div className="text-yellow-700 dark:text-yellow-300 mt-1">
-                                New health factor: {validation.estimatedHealthFactor.toFixed(2)}
-                                {validation.estimatedHealthFactor < 1.2 && ' (Risk of liquidation!)'}
+                            <div className="space-y-2">
+                                <div className="flex justify-between">
+                                    <span>Current:</span>
+                                    <span className={`font-medium ${validation.currentHealthFactor < 1.2 ? 'text-red-600 dark:text-red-400' :
+                                        validation.currentHealthFactor < 1.5 ? 'text-yellow-600 dark:text-yellow-400' :
+                                            'text-green-600 dark:text-green-400'
+                                        }`}>
+                                        {validation.currentHealthFactor > 999 ? '∞' : validation.currentHealthFactor.toFixed(2)}
+                                    </span>
+                                </div>
+                                {amount && validation.estimatedHealthFactor > 0 && (
+                                    <div className="flex justify-between">
+                                        <span>After borrow:</span>
+                                        <span className={`font-medium ${validation.estimatedHealthFactor < 1.2 ? 'text-red-600 dark:text-red-400' :
+                                            validation.estimatedHealthFactor < 1.5 ? 'text-yellow-600 dark:text-yellow-400' :
+                                                'text-green-600 dark:text-green-400'
+                                            }`}>
+                                            {validation.estimatedHealthFactor.toFixed(2)}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -236,8 +273,33 @@ export function BorrowDialog({
                         />
                     )}
 
-                    {/* Contract Error Display */}
-                    {contractState.error && (
+                    {/* Failed State Error Display */}
+                    {txState.currentStep === 'failed' && (
+                        <div className="p-3 border border-destructive/50 rounded-lg bg-destructive/10 text-sm break-words max-w-full">
+                            <div className="text-destructive font-medium">
+                                Borrow Transaction Failed
+                            </div>
+                            <div className="text-destructive/80 mt-1 break-words overflow-hidden text-wrap max-w-full">
+                                {contractState.transactionError?.message ?? 
+                                 contractState.error?.message ?? 
+                                 'The borrow transaction failed. This could be due to insufficient collateral, network issues, or transaction being rejected. Please check your position and try again.'}
+                            </div>
+                            {(contractState.transactionError ?? contractState.error) && (
+                                <div className="mt-2 text-xs text-destructive/60">
+                                    Technical details: {(() => {
+                                        const errorMessage = contractState.transactionError?.message ?? contractState.error?.message;
+                                        if (!errorMessage) return '';
+                                        return errorMessage.length > 100
+                                            ? `${errorMessage.substring(0, 100)}...`
+                                            : errorMessage;
+                                    })()}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Contract Error Display for input state */}
+                    {txState.currentStep === 'input' && contractState.error && (
                         <div className="p-3 border border-destructive/50 rounded-lg bg-destructive/10 text-sm break-words max-w-full">
                             <div className="text-destructive font-medium">
                                 Transaction Failed

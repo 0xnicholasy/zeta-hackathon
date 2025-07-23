@@ -75,39 +75,56 @@ export function TransactionStatus<T extends TransactionType = TransactionType>({
 
                 {/* Show transaction hashes */}
                 {approvalHash && currentStep === 'approving' && (
-                    <div className="mt-2 text-xs text-muted-foreground">
-                        Approval:
+                    <div className="mt-2 text-xs text-muted-foreground flex items-center flex-nowrap">
+                        <span>Approval:</span>
                         <a
-                            href={getTransactionUrl(chainId, approvalHash) || '#'}
+                            href={getTransactionUrl(chainId, approvalHash) ?? '#'}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="ml-1 text-primary hover:text-primary/80 underline"
+                            className="ml-1 text-primary hover:text-primary/80 underline flex-shrink-0"
                         >
                             {formatHexString(approvalHash)}
                         </a>
-                        {isApprovingTx && <FaClock className="ml-2 w-3 h-3 text-muted-foreground" />}
-                        {isApprovalSuccess && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
+                        {isApprovingTx && <FaClock className="ml-2 w-3 h-3 text-muted-foreground flex-shrink-0" />}
+                        {isApprovalSuccess && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark flex-shrink-0" />}
                     </div>
                 )}
 
                 {transactionHash && (currentStep === 'depositing' || currentStep === 'withdrawing' || currentStep === 'borrowing' || currentStep === 'repaying') && (
-                    <div className="mt-2 text-xs text-muted-foreground">
-                        {transactionType === 'supply' ? 'Deposit' : 
-                         transactionType === 'withdraw' ? 'Withdrawal' :
-                         transactionType === 'borrow' ? 'Borrow' :
-                         transactionType === 'repay' ? 'Repay' : 'Transaction'}:
+                    <div className="mt-2 text-xs text-muted-foreground flex items-center flex-nowrap">
+                        <span>{transactionType === 'supply' ? 'Deposit' :
+                            transactionType === 'withdraw' ? 'Withdrawal' :
+                                transactionType === 'borrow' ? 'Borrow' :
+                                    transactionType === 'repay' ? 'Repay' : 'Transaction'}:</span>
                         <a
-                            href={getTransactionUrl(chainId, transactionHash) || '#'}
+                            href={getTransactionUrl(chainId, transactionHash) ?? '#'}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="ml-1 text-primary hover:text-primary/80 underline"
+                            className="ml-1 text-primary hover:text-primary/80 underline flex-shrink-0"
                         >
                             {formatHexString(transactionHash)}
                         </a>
-                        {isTransactionTx && <FaClock className="ml-2 w-3 h-3 text-muted-foreground" />}
-                        {isTransactionSuccess && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
+                        {isTransactionTx && <FaClock className="ml-2 w-3 h-3 text-muted-foreground flex-shrink-0" />}
+                        {isTransactionSuccess && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark flex-shrink-0" />}
                     </div>
                 )}
+            </div>
+        );
+    }
+
+    // Failed state
+    if (currentStep === 'failed') {
+        return (
+            <div className="flex flex-col items-center py-6">
+                <div className="w-8 h-8 bg-text-error-light dark:bg-text-error-dark rounded-full flex items-center justify-center mb-4">
+                    <FaTimes className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-center text-sm text-muted-foreground">
+                    {transactionType === 'supply' ? 'Deposit' : 
+                     transactionType === 'withdraw' ? 'Withdrawal' :
+                     transactionType === 'borrow' ? 'Borrow' :
+                     transactionType === 'repay' ? 'Repay' : 'Transaction'} failed. Please try again.
+                </div>
             </div>
         );
     }
@@ -134,50 +151,49 @@ export function TransactionStatus<T extends TransactionType = TransactionType>({
                 <div className="text-center text-sm text-muted-foreground">
                     {!crossChain && `Your ${transactionType} transaction has been completed successfully!`}
                     {crossChain?.status === 'pending' && `Processing cross-chain ${transactionType} ${['withdraw', 'borrow'].includes(transactionType) ? `to ${destinationChainName}` : 'to ZetaChain'}...`}
-                    {crossChain?.status === 'success' && `Cross-chain ${transactionType} completed successfully! ${
-                        transactionType === 'supply' ? 'Tokens are now available for borrowing.' : 
-                        transactionType === 'borrow' ? `Borrowed assets have been sent to ${destinationChainName}.` :
-                        transactionType === 'repay' ? 'Debt has been successfully repaid.' :
-                        `Assets have been sent to ${destinationChainName}.`
-                    }`}
+                    {crossChain?.status === 'success' && `Cross-chain ${transactionType} completed successfully! ${transactionType === 'supply' ? 'Tokens are now available for borrowing.' :
+                            transactionType === 'borrow' ? `Borrowed assets have been sent to ${destinationChainName}.` :
+                                transactionType === 'repay' ? 'Debt has been successfully repaid.' :
+                                    `Assets have been sent to ${destinationChainName}.`
+                        }`}
                     {crossChain?.status === 'failed' && `Cross-chain ${transactionType} failed. Please check the transaction status or try again.`}
                     {crossChain?.status === 'idle' && `Your ${transactionType} transaction has been completed successfully! Starting cross-chain transfer...`}
                 </div>
 
                 {/* Show transaction hashes */}
                 {transactionHash && (
-                    <div className="mt-2 text-xs text-muted-foreground flex items-center">
-                        <span>{transactionType === 'supply' ? 'Deposit' : 
-                               transactionType === 'withdraw' ? 'Withdrawal' :
-                               transactionType === 'borrow' ? 'Borrow' :
-                               transactionType === 'repay' ? 'Repay' : 'Transaction'}:</span>
+                    <div className="mt-2 text-xs text-muted-foreground flex items-center flex-nowrap">
+                        <span>{transactionType === 'supply' ? 'Deposit' :
+                            transactionType === 'withdraw' ? 'Withdrawal' :
+                                transactionType === 'borrow' ? 'Borrow' :
+                                    transactionType === 'repay' ? 'Repay' : 'Transaction'}:</span>
                         <a
-                            href={getTransactionUrl(chainId, transactionHash) || '#'}
+                            href={getTransactionUrl(chainId, transactionHash) ?? '#'}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="ml-1 text-primary hover:text-primary/80 underline"
+                            className="ml-1 text-primary hover:text-primary/80 underline flex-shrink-0"
                         >
                             {formatHexString(transactionHash)}
                         </a>
-                        <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />
+                        <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark flex-shrink-0" />
                     </div>
                 )}
 
                 {/* Show cross-chain transaction hash */}
                 {crossChain?.txHash && crossChain?.status !== 'idle' && (
-                    <div className="mt-1 text-xs text-muted-foreground flex items-center">
+                    <div className="mt-1 text-xs text-muted-foreground flex items-center flex-nowrap">
                         <span>Cross-chain:</span>
                         <a
                             href={`https://zetachain-athens.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData/${crossChain.txHash}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="ml-1 text-primary hover:text-primary/80 underline"
+                            className="ml-1 text-primary hover:text-primary/80 underline flex-shrink-0"
                         >
                             {formatHexString(crossChain.txHash)}
                         </a>
-                        {crossChain.status === 'pending' && <FaClock className="ml-2 w-3 h-3 text-muted-foreground" />}
-                        {crossChain.status === 'success' && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark" />}
-                        {crossChain.status === 'failed' && <FaTimes className="ml-2 w-3 h-3 text-text-error-light dark:text-text-error-dark" />}
+                        {crossChain.status === 'pending' && <FaClock className="ml-2 w-3 h-3 text-muted-foreground flex-shrink-0" />}
+                        {crossChain.status === 'success' && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark flex-shrink-0" />}
+                        {crossChain.status === 'failed' && <FaTimes className="ml-2 w-3 h-3 text-text-error-light dark:text-text-error-dark flex-shrink-0" />}
                     </div>
                 )}
             </div>

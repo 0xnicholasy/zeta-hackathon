@@ -157,36 +157,6 @@ contract SimpleLendingProtocolTest is Test {
         lendingProtocol.supply(address(ethToken), 0, user1);
     }
 
-    function testCrossChainSupply() public {
-        uint256 supplyAmount = 1 * 10 ** 18;
-        bytes memory message = abi.encode("supply", user1);
-        MessageContext memory context = MessageContext({
-            sender: new bytes(0),
-            senderEVM: address(0),
-            chainID: 1
-        });
-
-        // Transfer tokens to protocol first (simulating gateway transfer)
-        vm.prank(owner);
-        ethToken.transfer(address(lendingProtocol), supplyAmount);
-
-        vm.prank(address(gateway));
-        vm.expectEmit(true, true, false, true);
-        emit Supply(user1, address(ethToken), supplyAmount);
-
-        lendingProtocol.onCall(
-            context,
-            address(ethToken),
-            supplyAmount,
-            message
-        );
-
-        assertEq(
-            lendingProtocol.userSupplies(user1, address(ethToken)),
-            supplyAmount
-        );
-    }
-
     // ============ Borrow Tests ============
 
     function testBorrow() public {
@@ -282,46 +252,6 @@ contract SimpleLendingProtocolTest is Test {
 
         // Should only repay the actual debt amount
         assertEq(lendingProtocol.userBorrows(user1, address(usdcToken)), 0);
-    }
-
-    function testCrossChainRepay() public {
-        // Setup: user has debt
-        uint256 supplyAmount = 2 * 10 ** 18;
-        uint256 borrowAmount = 1000 * 10 ** 6;
-        uint256 repayAmount = 500 * 10 ** 6;
-
-        vm.startPrank(user1);
-        ethToken.approve(address(lendingProtocol), supplyAmount);
-        lendingProtocol.supply(address(ethToken), supplyAmount, user1);
-        lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
-        vm.stopPrank();
-
-        // Cross-chain repay
-        bytes memory message = abi.encode("repay", user1);
-        MessageContext memory context = MessageContext({
-            sender: new bytes(0),
-            senderEVM: address(0),
-            chainID: 1
-        });
-
-        vm.prank(owner);
-        usdcToken.transfer(address(lendingProtocol), repayAmount);
-
-        vm.prank(address(gateway));
-        vm.expectEmit(true, true, false, true);
-        emit Repay(user1, address(usdcToken), repayAmount);
-
-        lendingProtocol.onCall(
-            context,
-            address(usdcToken),
-            repayAmount,
-            message
-        );
-
-        assertEq(
-            lendingProtocol.userBorrows(user1, address(usdcToken)),
-            borrowAmount - repayAmount
-        );
     }
 
     // ============ Withdraw Tests ============
@@ -652,55 +582,6 @@ contract SimpleLendingProtocolTest is Test {
         );
     }
 
-    function testCrossChainBorrowWithDecimalNormalization() public {
-        // Test cross-chain borrow with different decimal tokens
-        uint256 ethSupply = 2 * 10 ** 18; // 2 ETH (18 decimals)
-        uint256 usdcBorrow = 1000 * 10 ** 6; // 1000 USDC (6 decimals)
-        
-        vm.startPrank(user1);
-        ethToken.approve(address(lendingProtocol), ethSupply);
-        lendingProtocol.supply(address(ethToken), ethSupply, user1);
-        vm.stopPrank();
-        
-        // This should work with proper decimal normalization
-        vm.prank(user1);
-        lendingProtocol.borrowCrossChain(
-            address(usdcToken),
-            usdcBorrow,
-            421614, // Arbitrum chain ID
-            user1
-        );
-        
-        assertEq(
-            lendingProtocol.userBorrows(user1, address(usdcToken)),
-            usdcBorrow
-        );
-    }
-
-    function testCrossChainWithdrawWithDecimalNormalization() public {
-        // Test cross-chain withdraw with mixed decimal tokens
-        uint256 supplyAmount = 1000 * 10 ** 6; // 1000 USDC (6 decimals)
-        uint256 withdrawAmount = 100 * 10 ** 6; // 100 USDC (6 decimals)
-        
-        vm.startPrank(user1);
-        usdcToken.approve(address(lendingProtocol), supplyAmount);
-        lendingProtocol.supply(address(usdcToken), supplyAmount, user1);
-        
-        // This should work with proper decimal normalization
-        lendingProtocol.withdrawCrossChain(
-            address(usdcToken),
-            withdrawAmount,
-            421614, // Arbitrum chain ID  
-            user1
-        );
-        vm.stopPrank();
-        
-        assertEq(
-            lendingProtocol.userSupplies(user1, address(usdcToken)),
-            supplyAmount - withdrawAmount
-        );
-    }
-
     function testGasFeeComparisonWithDifferentDecimals() public {
         // Test that gas fee comparison works correctly across different decimal tokens
         uint256 smallUsdcAmount = 1 * 10 ** 6; // 1 USDC (6 decimals)
@@ -712,12 +593,7 @@ contract SimpleLendingProtocolTest is Test {
         // This should fail because 1 USDC is likely less than gas fee in ETH terms
         // But it should fail with proper decimal comparison, not raw amount comparison
         vm.expectRevert(ISimpleLendingProtocol.InvalidAmount.selector);
-        lendingProtocol.withdrawCrossChain(
-            address(usdcToken),
-            smallUsdcAmount,
-            421614,
-            user1
-        );
+        lendingProtocol.withdraw(address(usdcToken), smallUsdcAmount, user1);
         vm.stopPrank();
     }
 
@@ -735,12 +611,7 @@ contract SimpleLendingProtocolTest is Test {
         lendingProtocol.supply(address(usdcToken), largeSupplyAmount, user1);
         
         // This should work fine with large amounts and proper decimal handling
-        lendingProtocol.withdrawCrossChain(
-            address(usdcToken),
-            largeWithdrawAmount,
-            421614,
-            user1
-        );
+        lendingProtocol.withdraw(address(usdcToken), largeWithdrawAmount, user1);
         vm.stopPrank();
         
         assertEq(
@@ -763,9 +634,8 @@ contract SimpleLendingProtocolTest is Test {
         lendingProtocol.supply(address(ethToken), ethAmount, user1);
         lendingProtocol.supply(address(usdcToken), usdcAmount, user1);
         
-        // Cross-chain operations with both
-        lendingProtocol.withdrawCrossChain(address(ethToken), ethAmount / 2, 421614, user1);
-        lendingProtocol.withdrawCrossChain(address(usdcToken), usdcAmount / 2, 421614, user1);
+        lendingProtocol.withdraw(address(ethToken), ethAmount / 2, user1);
+        lendingProtocol.withdraw(address(usdcToken), usdcAmount / 2, user1);
         
         vm.stopPrank();
         

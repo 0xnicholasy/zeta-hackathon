@@ -2,8 +2,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import type { EVMTransactionHash } from '../components/dashboard/types';
 import { safeEVMTransactionHashOrZeroTransactionHash } from '../components/dashboard/types';
-import type { 
-    TransactionType, 
+import type {
+    TransactionType,
     StepsForTransactionType
 } from '../types/transactions';
 
@@ -50,25 +50,25 @@ export function useTransactionFlow<T extends TransactionType>(): TransactionFlow
     const { writeContract, data: hash, error: contractError, reset: resetContract } = useWriteContract();
 
     // Transaction receipts
-    const { 
-        isLoading: isApprovingTx, 
-        isSuccess: isApprovalSuccess 
+    const {
+        isLoading: isApprovingTx,
+        isSuccess: isApprovalSuccess
     } = useWaitForTransactionReceipt({
-        hash: approvalHash || undefined,
+        hash: approvalHash ?? undefined,
         query: {
-            enabled: !!approvalHash,
+            enabled: Boolean(approvalHash),
         },
     });
 
-    const { 
-        isLoading: isTransactionTx, 
-        isSuccess: isTransactionSuccess, 
-        isError: isTransactionError, 
-        error: transactionError 
+    const {
+        isLoading: isTransactionTx,
+        isSuccess: isTransactionSuccess,
+        isError: isTransactionError,
+        error: transactionError
     } = useWaitForTransactionReceipt({
-        hash: transactionHash || undefined,
+        hash: transactionHash ?? undefined,
         query: {
-            enabled: !!transactionHash,
+            enabled: Boolean(transactionHash),
         },
     });
 
@@ -92,7 +92,7 @@ export function useTransactionFlow<T extends TransactionType>(): TransactionFlow
                 } else {
                     // Handle main transaction steps
                     setTransactionHash(validHash);
-                    
+
                     // Map current step to its corresponding pending step
                     if (currentStep === 'deposit') {
                         setCurrentStep('depositing' as StepsForTransactionType<T>);

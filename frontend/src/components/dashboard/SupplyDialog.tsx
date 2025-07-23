@@ -33,7 +33,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
   const transactionFlow = useTransactionFlow();
   const { address } = useAccount();
   const { depositContract } = useContracts(chainId);
-  
+
   // Destructure transaction flow state
   const { state: txState, actions: txActions, contractState } = transactionFlow;
 
@@ -178,9 +178,9 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
       sourceChain={selectedToken.chainName}
       currentStep={txState.currentStep}
       isSubmitting={txState.isSubmitting}
-      onSubmit={handleSubmit}
-      isValidAmount={!!isValidAmount}
-      isConnected={!!address}
+      onSubmit={() => { void handleSubmit() }}
+      isValidAmount={Boolean(isValidAmount)}
+      isConnected={Boolean(address)}
       submitButtonText="Supply"
     >
       {txState.currentStep === 'input' && (

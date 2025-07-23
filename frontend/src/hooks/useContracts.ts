@@ -20,7 +20,7 @@ import {
  */
 export function useContracts(targetChainId: SupportedChainId) {
   const walletChainId = useChainId();
-  const chainId = targetChainId || walletChainId;
+  const chainId = targetChainId ?? walletChainId;
 
   const contracts = useMemo(() => {
     if (!chainId) return null;
@@ -92,7 +92,7 @@ export function useContracts(targetChainId: SupportedChainId) {
  */
 export function useContract(contractName: string, targetChainId?: SupportedChainId) {
   const walletChainId = useChainId();
-  const chainId = targetChainId || walletChainId;
+  const chainId = targetChainId ?? walletChainId;
 
   return useMemo(() => {
     if (!chainId) return null;
@@ -107,7 +107,7 @@ export function useContract(contractName: string, targetChainId?: SupportedChain
  */
 export function useToken(tokenSymbol: string, targetChainId?: SupportedChainId) {
   const walletChainId = useChainId();
-  const chainId = targetChainId || walletChainId;
+  const chainId = targetChainId ?? walletChainId;
 
   return useMemo(() => {
     if (!chainId) return null;
@@ -121,7 +121,7 @@ export function useToken(tokenSymbol: string, targetChainId?: SupportedChainId) 
  */
 export function useDeploymentStatus(targetChainId?: SupportedChainId) {
   const walletChainId = useChainId();
-  const chainId = targetChainId || walletChainId;
+  const chainId = targetChainId ?? walletChainId;
 
   const status = useMemo(() => {
     if (!chainId) {

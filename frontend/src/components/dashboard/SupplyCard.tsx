@@ -45,7 +45,7 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
     });
 
     const chainBalances = externalBalances[parseInt(selectedChain)];
-    const availableAssets: [string, TokenBalance][] = chainBalances ? Object.entries(chainBalances).map(([key, value]) => [key, value as TokenBalance]) : [];
+    const availableAssets: [string, TokenBalance][] = chainBalances ? Object.entries(chainBalances).map(([key, value]) => [key, value]) : [];
 
     const handleSupplyClick = (balance: TokenBalance) => {
         setSelectedToken(balance);

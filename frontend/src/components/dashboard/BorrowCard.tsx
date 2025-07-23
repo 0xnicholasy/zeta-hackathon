@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import { TokenNetworkIcon } from '../ui/token-network-icon';
 import { FaArrowDown } from 'react-icons/fa';
 import { SupportedChain } from '../../contracts/deployments';
+import { getChainDisplayNameFromId } from '../../utils/chainUtils';
 import type { UserAssetData } from './types';
 import { BorrowDialog } from './BorrowDialog';
 import { RepayDialog } from './RepayDialog';
@@ -19,17 +20,27 @@ export function BorrowCard({ userAssets, selectedChain }: BorrowCardProps) {
     const [isRepayDialogOpen, setIsRepayDialogOpen] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState<UserAssetData | null>(null);
 
+    // Show borrowed assets from all supported foreign chains
     const borrowedAssets = userAssets.filter(asset => {
-        const chainId = selectedChain === SupportedChain.ARBITRUM_SEPOLIA.toString() ?
-            SupportedChain.ARBITRUM_SEPOLIA : SupportedChain.ETHEREUM_SEPOLIA;
-        return asset.externalChainId === chainId && Number(asset.borrowedBalance) > 0;
+        return (asset.externalChainId === SupportedChain.ARBITRUM_SEPOLIA || 
+                asset.externalChainId === SupportedChain.ETHEREUM_SEPOLIA) && 
+               Number(asset.borrowedBalance) > 0;
     });
 
-    const chainId = selectedChain === SupportedChain.ARBITRUM_SEPOLIA.toString() ?
-        SupportedChain.ARBITRUM_SEPOLIA : SupportedChain.ETHEREUM_SEPOLIA;
-    const availableForBorrow = userAssets.filter(asset => {
-        return asset.externalChainId === chainId && asset.isSupported;
-    });
+    // Show all assets available to borrow from all supported foreign chains, sorted by chain
+    const availableForBorrow = userAssets
+        .filter(asset => {
+            return (asset.externalChainId === SupportedChain.ARBITRUM_SEPOLIA || 
+                    asset.externalChainId === SupportedChain.ETHEREUM_SEPOLIA) && 
+                   asset.isSupported;
+        })
+        .sort((a, b) => {
+            // Sort by chain first, then by symbol
+            if (a.externalChainId !== b.externalChainId) {
+                return (a.externalChainId || 0) - (b.externalChainId || 0);
+            }
+            return a.unit.localeCompare(b.unit);
+        });
 
     // Handle borrow click
     const handleBorrowClick = (asset: UserAssetData) => {
@@ -60,7 +71,7 @@ export function BorrowCard({ userAssets, selectedChain }: BorrowCardProps) {
                     Borrow
                 </CardTitle>
                 <CardDescription>
-                    Your borrows and assets available to borrow
+                    Your borrows and assets available to borrow from all supported chains
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -80,7 +91,9 @@ export function BorrowCard({ userAssets, selectedChain }: BorrowCardProps) {
                                         />
                                         <div>
                                             <div className="font-medium text-sm">{asset.unit}</div>
-                                            <div className="text-xs text-muted-foreground">{asset.borrowedUsdValue}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {asset.borrowedUsdValue} • {getChainDisplayNameFromId(asset.externalChainId!)}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="text-right">
@@ -120,7 +133,9 @@ export function BorrowCard({ userAssets, selectedChain }: BorrowCardProps) {
                                         />
                                         <div>
                                             <div className="font-medium text-sm">{asset.unit}</div>
-                                            <div className="text-xs text-muted-foreground">{asset.price}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {asset.price} • To {getChainDisplayNameFromId(asset.externalChainId!)}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="text-right">

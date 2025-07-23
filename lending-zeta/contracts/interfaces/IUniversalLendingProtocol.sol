@@ -37,7 +37,7 @@ interface IUniversalLendingProtocol is ISimpleLendingProtocol {
     );
 
     event AllowedChainUpdated(uint256 indexed chainId, bool allowed);
-    
+
     event ZRC20AssetMapped(
         address indexed zrc20,
         uint256 indexed chainId,
@@ -46,30 +46,42 @@ interface IUniversalLendingProtocol is ISimpleLendingProtocol {
 
     // Enhanced admin functions for Universal protocol
     function setAllowedSourceChain(uint256 chainId, bool allowed) external;
-    
+
     function mapZRC20Asset(
         address zrc20,
         uint256 chainId,
         string calldata symbol
     ) external;
-    
+
     function addAsset(
         address asset,
         uint256 collateralFactor,
         uint256 liquidationThreshold,
         uint256 liquidationBonus
     ) external;
-    
+
     function setPriceOracle(address _priceOracle) external;
 
     // Enhanced view functions for Universal protocol
     function isChainAllowed(uint256 chainId) external view returns (bool);
-    
+
     function getZRC20ByChainAndSymbol(
         uint256 chainId,
         string calldata symbol
     ) external view returns (address);
-    
+
     // getAssetConfig is inherited from ISimpleLendingProtocol
     // UniversalLendingProtocol will have its own enhanced version
+    function getUserAccountData(
+        address user
+    )
+        external
+        view
+        returns (
+            uint256 totalCollateralValue,
+            uint256 totalDebtValue,
+            uint256 availableBorrows,
+            uint256 currentLiquidationThreshold,
+            uint256 healthFactor
+        );
 }

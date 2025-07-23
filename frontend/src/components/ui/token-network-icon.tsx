@@ -1,30 +1,8 @@
 import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
+import { type VariantProps } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 import { TokenIcon, NetworkIcon } from '@web3icons/react';
-
-const tokenNetworkIconVariants = cva(
-  "relative bg-white rounded-full flex items-center justify-center",
-  {
-    variants: {
-      size: {
-        sm: "w-6 h-6",
-        default: "w-8 h-8",
-        lg: "w-10 h-10",
-        xl: "w-12 h-12",
-      },
-      shadow: {
-        none: "",
-        sm: "shadow-sm",
-        default: "shadow-lg",
-      }
-    },
-    defaultVariants: {
-      size: "default",
-      shadow: "default",
-    },
-  }
-);
+import { tokenNetworkIconVariants } from "./token-network-icon-variants";
 
 const tokenIconSizeMap = {
   sm: "w-4 h-4",
@@ -62,11 +40,11 @@ const TokenNetworkIcon = React.forwardRef<HTMLDivElement, TokenNetworkIconProps>
     showNativeIndicator = false,
     ...props
   }, ref) => {
-    const tokenIconSize = tokenIconSizeMap[size || 'default'];
-    const networkIconSize = networkIconSizeMap[size || 'default'];
+    const tokenIconSize = tokenIconSizeMap[size ?? 'default'];
+    const networkIconSize = networkIconSizeMap[size ?? 'default'];
 
     // Extract base token symbol (remove network suffix like .ARBI, .ETH)
-    const baseTokenSymbol = tokenSymbol.includes('.') ? tokenSymbol.split('.')[0] : tokenSymbol;
+    const baseTokenSymbol: string = tokenSymbol.includes('.') ? tokenSymbol.split('.').at(0) ?? "" : tokenSymbol;
 
     // Determine network icon based on sourceChain or networkSymbol
     const renderNetworkIcon = () => {
@@ -104,7 +82,7 @@ const TokenNetworkIcon = React.forwardRef<HTMLDivElement, TokenNetworkIconProps>
         )}
 
         {/* Network Indicator */}
-        {(sourceChain || networkSymbol) && (
+        {Boolean(sourceChain ?? networkSymbol) && (
           <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center shadow-md">
             {renderNetworkIcon()}
           </div>
@@ -116,4 +94,4 @@ const TokenNetworkIcon = React.forwardRef<HTMLDivElement, TokenNetworkIconProps>
 
 TokenNetworkIcon.displayName = "TokenNetworkIcon";
 
-export { TokenNetworkIcon, tokenNetworkIconVariants };
+export { TokenNetworkIcon };

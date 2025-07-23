@@ -645,45 +645,6 @@ const _abi = [
     inputs: [
       {
         internalType: "address",
-        name: "user",
-        type: "address",
-      },
-    ],
-    name: "getUserAccountData",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "totalCollateralValue",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "totalDebtValue",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "availableBorrows",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "currentLiquidationThreshold",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "healthFactor",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
         name: "asset",
         type: "address",
       },
@@ -768,6 +729,49 @@ const _abi = [
     name: "liquidate",
     outputs: [],
     stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "user",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "asset",
+        type: "address",
+      },
+    ],
+    name: "maxAvailableBorrows",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "maxBorrowAmount",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "user",
+        type: "address",
+      },
+    ],
+    name: "maxAvailableBorrowsInUsd",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "maxBorrowUsdValue",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
     type: "function",
   },
   {

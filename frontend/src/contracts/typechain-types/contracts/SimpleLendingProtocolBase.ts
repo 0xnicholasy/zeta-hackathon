@@ -70,11 +70,12 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
     "getSupportedAssetsCount()": FunctionFragment;
     "getTotalCollateralValue(address)": FunctionFragment;
     "getTotalDebtValue(address)": FunctionFragment;
-    "getUserAccountData(address)": FunctionFragment;
     "getWithdrawGasFee(address)": FunctionFragment;
     "isAssetAdded(address)": FunctionFragment;
     "isLiquidatable(address)": FunctionFragment;
     "liquidate(address,address,address,uint256)": FunctionFragment;
+    "maxAvailableBorrows(address,address)": FunctionFragment;
+    "maxAvailableBorrowsInUsd(address)": FunctionFragment;
     "onCall((bytes,address,uint256),address,uint256,bytes)": FunctionFragment;
     "owner()": FunctionFragment;
     "renounceOwnership()": FunctionFragment;
@@ -108,11 +109,12 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
       | "getSupportedAssetsCount"
       | "getTotalCollateralValue"
       | "getTotalDebtValue"
-      | "getUserAccountData"
       | "getWithdrawGasFee"
       | "isAssetAdded"
       | "isLiquidatable"
       | "liquidate"
+      | "maxAvailableBorrows"
+      | "maxAvailableBorrowsInUsd"
       | "onCall"
       | "owner"
       | "renounceOwnership"
@@ -210,10 +212,6 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
     values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
-    functionFragment: "getUserAccountData",
-    values: [PromiseOrValue<string>]
-  ): string;
-  encodeFunctionData(
     functionFragment: "getWithdrawGasFee",
     values: [PromiseOrValue<string>]
   ): string;
@@ -233,6 +231,14 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
       PromiseOrValue<string>,
       PromiseOrValue<BigNumberish>
     ]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "maxAvailableBorrows",
+    values: [PromiseOrValue<string>, PromiseOrValue<string>]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "maxAvailableBorrowsInUsd",
+    values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
     functionFragment: "onCall",
@@ -356,10 +362,6 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "getUserAccountData",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "getWithdrawGasFee",
     data: BytesLike
   ): Result;
@@ -372,6 +374,14 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "liquidate", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "maxAvailableBorrows",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "maxAvailableBorrowsInUsd",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "onCall", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
@@ -620,19 +630,6 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       overrides?: CallOverrides
     ): Promise<[BigNumber]>;
 
-    getUserAccountData(
-      user: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<
-      [BigNumber, BigNumber, BigNumber, BigNumber, BigNumber] & {
-        totalCollateralValue: BigNumber;
-        totalDebtValue: BigNumber;
-        availableBorrows: BigNumber;
-        currentLiquidationThreshold: BigNumber;
-        healthFactor: BigNumber;
-      }
-    >;
-
     getWithdrawGasFee(
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
@@ -655,6 +652,17 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       repayAmount: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
+
+    maxAvailableBorrows(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber] & { maxBorrowAmount: BigNumber }>;
+
+    maxAvailableBorrowsInUsd(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber] & { maxBorrowUsdValue: BigNumber }>;
 
     onCall(
       context: MessageContextStruct,
@@ -821,19 +829,6 @@ export interface SimpleLendingProtocolBase extends BaseContract {
     overrides?: CallOverrides
   ): Promise<BigNumber>;
 
-  getUserAccountData(
-    user: PromiseOrValue<string>,
-    overrides?: CallOverrides
-  ): Promise<
-    [BigNumber, BigNumber, BigNumber, BigNumber, BigNumber] & {
-      totalCollateralValue: BigNumber;
-      totalDebtValue: BigNumber;
-      availableBorrows: BigNumber;
-      currentLiquidationThreshold: BigNumber;
-      healthFactor: BigNumber;
-    }
-  >;
-
   getWithdrawGasFee(
     asset: PromiseOrValue<string>,
     overrides?: CallOverrides
@@ -856,6 +851,17 @@ export interface SimpleLendingProtocolBase extends BaseContract {
     repayAmount: PromiseOrValue<BigNumberish>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
+
+  maxAvailableBorrows(
+    user: PromiseOrValue<string>,
+    asset: PromiseOrValue<string>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
+
+  maxAvailableBorrowsInUsd(
+    user: PromiseOrValue<string>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
 
   onCall(
     context: MessageContextStruct,
@@ -1024,19 +1030,6 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
-    getUserAccountData(
-      user: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<
-      [BigNumber, BigNumber, BigNumber, BigNumber, BigNumber] & {
-        totalCollateralValue: BigNumber;
-        totalDebtValue: BigNumber;
-        availableBorrows: BigNumber;
-        currentLiquidationThreshold: BigNumber;
-        healthFactor: BigNumber;
-      }
-    >;
-
     getWithdrawGasFee(
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
@@ -1059,6 +1052,17 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       repayAmount: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<void>;
+
+    maxAvailableBorrows(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    maxAvailableBorrowsInUsd(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
 
     onCall(
       context: MessageContextStruct,
@@ -1296,11 +1300,6 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
-    getUserAccountData(
-      user: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<BigNumber>;
-
     getWithdrawGasFee(
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
@@ -1322,6 +1321,17 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       debtAsset: PromiseOrValue<string>,
       repayAmount: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<BigNumber>;
+
+    maxAvailableBorrows(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    maxAvailableBorrowsInUsd(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
     ): Promise<BigNumber>;
 
     onCall(
@@ -1492,11 +1502,6 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
-    getUserAccountData(
-      user: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<PopulatedTransaction>;
-
     getWithdrawGasFee(
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
@@ -1518,6 +1523,17 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       debtAsset: PromiseOrValue<string>,
       repayAmount: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<PopulatedTransaction>;
+
+    maxAvailableBorrows(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    maxAvailableBorrowsInUsd(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
     onCall(

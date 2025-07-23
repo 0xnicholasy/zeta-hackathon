@@ -12,8 +12,11 @@ import "./SimpleLendingProtocolBase.sol";
  */
 contract SimpleLendingProtocol is SimpleLendingProtocolBase {
     using SafeERC20 for IERC20;
-    constructor(address payable gatewayAddress, address owner) 
-        SimpleLendingProtocolBase(gatewayAddress, owner) {}
+
+    constructor(
+        address payable gatewayAddress,
+        address owner
+    ) SimpleLendingProtocolBase(gatewayAddress, owner) {}
 
     // Admin functions
     function addAsset(address asset, uint256 priceInUSD) external onlyOwner {
@@ -34,15 +37,25 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
     }
 
     // Core lending functions
-    function supply(address asset, uint256 amount, address onBehalfOf) external virtual nonReentrant {
+    function supply(
+        address asset,
+        uint256 amount,
+        address onBehalfOf
+    ) external virtual nonReentrant {
         _supply(asset, amount, onBehalfOf);
     }
 
-    function borrow(address asset, uint256 amount, address to) external virtual nonReentrant {
+    function borrow(
+        address asset,
+        uint256 amount,
+        address to
+    ) external virtual nonReentrant {
         if (!assets[asset].isSupported) revert AssetNotSupported(asset);
         if (amount == 0) revert InvalidAmount();
-        if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
-        if (!canBorrow(msg.sender, asset, amount)) revert InsufficientCollateral();
+        if (IERC20(asset).balanceOf(address(this)) < amount)
+            revert InsufficientLiquidity();
+        if (!canBorrow(msg.sender, asset, amount))
+            revert InsufficientCollateral();
 
         userBorrows[msg.sender][asset] += amount;
         IERC20(asset).safeTransfer(to, amount);
@@ -53,13 +66,15 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
     function borrowCrossChain(
         address asset,
         uint256 amount,
-        uint256 destinationChain,
+        uint256 /* destinationChain */,
         address recipient
     ) external nonReentrant {
         if (!assets[asset].isSupported) revert AssetNotSupported(asset);
         if (amount == 0) revert InvalidAmount();
-        if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
-        if (!canBorrow(msg.sender, asset, amount)) revert InsufficientCollateral();
+        if (IERC20(asset).balanceOf(address(this)) < amount)
+            revert InsufficientLiquidity();
+        if (!canBorrow(msg.sender, asset, amount))
+            revert InsufficientCollateral();
 
         _validateAmountVsGasFee(asset, amount);
 
@@ -73,15 +88,24 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
             withdrawalAmount = amount - gasFee;
             approvalAmount = amount;
 
-            if (IERC20(asset).balanceOf(address(this)) < approvalAmount) revert InsufficientLiquidity();
+            if (IERC20(asset).balanceOf(address(this)) < approvalAmount)
+                revert InsufficientLiquidity();
             IERC20(asset).approve(address(gateway), approvalAmount);
         } else {
-            if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
+            if (IERC20(asset).balanceOf(address(this)) < amount)
+                revert InsufficientLiquidity();
             IERC20(asset).approve(address(gateway), amount);
 
             uint256 userGasBalance = IERC20(gasZRC20).balanceOf(msg.sender);
-            if (userGasBalance < gasFee) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
-            if (!IERC20(gasZRC20).transferFrom(msg.sender, address(this), gasFee)) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            if (userGasBalance < gasFee)
+                revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            if (
+                !IERC20(gasZRC20).transferFrom(
+                    msg.sender,
+                    address(this),
+                    gasFee
+                )
+            ) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
             IERC20(gasZRC20).approve(address(gateway), gasFee);
         }
 
@@ -101,24 +125,34 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         emit Borrow(msg.sender, asset, amount);
     }
 
-    function repay(address asset, uint256 amount, address onBehalfOf) external nonReentrant {
+    function repay(
+        address asset,
+        uint256 amount,
+        address onBehalfOf
+    ) external nonReentrant {
         _repay(asset, amount, onBehalfOf);
     }
 
-    function withdraw(address asset, uint256 amount, address to) external nonReentrant {
+    function withdraw(
+        address asset,
+        uint256 amount,
+        address to
+    ) external nonReentrant {
         _withdraw(asset, amount, msg.sender, to, "");
     }
 
     function withdrawCrossChain(
         address asset,
         uint256 amount,
-        uint256 destinationChain,
+        uint256 /* destinationChain */,
         address recipient
     ) external nonReentrant {
         if (!assets[asset].isSupported) revert AssetNotSupported(asset);
         if (amount == 0) revert InvalidAmount();
-        if (userSupplies[msg.sender][asset] < amount) revert InsufficientBalance();
-        if (!canWithdraw(msg.sender, asset, amount)) revert InsufficientCollateral();
+        if (userSupplies[msg.sender][asset] < amount)
+            revert InsufficientBalance();
+        if (!canWithdraw(msg.sender, asset, amount))
+            revert InsufficientCollateral();
 
         _validateAmountVsGasFee(asset, amount);
 
@@ -132,13 +166,21 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
             withdrawalAmount = amount - gasFee;
             approvalAmount = amount;
 
-            if (IERC20(asset).balanceOf(address(this)) < approvalAmount) revert InsufficientLiquidity();
+            if (IERC20(asset).balanceOf(address(this)) < approvalAmount)
+                revert InsufficientLiquidity();
             IERC20(asset).approve(address(gateway), approvalAmount);
         } else {
-            if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
+            if (IERC20(asset).balanceOf(address(this)) < amount)
+                revert InsufficientLiquidity();
             IERC20(asset).approve(address(gateway), amount);
 
-            if (!IERC20(gasZRC20).transferFrom(msg.sender, address(this), gasFee)) revert InsufficientCollateral();
+            if (
+                !IERC20(gasZRC20).transferFrom(
+                    msg.sender,
+                    address(this),
+                    gasFee
+                )
+            ) revert InsufficientCollateral();
             IERC20(gasZRC20).approve(address(gateway), gasFee);
         }
 
@@ -164,22 +206,39 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         address debtAsset,
         uint256 repayAmount
     ) external virtual nonReentrant {
-        if (!assets[collateralAsset].isSupported || !assets[debtAsset].isSupported) revert AssetNotSupported(collateralAsset);
+        if (
+            !assets[collateralAsset].isSupported ||
+            !assets[debtAsset].isSupported
+        ) revert AssetNotSupported(collateralAsset);
         if (repayAmount == 0) revert InvalidAmount();
         if (userBorrows[user][debtAsset] < repayAmount) revert InvalidAmount();
         if (!isLiquidatable(user)) revert HealthFactorTooLow();
 
-        uint256 collateralValue = (repayAmount * assets[debtAsset].price * 105) / (100 * assets[collateralAsset].price);
-        if (userSupplies[user][collateralAsset] < collateralValue) revert InsufficientCollateral();
+        uint256 collateralValue = (repayAmount *
+            assets[debtAsset].price *
+            105) / (100 * assets[collateralAsset].price);
+        if (userSupplies[user][collateralAsset] < collateralValue)
+            revert InsufficientCollateral();
 
-        IERC20(debtAsset).safeTransferFrom(msg.sender, address(this), repayAmount);
+        IERC20(debtAsset).safeTransferFrom(
+            msg.sender,
+            address(this),
+            repayAmount
+        );
 
         userBorrows[user][debtAsset] -= repayAmount;
         userSupplies[user][collateralAsset] -= collateralValue;
 
         IERC20(collateralAsset).safeTransfer(msg.sender, collateralValue);
 
-        emit Liquidate(msg.sender, user, collateralAsset, debtAsset, repayAmount, collateralValue);
+        emit Liquidate(
+            msg.sender,
+            user,
+            collateralAsset,
+            debtAsset,
+            repayAmount,
+            collateralValue
+        );
     }
 
     // Gateway functions - Simple pattern matching
@@ -190,12 +249,21 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         bytes calldata message
     ) external virtual override onlyGateway {
         if (message.length == 128) {
-            (string memory action, address onBehalfOf) = abi.decode(message, (string, address));
+            (string memory action, address onBehalfOf) = abi.decode(
+                message,
+                (string, address)
+            );
 
-            if (keccak256(abi.encodePacked(action)) == keccak256(abi.encodePacked("supply"))) {
+            if (
+                keccak256(abi.encodePacked(action)) ==
+                keccak256(abi.encodePacked("supply"))
+            ) {
                 _supply(zrc20, amount, onBehalfOf);
                 return;
-            } else if (keccak256(abi.encodePacked(action)) == keccak256(abi.encodePacked("repay"))) {
+            } else if (
+                keccak256(abi.encodePacked(action)) ==
+                keccak256(abi.encodePacked("repay"))
+            ) {
                 _repay(zrc20, amount, onBehalfOf);
                 return;
             }
@@ -206,13 +274,34 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
                 uint256 operationAmount,
                 uint256 destinationChain,
                 address recipient
-            ) = abi.decode(message, (string, address, uint256, uint256, address));
+            ) = abi.decode(
+                    message,
+                    (string, address, uint256, uint256, address)
+                );
 
-            if (keccak256(abi.encodePacked(action)) == keccak256(abi.encodePacked("borrowCrossChain"))) {
-                _borrowCrossChainFromCall(zrc20, operationAmount, user, destinationChain, recipient);
+            if (
+                keccak256(abi.encodePacked(action)) ==
+                keccak256(abi.encodePacked("borrowCrossChain"))
+            ) {
+                _borrowCrossChainFromCall(
+                    zrc20,
+                    operationAmount,
+                    user,
+                    destinationChain,
+                    recipient
+                );
                 return;
-            } else if (keccak256(abi.encodePacked(action)) == keccak256(abi.encodePacked("withdrawCrossChain"))) {
-                _withdrawCrossChainFromCall(zrc20, operationAmount, user, destinationChain, recipient);
+            } else if (
+                keccak256(abi.encodePacked(action)) ==
+                keccak256(abi.encodePacked("withdrawCrossChain"))
+            ) {
+                _withdrawCrossChainFromCall(
+                    zrc20,
+                    operationAmount,
+                    user,
+                    destinationChain,
+                    recipient
+                );
                 return;
             }
         }
@@ -220,7 +309,9 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         revert("Invalid action or message format");
     }
 
-    function onRevert(RevertContext calldata revertContext) external virtual onlyGateway {
+    function onRevert(
+        RevertContext calldata revertContext
+    ) external virtual onlyGateway {
         emit Withdraw(address(0), address(0), 0);
     }
 
@@ -229,12 +320,13 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         address asset,
         uint256 amount,
         address user,
-        uint256 destinationChain,
+        uint256 /* destinationChain */,
         address recipient
     ) internal {
         if (!assets[asset].isSupported) revert AssetNotSupported(asset);
         if (amount == 0) revert InvalidAmount();
-        if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
+        if (IERC20(asset).balanceOf(address(this)) < amount)
+            revert InsufficientLiquidity();
         if (!canBorrow(user, asset, amount)) revert InsufficientCollateral();
 
         _validateAmountVsGasFee(asset, amount);
@@ -249,15 +341,19 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
             withdrawalAmount = amount - gasFee;
             approvalAmount = amount;
 
-            if (IERC20(asset).balanceOf(address(this)) < approvalAmount) revert InsufficientLiquidity();
+            if (IERC20(asset).balanceOf(address(this)) < approvalAmount)
+                revert InsufficientLiquidity();
             IERC20(asset).approve(address(gateway), approvalAmount);
         } else {
-            if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
+            if (IERC20(asset).balanceOf(address(this)) < amount)
+                revert InsufficientLiquidity();
             IERC20(asset).approve(address(gateway), amount);
 
             uint256 userGasBalance = IERC20(gasZRC20).balanceOf(user);
-            if (userGasBalance < gasFee) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
-            if (!IERC20(gasZRC20).transferFrom(user, address(this), gasFee)) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            if (userGasBalance < gasFee)
+                revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            if (!IERC20(gasZRC20).transferFrom(user, address(this), gasFee))
+                revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
             IERC20(gasZRC20).approve(address(gateway), gasFee);
         }
 
@@ -301,15 +397,19 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
             withdrawalAmount = amount - gasFee;
             approvalAmount = amount;
 
-            if (IERC20(asset).balanceOf(address(this)) < approvalAmount) revert InsufficientLiquidity();
+            if (IERC20(asset).balanceOf(address(this)) < approvalAmount)
+                revert InsufficientLiquidity();
             IERC20(asset).approve(address(gateway), approvalAmount);
         } else {
-            if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
+            if (IERC20(asset).balanceOf(address(this)) < amount)
+                revert InsufficientLiquidity();
             IERC20(asset).approve(address(gateway), amount);
 
             uint256 userGasBalance = IERC20(gasZRC20).balanceOf(user);
-            if (userGasBalance < gasFee) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
-            if (!IERC20(gasZRC20).transferFrom(user, address(this), gasFee)) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            if (userGasBalance < gasFee)
+                revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            if (!IERC20(gasZRC20).transferFrom(user, address(this), gasFee))
+                revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
             IERC20(gasZRC20).approve(address(gateway), gasFee);
         }
 

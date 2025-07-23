@@ -9,18 +9,12 @@ export interface NetworkConfig {
   type: 'testnet' | 'mainnet';
   rpc?: string;
   explorer?: string;
-  contracts: {
-    [contractName: string]: string;
-  };
-  tokens: {
-    [tokenSymbol: string]: string;
-  };
+  contracts: Record<string, string>;
+  tokens: Record<string, string>;
 }
 
 export interface DeploymentConfig {
-  networks: {
-    [chainId: string]: NetworkConfig;
-  };
+  networks: Record<string, NetworkConfig>;
   deployments: {
     lastUpdated: string;
     deployer: string;
@@ -171,7 +165,7 @@ export function getSupportedChainIds(): number[] {
  */
 export function getExplorerUrl(chainId: number): string | null {
   const network = getNetworkConfig(chainId);
-  return network?.explorer || null;
+  return network?.explorer ?? null;
 }
 
 /**

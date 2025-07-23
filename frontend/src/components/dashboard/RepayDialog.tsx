@@ -25,10 +25,10 @@ interface RepayDialogProps {
 const lendingProtocolAbi = SimpleLendingProtocol__factory.abi;
 const erc20Abi = ERC20__factory.abi;
 
-export function RepayDialog({ 
-    isOpen, 
-    onClose, 
-    selectedAsset 
+export function RepayDialog({
+    isOpen,
+    onClose,
+    selectedAsset
 }: RepayDialogProps) {
     const [amount, setAmount] = useState('');
 
@@ -83,7 +83,7 @@ export function RepayDialog({
                 ],
             });
         } catch (error) {
-            console.error('Repay failed:', error);
+            console.error('Error repaying', error);
             txActions.setIsSubmitting(false);
             txActions.setCurrentStep('input');
         }
@@ -101,7 +101,7 @@ export function RepayDialog({
             txActions.setCurrentStep('approve');
             handleApproveToken();
         } catch (error) {
-            console.error('Transaction failed:', error);
+            console.error('Error repaying', error);
             txActions.setIsSubmitting(false);
             txActions.setCurrentStep('input');
         }
@@ -180,9 +180,9 @@ export function RepayDialog({
             sourceChain={selectedAsset.sourceChain}
             currentStep={txState.currentStep}
             isSubmitting={txState.isSubmitting}
-            onSubmit={handleSubmit}
+            onSubmit={() => { void handleSubmit() }}
             isValidAmount={validation.isValid}
-            isConnected={!!address}
+            isConnected={Boolean(address)}
             submitButtonText="Repay"
         >
             {txState.currentStep === 'input' && (

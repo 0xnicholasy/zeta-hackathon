@@ -75,13 +75,13 @@ export default function Stats() {
         args: [BigInt(i)],
       })) : [],
     query: {
-      enabled: !isZeroAddress(simpleLendingProtocolAddress) && !!supportedAssetsCount,
+      enabled: !isZeroAddress(simpleLendingProtocolAddress) && Boolean(supportedAssetsCount),
     },
   });
 
   // Get supported asset addresses for comparison
   const supportedAssetAddresses: EVMAddress[] = useMemo(() => {
-    return supportedAssets?.map(result => safeEVMAddressOrZeroAddress(result.result as unknown as string)).filter(Boolean) || [];
+    return supportedAssets?.map(result => safeEVMAddressOrZeroAddress(result.result as string)).filter(Boolean) ?? [];
   }, [supportedAssets]);
 
   // Use all assets for display

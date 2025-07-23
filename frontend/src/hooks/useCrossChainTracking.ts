@@ -96,13 +96,12 @@ export function useCrossChainTracking(): CrossChainTrackingResult {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTrackingRef = useRef(false);
 
-  const startTracking = useCallback(async (transactionHash: EVMTransactionHash | string) => {
+  const startTracking = useCallback((transactionHash: EVMTransactionHash | string) => {
     if (!transactionHash || isTrackingRef.current) return;
 
     // Validate and convert transaction hash
     const validTxHash = safeEVMTransactionHash(transactionHash, ZERO_TRANSACTION_HASH);
     if (!validTxHash) {
-      console.error('Invalid transaction hash provided:', transactionHash);
       return;
     }
 
@@ -134,7 +133,10 @@ export function useCrossChainTracking(): CrossChainTrackingResult {
 
         // Validate response structure using the defined interfaces
         if (data?.CrossChainTxs?.length > 0) {
-          const cctxData: CrossChainTx = data.CrossChainTxs[0];
+          const cctxData = data.CrossChainTxs[0];
+          if (!cctxData) {
+            throw new Error('Invalid response structure from cross-chain API');
+          }
           const cctxStatus: CctxStatus = cctxData.cctx_status;
           if (cctxStatus.status === 'PendingOutbound') {
             setStatus('pending');
@@ -150,23 +152,26 @@ export function useCrossChainTracking(): CrossChainTrackingResult {
           }
           // Still pending - continue checking
         } else {
-          console.warn('Invalid response structure from cross-chain API:', data);
           setStatus('idle');
         }
 
         retries++;
         if (retries < maxRetries && isTrackingRef.current) {
-          timeoutRef.current = setTimeout(checkTransaction, retryInterval); // Check every 10 seconds
+          timeoutRef.current = setTimeout(() => {
+            void checkTransaction();
+          }, retryInterval);
         } else {
           // Timeout - assume success for UI purposes
           setStatus('success');
           isTrackingRef.current = false;
         }
       } catch (error) {
-        retries++;
         console.error('Failed to check cross-chain transaction:', error);
+        retries++;
         if (retries < maxRetries && isTrackingRef.current) {
-          timeoutRef.current = setTimeout(checkTransaction, retryInterval);
+          timeoutRef.current = setTimeout(() => {
+            void checkTransaction();
+          }, retryInterval);
         } else {
           setStatus('failed');
           isTrackingRef.current = false;
@@ -175,7 +180,9 @@ export function useCrossChainTracking(): CrossChainTrackingResult {
     };
 
     // Start checking after a short delay
-    timeoutRef.current = setTimeout(checkTransaction, 5000);
+    timeoutRef.current = setTimeout(() => {
+      void checkTransaction();
+    }, 5000);
   }, []);
 
   const reset = useCallback(() => {

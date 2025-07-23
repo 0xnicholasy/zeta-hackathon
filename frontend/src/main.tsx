@@ -5,7 +5,7 @@ import App from './App.tsx'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { Web3Providers } from './providers/Web3Providers'
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>
     <ThemeProvider>
       <Web3Providers>

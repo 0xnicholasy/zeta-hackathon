@@ -66,9 +66,9 @@ const isTokenGasToken = (selectedAsset: UserAssetData, gasTokenAddress: EVMAddre
 
 export function useWithdrawValidation(props: UseWithdrawValidationProps): WithdrawValidationResult {
     // Create safe defaults to avoid null/undefined handling throughout the hook
-    const selectedAsset = props.selectedAsset || EMPTY_ASSET;
-    const amount = props.amount || '';
-    const simpleLendingProtocol = props.simpleLendingProtocol || '';
+    const selectedAsset = props.selectedAsset ?? EMPTY_ASSET;
+    const amount = props.amount ?? '';
+    const simpleLendingProtocol = props.simpleLendingProtocol ?? '';
     const userAddress = props.userAddress;
 
     // State with safe defaults
@@ -113,7 +113,7 @@ export function useWithdrawValidation(props: UseWithdrawValidationProps): Withdr
 
     // Get gas token address and fee amount with safe defaults
     const gasTokenAddress = gasFeeData?.[0] ? safeEVMAddressOrZeroAddress(gasFeeData[0]) : ZERO_ADDRESS;
-    const gasFeeAmount = gasFeeData?.[1] || BigInt(0);
+    const gasFeeAmount = gasFeeData?.[1] ?? BigInt(0);
 
     // Check if the selected token is the gas token
     const isGasToken = !isZeroAddress(selectedAsset.address) ? isTokenGasToken(selectedAsset, gasTokenAddress) : false;
@@ -213,7 +213,7 @@ export function useWithdrawValidation(props: UseWithdrawValidationProps): Withdr
             }
         } else {
             // For non-gas tokens: check separate gas token balance
-            const safeGasTokenBalance = gasTokenBalance || BigInt(0);
+            const safeGasTokenBalance = gasTokenBalance ?? BigInt(0);
 
             if (safeGasTokenBalance < gasFeeAmount) {
                 const error = `Insufficient ${gasTokenSymbol} in wallet for gas fees. Need ${formatUnits(gasFeeAmount, gasTokenDecimals)} ${gasTokenSymbol} but have ${formatUnits(safeGasTokenBalance, gasTokenDecimals)} ${gasTokenSymbol}. Please get more ${gasTokenSymbol} in your wallet before proceeding.`;
@@ -222,7 +222,7 @@ export function useWithdrawValidation(props: UseWithdrawValidationProps): Withdr
             }
 
             // Check allowance for separate gas token
-            const safeGasTokenAllowance = gasTokenAllowance || BigInt(0);
+            const safeGasTokenAllowance = gasTokenAllowance ?? BigInt(0);
 
             if (safeGasTokenAllowance < gasFeeAmount) {
                 const newGasTokenInfo: GasTokenInfo = {

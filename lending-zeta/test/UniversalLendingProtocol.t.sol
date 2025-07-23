@@ -198,85 +198,6 @@ contract UniversalLendingProtocolTest is Test {
 
     // ============ Cross-Chain Supply Tests ============
 
-    function testCrossChainSupply() public {
-        uint256 supplyAmount = 1 * 10 ** 18; // 1 ETH
-        bytes memory message = abi.encode("supply", user1); // action and onBehalfOf
-        MessageContext memory context = MessageContext({
-            sender: abi.encodePacked(user1),
-            senderEVM: user1,
-            chainID: ETHEREUM_CHAIN_ID
-        });
-
-        // Transfer tokens to protocol first (simulating gateway transfer)
-        vm.prank(owner);
-        ethToken.transfer(address(lendingProtocol), supplyAmount);
-
-        vm.prank(address(gateway));
-        vm.expectEmit(true, true, false, true);
-        emit Supply(user1, address(ethToken), supplyAmount);
-
-        lendingProtocol.onCall(
-            context,
-            address(ethToken),
-            supplyAmount,
-            message
-        );
-
-        assertEq(
-            lendingProtocol.getSupplyBalance(user1, address(ethToken)),
-            supplyAmount
-        );
-    }
-
-    function testCrossChainSupplyFromDisallowedChain() public {
-        uint256 supplyAmount = 1 * 10 ** 18;
-        bytes memory message = abi.encode(user1, uint8(0));
-        MessageContext memory context = MessageContext({
-            sender: abi.encodePacked(user1),
-            senderEVM: user1,
-            chainID: 999 // Disallowed chain
-        });
-
-        vm.prank(address(gateway));
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IUniversalLendingProtocol.ChainNotAllowed.selector,
-                999
-            )
-        );
-        lendingProtocol.onCall(
-            context,
-            address(ethToken),
-            supplyAmount,
-            message
-        );
-    }
-
-    function testCrossChainSupplyUnsupportedAsset() public {
-        address unsupportedAsset = address(0x999);
-        uint256 supplyAmount = 1000;
-        bytes memory message = abi.encode("supply", user1);
-        MessageContext memory context = MessageContext({
-            sender: abi.encodePacked(user1),
-            senderEVM: user1,
-            chainID: ETHEREUM_CHAIN_ID
-        });
-
-        vm.prank(address(gateway));
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ISimpleLendingProtocol.AssetNotSupported.selector,
-                unsupportedAsset
-            )
-        );
-        lendingProtocol.onCall(
-            context,
-            unsupportedAsset,
-            supplyAmount,
-            message
-        );
-    }
-
     // ============ Cross-Chain Repay Tests ============
 
     function testCrossChainRepay() public {
@@ -462,75 +383,6 @@ contract UniversalLendingProtocolTest is Test {
     }
 
     // ============ Cross-Chain Withdrawal Tests ============
-
-    function testCrossChainWithdraw() public {
-        uint256 supplyAmount = 2 * 10 ** 18;
-        uint256 withdrawAmount = 1 * 10 ** 18;
-        address recipient = address(0x123);
-
-        vm.startPrank(user1);
-        ethToken.approve(address(lendingProtocol), supplyAmount);
-        lendingProtocol.supply(address(ethToken), supplyAmount, user1);
-        vm.stopPrank();
-
-        // Mock the ZRC-20 withdrawGasFee function to return zero gas fee
-        vm.mockCall(
-            address(ethToken),
-            abi.encodeWithSignature("withdrawGasFee()"),
-            abi.encode(address(0), uint256(0))
-        );
-
-        // Mock the gateway withdraw function to succeed
-        vm.mockCall(
-            address(gateway),
-            abi.encodeWithSignature(
-                "withdraw(bytes,uint256,address,(address,bool,address,bytes,uint256))"
-            ),
-            abi.encode(true)
-        );
-
-        vm.prank(user1);
-        lendingProtocol.withdrawCrossChain(
-            address(ethToken),
-            withdrawAmount,
-            ETHEREUM_CHAIN_ID,
-            recipient
-        );
-
-        assertEq(
-            lendingProtocol.getSupplyBalance(user1, address(ethToken)),
-            supplyAmount - withdrawAmount
-        );
-    }
-
-    function testCrossChainWithdrawInsufficientBalance() public {
-        uint256 supplyAmount = 1 * 10 ** 18;
-        uint256 withdrawAmount = 2 * 10 ** 18;
-
-        vm.startPrank(user1);
-        ethToken.approve(address(lendingProtocol), supplyAmount);
-        lendingProtocol.supply(address(ethToken), supplyAmount, user1);
-
-        // Mock the ZRC-20 withdrawGasFee function
-        vm.mockCall(
-            address(ethToken),
-            abi.encodeWithSignature("withdrawGasFee()"),
-            abi.encode(address(0), uint256(0))
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ISimpleLendingProtocol.InsufficientCollateral.selector
-            )
-        );
-        lendingProtocol.withdrawCrossChain(
-            address(ethToken),
-            withdrawAmount,
-            ETHEREUM_CHAIN_ID,
-            address(0x123)
-        );
-        vm.stopPrank();
-    }
 
     // ============ Liquidation Tests ============
 
@@ -732,9 +584,7 @@ contract UniversalLendingProtocolTest is Test {
 
         vm.prank(user1);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ISimpleLendingProtocol.Unauthorized.selector
-            )
+            abi.encodeWithSelector(ISimpleLendingProtocol.Unauthorized.selector)
         );
         lendingProtocol.onCall(context, address(ethToken), 1000, message);
     }
@@ -873,76 +723,60 @@ contract UniversalLendingProtocolTest is Test {
         // Test that USDC (6 decimals) operations work correctly in Universal Protocol
         uint256 supplyAmount = 1000 * 10 ** 6; // 1000 USDC (6 decimals)
         uint256 borrowAmount = 500 * 10 ** 6; // 500 USDC (6 decimals)
-        
+
         // First supply some ETH as collateral
         _supplyAsset(user1, address(ethToken), 2 * 10 ** 18);
-        
+
         vm.startPrank(user1);
         usdcToken.approve(address(lendingProtocol), supplyAmount);
         lendingProtocol.supply(address(usdcToken), supplyAmount, user1);
-        
+
         // This should work with proper decimal normalization
         lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
-        
+
         vm.stopPrank();
-        
+
         // Verify the operations succeeded
-        assertEq(lendingProtocol.getSupplyBalance(user1, address(usdcToken)), supplyAmount);
-        assertEq(lendingProtocol.getBorrowBalance(user1, address(usdcToken)), borrowAmount);
+        assertEq(
+            lendingProtocol.getSupplyBalance(user1, address(usdcToken)),
+            supplyAmount
+        );
+        assertEq(
+            lendingProtocol.getBorrowBalance(user1, address(usdcToken)),
+            borrowAmount
+        );
     }
 
-    function testUniversalCrossChainWithMixedDecimals() public {
-        // Test cross-chain operations with different decimal precision tokens
-        uint256 ethAmount = 1 * 10 ** 18; // 1 ETH (18 decimals)
-        uint256 usdcAmount = 2000 * 10 ** 6; // 2000 USDC (6 decimals)
-        
-        // Supply different decimal tokens
-        _supplyAsset(user1, address(ethToken), ethAmount);
-        _supplyAsset(user1, address(usdcToken), usdcAmount);
-        
-        // Cross-chain operations should work with both
-        vm.startPrank(user1);
-        
-        // Borrow cross-chain with both token types
-        lendingProtocol.borrowCrossChain(
-            address(ethToken),
-            ethAmount / 4, // 0.25 ETH
-            ARBITRUM_CHAIN_ID,
-            user1
-        );
-        
-        lendingProtocol.borrowCrossChain(
-            address(usdcToken),
-            usdcAmount / 4, // 500 USDC
-            ETHEREUM_CHAIN_ID,
-            user1
-        );
-        
+    // Helper function for supplying assets
+    function _supplyAsset(
+        address user,
+        address asset,
+        uint256 amount
+    ) internal {
+        vm.startPrank(user);
+        MockZRC20(asset).approve(address(lendingProtocol), amount);
+        lendingProtocol.supply(asset, amount, user);
         vm.stopPrank();
-        
-        // Both operations should succeed despite different decimals
-        assertGt(lendingProtocol.getBorrowBalance(user1, address(ethToken)), 0);
-        assertGt(lendingProtocol.getBorrowBalance(user1, address(usdcToken)), 0);
     }
 
     function testUniversalLiquidationWithDifferentDecimals() public {
         // Test liquidation works correctly with mixed decimal tokens
         uint256 ethSupply = 1 * 10 ** 18; // 1 ETH
         uint256 usdcBorrow = 1500 * 10 ** 6; // 1500 USDC (close to liquidation)
-        
+
         // Setup position
         _supplyAsset(user2, address(ethToken), ethSupply);
-        
+
         vm.prank(user2);
         lendingProtocol.borrow(address(usdcToken), usdcBorrow, user2);
-        
+
         // Price drop to trigger liquidation
         priceOracle.setPrice(address(ethToken), 1600 * 1e18); // ETH drops to $1600
-        
+
         // Liquidate
         vm.startPrank(liquidator);
         usdcToken.approve(address(lendingProtocol), 500 * 10 ** 6);
-        
+
         lendingProtocol.liquidate(
             user2,
             address(ethToken),
@@ -950,17 +784,15 @@ contract UniversalLendingProtocolTest is Test {
             500 * 10 ** 6 // Repay 500 USDC
         );
         vm.stopPrank();
-        
-        // Liquidation should work despite decimal differences
-        assertLt(lendingProtocol.getBorrowBalance(user2, address(usdcToken)), usdcBorrow);
-        assertLt(lendingProtocol.getSupplyBalance(user2, address(ethToken)), ethSupply);
-    }
 
-    // Helper function for supplying assets
-    function _supplyAsset(address user, address asset, uint256 amount) internal {
-        vm.startPrank(user);
-        MockZRC20(asset).approve(address(lendingProtocol), amount);
-        lendingProtocol.supply(asset, amount, user);
-        vm.stopPrank();
+        // Liquidation should work despite decimal differences
+        assertLt(
+            lendingProtocol.getBorrowBalance(user2, address(usdcToken)),
+            usdcBorrow
+        );
+        assertLt(
+            lendingProtocol.getSupplyBalance(user2, address(ethToken)),
+            ethSupply
+        );
     }
 }

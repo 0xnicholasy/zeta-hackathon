@@ -1,12 +1,13 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useNavigate } from 'react-router-dom';
 import ThemeToggle from '../ThemeToggle';
+import { useNavigateTo } from '@/types/routes';
+import { ROUTES } from '@/config/routes';
 
 export function Header() {
-    const navigate = useNavigate();
+    const navigate = useNavigateTo();
 
     const handleLogoClick = () => {
-        navigate('/');
+        navigate(ROUTES.HOME);
     };
 
     return (
