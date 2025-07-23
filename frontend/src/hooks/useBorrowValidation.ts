@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useReadContract } from 'wagmi';
-import { parseUnits } from 'viem';
+import { parseUnits, formatUnits } from 'viem';
 import { SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
 import type { EVMAddress, UserAssetData } from '../components/dashboard/types';
 
@@ -81,6 +81,17 @@ export function useBorrowValidation({
         },
     });
 
+    // Get max available borrows for specific asset (considers protocol's available balance)
+    const { data: maxAvailableBorrowsForAsset } = useReadContract({
+        address: simpleLendingProtocol,
+        abi: SimpleLendingProtocol__factory.abi,
+        functionName: 'maxAvailableBorrows',
+        args: selectedAsset ? [userAddress, selectedAsset.address] : undefined,
+        query: {
+            enabled: Boolean(selectedAsset),
+            refetchInterval: 10000,
+        },
+    });
 
     // Check if user can borrow the specific amount
     const amountBigInt = amountToBorrow && selectedAsset ? parseUnits(amountToBorrow, selectedAsset.decimals) : BigInt(0);
@@ -116,11 +127,12 @@ export function useBorrowValidation({
         // We still need to calculate max borrow even if no amount is entered
         // Only skip if no amount for validation, but continue for max borrow calculation
 
-        if (totalCollateralValue === undefined || totalDebtValue === undefined || healthFactor === undefined || maxAvailableBorrowsInUsd === undefined) {
-            console.log("🚀 ~ validateBorrow ~ totalCollateralValue:", totalCollateralValue)
-            console.log("🚀 ~ validateBorrow ~ totalDebtValue:", totalDebtValue)
-            console.log("🚀 ~ validateBorrow ~ healthFactor:", healthFactor)
-            console.log("🚀 ~ validateBorrow ~ maxAvailableBorrowsInUsd:", maxAvailableBorrowsInUsd)
+        if (totalCollateralValue === undefined || totalDebtValue === undefined || healthFactor === undefined || maxAvailableBorrowsInUsd === undefined || maxAvailableBorrowsForAsset === undefined) {
+            // console.log("🚀 ~ validateBorrow ~ totalCollateralValue:", totalCollateralValue)
+            // console.log("🚀 ~ validateBorrow ~ totalDebtValue:", totalDebtValue)
+            // console.log("🚀 ~ validateBorrow ~ healthFactor:", healthFactor)
+            // console.log("🚀 ~ validateBorrow ~ maxAvailableBorrowsInUsd:", maxAvailableBorrowsInUsd)
+            // console.log("🚀 ~ validateBorrow ~ maxAvailableBorrowsForAsset:", maxAvailableBorrowsForAsset)
             setValidationResult({
                 isValid: false,
                 error: 'Loading user data...',
@@ -132,8 +144,6 @@ export function useBorrowValidation({
             });
             return;
         }
-
-
 
         // Parse price by removing currency symbol and parsing
         const priceString = selectedAsset.price.replace(/[$,]/g, '');
@@ -155,7 +165,6 @@ export function useBorrowValidation({
         // Get values from contract (already in USD, normalized to 18 decimals)
         const totalDebtValueFormatted = Number(totalDebtValue) / 1e18;
         const totalCollateralValueFormatted = Number(totalCollateralValue) / 1e18;
-        const maxAvailableBorrowsInUsdFormatted = Number(maxAvailableBorrowsInUsd) / 1e18;
 
         // Handle health factor - contract returns type(uint256).max when debt is 0
         let currentHealthFactorFormatted;
@@ -166,16 +175,12 @@ export function useBorrowValidation({
             currentHealthFactorFormatted = Number(healthFactor) / 1e18;
         }
 
-        // Calculate max borrow amount using USD value and asset price
-        const maxBorrowAmount = assetPriceUsd > 0
-            ? (maxAvailableBorrowsInUsdFormatted / assetPriceUsd).toString()
-            : '0';
+        // Use the contract's maxAvailableBorrows result which already considers protocol's available balance
+        const maxBorrowAmount = formatUnits(maxAvailableBorrowsForAsset, selectedAsset.decimals);
 
         // Only calculate borrow validation if amount is entered
         const hasAmount = amountToBorrow && parseFloat(amountToBorrow) > 0;
         const borrowValueUsd = hasAmount ? parseFloat(amountToBorrow) * assetPriceUsd : 0;
-
-
 
         // Calculate estimated health factor after borrow (only if amount entered)
         let estimatedHealthFactor = currentHealthFactorFormatted;
@@ -185,8 +190,6 @@ export function useBorrowValidation({
                 estimatedHealthFactor = totalCollateralValueFormatted / newTotalDebtValue;
             }
         }
-
-
 
         // Validation checks (only if amount is entered)
         let error = '';
@@ -198,9 +201,13 @@ export function useBorrowValidation({
                 error = 'No collateral supplied. Please supply collateral first.';
                 isValid = false;
             }
-            // Check if borrow amount exceeds max available borrows
+            // Check if borrow amount exceeds max available borrows (this now includes protocol balance check)
             else if (parseFloat(amountToBorrow) > parseFloat(maxBorrowAmount)) {
-                error = `Insufficient collateral. Max borrow: ${Number(maxBorrowAmount).toFixed(6)} ${selectedAsset.unit}`;
+                if (parseFloat(maxBorrowAmount) === 0) {
+                    error = 'No tokens available for borrowing in the protocol.';
+                } else {
+                    error = `Amount exceeds maximum available. Max borrow: ${Number(maxBorrowAmount).toFixed(6)} ${selectedAsset.unit}`;
+                }
                 isValid = false;
             }
             // Check if estimated health factor is too low (minimum 1.5)
@@ -218,8 +225,6 @@ export function useBorrowValidation({
             }
         }
 
-
-
         setValidationResult({
             isValid: hasAmount ? (isValid && canBorrowResult === true) : false,
             error,
@@ -229,7 +234,7 @@ export function useBorrowValidation({
             estimatedHealthFactor,
             borrowValueUsd,
         });
-    }, [selectedAsset, amountToBorrow, totalCollateralValue, totalDebtValue, healthFactor, maxAvailableBorrowsInUsd, canBorrowResult]);
+    }, [selectedAsset, amountToBorrow, totalCollateralValue, totalDebtValue, healthFactor, maxAvailableBorrowsInUsd, maxAvailableBorrowsForAsset, canBorrowResult]);
 
     // Run validation when dependencies change
     useEffect(() => {

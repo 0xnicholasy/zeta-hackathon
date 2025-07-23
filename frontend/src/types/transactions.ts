@@ -6,7 +6,7 @@ export type TransactionType = 'supply' | 'withdraw' | 'borrow' | 'repay';
 /**
  * Common transaction steps shared across all transaction types
  */
-export type CommonTransactionStep = 'input' | 'approve' | 'approving' | 'success' | 'failed';
+export type CommonTransactionStep = 'input' | 'approve' | 'approving' | 'switchNetwork' | 'success' | 'failed';
 
 /**
  * Supply transaction specific steps

@@ -39,6 +39,21 @@ export function TransactionStatus<T extends TransactionType = TransactionType>({
     destinationChainName = 'Unknown Chain',
     transactionType = 'supply' as T,
 }: TransactionStatusProps<T>) {
+    // Network switch step
+    if (currentStep === 'switchNetwork') {
+        return (
+            <div className="flex flex-col items-center py-6">
+                <HourglassLoader size="lg" className="mb-4" />
+                <div className="text-center text-md text-muted-foreground">
+                    Switching network...
+                </div>
+                <div className="mt-2 text-sm text-muted-foreground text-center">
+                    Please approve the network switch in your wallet
+                </div>
+            </div>
+        );
+    }
+
     // Approval step
     if (currentStep === 'approve') {
         return (

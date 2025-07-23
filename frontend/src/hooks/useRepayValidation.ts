@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useReadContract, useBalance } from 'wagmi';
+import { useReadContract, useBalance, useAccount } from 'wagmi';
 import { SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
-import type { EVMAddress, UserAssetData } from '../components/dashboard/types';
+import { SupportedChain, getTokenAddress } from '../contracts/deployments';
+import { safeEVMAddressOrZeroAddress, ZERO_ADDRESS, type EVMAddress, type UserAssetData } from '../components/dashboard/types';
 
 interface UseRepayValidationParams {
     selectedAsset: UserAssetData | null;
@@ -18,6 +19,7 @@ interface RepayValidationResult {
     formattedAvailableBalance: string;
     currentDebt: string;
     formattedCurrentDebt: string;
+    currentHealthFactor: number;
     newHealthFactor: number;
     isFullRepayment: boolean;
 }
@@ -28,6 +30,7 @@ export function useRepayValidation({
     simpleLendingProtocol,
     userAddress,
 }: UseRepayValidationParams): RepayValidationResult {
+    const { address } = useAccount();
     const [validationResult, setValidationResult] = useState<RepayValidationResult>({
         isValid: false,
         error: '',
@@ -36,6 +39,7 @@ export function useRepayValidation({
         formattedAvailableBalance: '0',
         currentDebt: '0',
         formattedCurrentDebt: '0',
+        currentHealthFactor: 0,
         newHealthFactor: 0,
         isFullRepayment: false,
     });
@@ -88,12 +92,39 @@ export function useRepayValidation({
         },
     });
 
-    // Get user's token balance (ZRC-20 balance on ZetaChain)
+    // Get user's token balance on the foreign chain (where they need to repay from)
+    // Map the asset to its corresponding token on the foreign chain
+    const getForeignChainTokenAddress = () => {
+        if (!selectedAsset) return undefined;
+
+        // Map ZetaChain asset to foreign chain token
+        if (selectedAsset.sourceChain === 'ARBI') {
+            // For Arbitrum assets
+            if (selectedAsset.unit === 'ETH') {
+                return getTokenAddress('ETH', SupportedChain.ARBITRUM_SEPOLIA); // address(0) for native ETH
+            } else if (selectedAsset.unit === 'USDC') {
+                return getTokenAddress('USDC', SupportedChain.ARBITRUM_SEPOLIA);
+            }
+        } else if (selectedAsset.sourceChain === 'ETH') {
+            // For Ethereum assets
+            if (selectedAsset.unit === 'ETH') {
+                return getTokenAddress('ETH', SupportedChain.ETHEREUM_SEPOLIA); // address(0) for native ETH
+            } else if (selectedAsset.unit === 'USDC') {
+                return getTokenAddress('USDC', SupportedChain.ETHEREUM_SEPOLIA);
+            }
+        }
+        return undefined;
+    };
+
+    const foreignTokenAddress = getForeignChainTokenAddress();
+    const isNativeToken = safeEVMAddressOrZeroAddress(foreignTokenAddress) === ZERO_ADDRESS;
+
     const { data: tokenBalance } = useBalance({
-        address: userAddress ?? undefined,
-        token: selectedAsset?.address,
+        address: address ?? undefined,
+        token: isNativeToken ? undefined : foreignTokenAddress,
+        chainId: selectedAsset?.externalChainId,
         query: {
-            enabled: Boolean(userAddress && selectedAsset),
+            enabled: Boolean(address && selectedAsset && foreignTokenAddress !== undefined),
             refetchInterval: 10000,
         },
     });
@@ -109,6 +140,7 @@ export function useRepayValidation({
                 formattedAvailableBalance: '0',
                 currentDebt: '0',
                 formattedCurrentDebt: '0',
+                currentHealthFactor: 0,
                 newHealthFactor: 0,
                 isFullRepayment: false,
             });
@@ -124,6 +156,7 @@ export function useRepayValidation({
                 formattedAvailableBalance: '0',
                 currentDebt: '0',
                 formattedCurrentDebt: '0',
+                currentHealthFactor: 0,
                 newHealthFactor: 0,
                 isFullRepayment: false,
             });
@@ -141,6 +174,11 @@ export function useRepayValidation({
         const maxRepayAmountNumber = Math.min(currentDebtFormatted, availableBalanceFormatted);
         const maxRepayAmount = maxRepayAmountNumber.toString();
 
+        // Calculate current health factor
+        const totalCollateralValueFormatted = Number(totalCollateralValue) / 1e18;
+        const totalDebtValueFormatted = Number(totalDebtValue) / 1e18;
+        const currentHealthFactorFormatted = Number(healthFactor) / 1e18;
+
         // Check if no debt exists
         if (currentDebtFormatted === 0) {
             setValidationResult({
@@ -151,7 +189,8 @@ export function useRepayValidation({
                 formattedAvailableBalance: availableBalanceFormatted.toFixed(6),
                 currentDebt: '0',
                 formattedCurrentDebt: '0',
-                newHealthFactor: 0,
+                currentHealthFactor: currentHealthFactorFormatted > 999 ? Infinity : currentHealthFactorFormatted,
+                newHealthFactor: currentHealthFactorFormatted > 999 ? Infinity : currentHealthFactorFormatted,
                 isFullRepayment: false,
             });
             return;
@@ -167,7 +206,8 @@ export function useRepayValidation({
                 formattedAvailableBalance: availableBalanceFormatted.toFixed(6),
                 currentDebt: currentDebtFormatted.toString(),
                 formattedCurrentDebt: currentDebtFormatted.toFixed(6),
-                newHealthFactor: 0,
+                currentHealthFactor: currentHealthFactorFormatted > 999 ? Infinity : currentHealthFactorFormatted,
+                newHealthFactor: currentHealthFactorFormatted > 999 ? Infinity : currentHealthFactorFormatted,
                 isFullRepayment: false,
             });
             return;
@@ -177,13 +217,9 @@ export function useRepayValidation({
         const isFullRepayment = repayAmount >= currentDebtFormatted;
 
         // Calculate new health factor after repayment
-
-        const assetPriceUsd = parseFloat(selectedAsset.price || '0');
+        const priceString = selectedAsset.price || '0';
+        const assetPriceUsd = parseFloat(priceString.replace(/[$,]/g, '') || '0');
         const repayValueUsd = repayAmount * assetPriceUsd;
-
-        const totalCollateralValueFormatted = Number(totalCollateralValue) / 1e18;
-        const totalDebtValueFormatted = Number(totalDebtValue) / 1e18;
-        const currentHealthFactorFormatted = Number(healthFactor) / 1e18;
 
         let newHealthFactor = currentHealthFactorFormatted;
         if (totalDebtValueFormatted > 0 && repayValueUsd > 0) {
@@ -216,6 +252,7 @@ export function useRepayValidation({
             formattedAvailableBalance: availableBalanceFormatted.toFixed(6),
             currentDebt: currentDebtFormatted.toString(),
             formattedCurrentDebt: currentDebtFormatted.toFixed(6),
+            currentHealthFactor: currentHealthFactorFormatted > 999 ? Infinity : currentHealthFactorFormatted,
             newHealthFactor,
             isFullRepayment,
         });

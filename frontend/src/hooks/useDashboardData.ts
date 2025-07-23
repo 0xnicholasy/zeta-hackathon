@@ -47,6 +47,7 @@ export function useDashboardData() {
             abi: SimpleLendingProtocol__factory.abi,
             functionName: 'getSupplyBalance',
             args: [address, asset],
+            chainId: SupportedChain.ZETA_TESTNET,
         })),
         query: {
             enabled: Boolean(simpleLendingProtocol) && Boolean(address) && isConnected,
@@ -59,6 +60,7 @@ export function useDashboardData() {
             abi: SimpleLendingProtocol__factory.abi,
             functionName: 'getBorrowBalance',
             args: [address, asset],
+            chainId: SupportedChain.ZETA_TESTNET,
         })),
         query: {
             enabled: Boolean(simpleLendingProtocol) && Boolean(address) && isConnected,
@@ -71,6 +73,7 @@ export function useDashboardData() {
             abi: SimpleLendingProtocol__factory.abi,
             functionName: 'getAssetConfig',
             args: [asset],
+            chainId: SupportedChain.ZETA_TESTNET,
         })),
         query: {
             enabled: assetAddresses.length > 0 && Boolean(simpleLendingProtocol),
@@ -84,6 +87,7 @@ export function useDashboardData() {
             abi: SimpleLendingProtocol__factory.abi,
             functionName: 'getHealthFactor',
             args: [safeEVMAddressOrZeroAddress(address)],
+            chainId: SupportedChain.ZETA_TESTNET,
         }],
         query: {
             enabled: Boolean(simpleLendingProtocol) && Boolean(address) && isConnected,
@@ -106,6 +110,7 @@ export function useDashboardData() {
             address: safeEVMAddressOrZeroAddress(asset),
             abi: erc20Abi,
             functionName: 'decimals',
+            chainId: SupportedChain.ZETA_TESTNET,
         })),
         query: {
             enabled: assetAddresses.length > 0,

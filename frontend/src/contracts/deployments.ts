@@ -36,20 +36,20 @@ export function getAvailableNetworks(): NetworkConfig[] {
 /**
  * Get network configuration by chain ID
  */
-export function getNetworkConfig(chainId: number): NetworkConfig | null {
+export function getNetworkConfig(chainId: number): NetworkConfig {
   const chainIdStr = chainId.toString();
   const network = deployments.networks[chainIdStr];
 
   if (!network) {
-    return null;
+    throw new Error(`Network config not found for chain ID: ${chainId}`);
   }
 
   // Only return if it matches current environment
   if (isTestnetMode && network.type !== 'testnet') {
-    return null;
+    throw new Error(`Testnet mode: Network config not found for chain ID: ${chainId}`);
   }
   if (!isTestnetMode && network.type !== 'mainnet') {
-    return null;
+    throw new Error(`Mainnet mode: Network config not found for chain ID: ${chainId}`);
   }
 
   return network;

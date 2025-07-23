@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useSwitchChain, useChainId } from 'wagmi';
 import { parseUnits } from 'viem';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -10,9 +10,9 @@ import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
 import { useContracts } from '../../hooks/useContracts';
 import { useRepayTransactionFlow } from '../../hooks/useTransactionFlow';
 import { useRepayValidation } from '../../hooks/useRepayValidation';
-import { SupportedChain } from '../../contracts/deployments';
-import { safeEVMAddressOrZeroAddress, type UserAssetData } from './types';
-import { ERC20__factory, SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
+import { SupportedChain, isSupportedChain, getNetworkConfig, getTokenAddress } from '../../contracts/deployments';
+import { safeEVMAddressOrZeroAddress, safeEVMAddress, type UserAssetData } from './types';
+import { ERC20__factory, DepositContract__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
 
 interface RepayDialogProps {
@@ -22,7 +22,7 @@ interface RepayDialogProps {
 }
 
 // Contract ABIs
-const lendingProtocolAbi = SimpleLendingProtocol__factory.abi;
+const depositContractAbi = DepositContract__factory.abi;
 const erc20Abi = ERC20__factory.abi;
 
 export function RepayDialog({
@@ -36,14 +36,44 @@ export function RepayDialog({
     const crossChain = useCrossChainTracking();
     const transactionFlow = useRepayTransactionFlow();
     const { address } = useAccount();
+    const currentChainId = useChainId();
+    const { switchChain } = useSwitchChain();
     const safeAddress = safeEVMAddressOrZeroAddress(address);
-    const { simpleLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+
+    // Get the chain ID from the selected asset and ensure it's supported
+    const targetChainId = selectedAsset?.externalChainId;
+    const isValidChain = targetChainId && isSupportedChain(targetChainId);
+    const { depositContract } = useContracts(isValidChain ? targetChainId : SupportedChain.ZETA_TESTNET);
+
+    // Check if user is on the correct network
+    const isOnCorrectNetwork = currentChainId === targetChainId;
+    const targetNetworkConfig = getNetworkConfig(targetChainId);
+
+    // Helper function to get the foreign chain token address
+    const getForeignChainTokenAddress = useCallback(() => {
+        if (!selectedAsset) return null;
+
+        if (selectedAsset.sourceChain === 'ARBI') {
+            if (selectedAsset.unit === 'USDC') {
+                return getTokenAddress('USDC', SupportedChain.ARBITRUM_SEPOLIA);
+            }
+        } else if (selectedAsset.sourceChain === 'ETH') {
+            if (selectedAsset.unit === 'USDC') {
+                return getTokenAddress('USDC', SupportedChain.ETHEREUM_SEPOLIA);
+            }
+        }
+        return selectedAsset.address; // Fallback to original address
+    }, [selectedAsset]);
+
+    // For validation, we need to use the SimpleLendingProtocol on ZetaChain to check debt
+    // but the user's wallet balance will be checked on the foreign chain
+    const { simpleLendingProtocol: zetaLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
 
     // Validation hook
     const validation = useRepayValidation({
         selectedAsset,
         amount,
-        simpleLendingProtocol: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+        simpleLendingProtocol: safeEVMAddressOrZeroAddress(zetaLendingProtocol),
         userAddress: safeAddress,
     });
 
@@ -53,59 +83,112 @@ export function RepayDialog({
     // Destructure transaction flow state
     const { state: txState, actions: txActions, contractState } = transactionFlow;
 
-    // Handle approval for ZRC-20 token
-    const handleApproveToken = useCallback(() => {
-        if (!selectedAsset || !simpleLendingProtocol || !amountBigInt) return;
+    // Handle network switching
+    const handleSwitchNetwork = useCallback(async () => {
+        if (!targetChainId || !switchChain) return;
 
-        txActions.setCurrentStep('approving');
+        try {
+            txActions.setCurrentStep('switchNetwork');
+            void switchChain({ chainId: targetChainId });
+        } catch (error) {
+            console.error('Error switching network:', error);
+            txActions.setCurrentStep('input');
+            txActions.setIsSubmitting(false);
+        }
+    }, [targetChainId, switchChain, txActions]);
+
+    // Handle approval for ERC20 token
+    const handleApproveToken = useCallback(() => {
+        if (!selectedAsset || !depositContract || !amountBigInt) return;
+
+        const tokenAddress = getForeignChainTokenAddress();
+        if (!tokenAddress) return;
+
+        txActions.setCurrentStep('approve');
         txActions.writeContract({
-            address: selectedAsset.address,
+            address: tokenAddress,
             abi: erc20Abi,
             functionName: 'approve',
-            args: [safeEVMAddressOrZeroAddress(simpleLendingProtocol), amountBigInt],
+            args: [safeEVMAddressOrZeroAddress(depositContract), amountBigInt],
         });
-    }, [selectedAsset, simpleLendingProtocol, amountBigInt, txActions]);
+    }, [selectedAsset, depositContract, amountBigInt, txActions, getForeignChainTokenAddress]);
 
     // Handle repay function
     const handleRepay = useCallback(async () => {
-        if (!address || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
+        if (!address || !selectedAsset || !amountBigInt || !depositContract) return;
 
         try {
             txActions.setCurrentStep('repay');
-            txActions.writeContract({
-                address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
-                abi: lendingProtocolAbi,
-                functionName: 'repay',
-                args: [
-                    selectedAsset.address,
-                    amountBigInt,
-                    address,
-                ],
-            });
+
+            // Check if this is a native token (ETH)
+            const isNativeToken = selectedAsset.unit === 'ETH';
+
+            if (isNativeToken) {
+                // For native ETH, call repayEth
+                txActions.writeContract({
+                    address: safeEVMAddress(depositContract),
+                    abi: depositContractAbi,
+                    functionName: 'repayEth',
+                    args: [address],
+                    value: amountBigInt,
+                });
+            } else {
+                // For ERC20 tokens, call repayToken with the foreign chain token address
+                const tokenAddress = getForeignChainTokenAddress();
+                if (!tokenAddress) {
+                    throw new Error('Unable to determine token address for repayment');
+                }
+
+                txActions.writeContract({
+                    address: safeEVMAddress(depositContract),
+                    abi: depositContractAbi,
+                    functionName: 'repayToken',
+                    args: [
+                        tokenAddress,
+                        amountBigInt,
+                        address,
+                    ],
+                });
+            }
         } catch (error) {
             console.error('Error repaying', error);
             txActions.setIsSubmitting(false);
             txActions.setCurrentStep('input');
         }
-    }, [address, selectedAsset, amountBigInt, simpleLendingProtocol, txActions]);
+    }, [address, selectedAsset, amountBigInt, depositContract, txActions, getForeignChainTokenAddress]);
 
     // Main submit handler
     const handleSubmit = useCallback(async () => {
-        if (!amount || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
+        if (!amount || !selectedAsset || !amountBigInt || !depositContract) return;
 
         txActions.setIsSubmitting(true);
         txActions.resetContract();
 
         try {
-            // Start with token approval
-            txActions.setCurrentStep('approve');
-            handleApproveToken();
+            // First check if user is on the correct network
+            if (!isOnCorrectNetwork) {
+                await handleSwitchNetwork();
+                return; // Exit here, the network switch will trigger a re-render
+            }
+
+            // Check if this is a native token (ETH)
+            const isNativeToken = selectedAsset.unit === 'ETH';
+
+            if (isNativeToken) {
+                // For native ETH, call repayEth directly
+                txActions.setCurrentStep('repay');
+                handleRepay();
+            } else {
+                // For ERC20 tokens, start with approval
+                txActions.setCurrentStep('approve');
+                handleApproveToken();
+            }
         } catch (error) {
             console.error('Error repaying', error);
             txActions.setIsSubmitting(false);
             txActions.setCurrentStep('input');
         }
-    }, [amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, handleApproveToken]);
+    }, [amount, selectedAsset, amountBigInt, depositContract, txActions, isOnCorrectNetwork, handleSwitchNetwork, handleApproveToken, handleRepay]);
 
     // Handle max click
     const handleMaxClick = useCallback(() => {
@@ -123,6 +206,8 @@ export function RepayDialog({
     // Get step text
     const getStepText = useCallback(() => {
         switch (txState.currentStep) {
+            case 'switchNetwork':
+                return `Switch to ${targetNetworkConfig.name} to repay`;
             case 'approve':
                 return 'Click to approve token spending';
             case 'approving':
@@ -132,11 +217,22 @@ export function RepayDialog({
             case 'repaying':
                 return 'Waiting for repay confirmation...';
             case 'success':
-                return 'Repay transaction confirmed!';
+                if (crossChain.status === 'pending') {
+                    return 'Processing cross-chain repayment...';
+                } else if (crossChain.status === 'success') {
+                    return 'Cross-chain repayment completed!';
+                } else if (crossChain.status === 'failed') {
+                    return 'Cross-chain repayment failed';
+                } else {
+                    return 'Repay transaction confirmed!';
+                }
             default:
+                if (!isOnCorrectNetwork && targetNetworkConfig) {
+                    return `Switch to ${targetNetworkConfig.name} to repay ${selectedAsset.unit}`;
+                }
                 return `Enter amount to repay ${selectedAsset.unit}`;
         }
-    }, [txState.currentStep, selectedAsset.unit]);
+    }, [txState.currentStep, selectedAsset.unit, crossChain.status, isOnCorrectNetwork, targetNetworkConfig]);
 
     // Handle amount change
     const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,17 +243,18 @@ export function RepayDialog({
     useEffect(() => {
         if (contractState.isApprovalSuccess && txState.currentStep === 'approving') {
             txActions.setCurrentStep('repay');
-            handleRepay();
+            void handleRepay();
         }
     }, [contractState.isApprovalSuccess, txState.currentStep, handleRepay, txActions]);
 
-    // Handle repay transaction success
+    // Handle repay transaction success -> show success and start cross-chain tracking
     useEffect(() => {
         if (contractState.isTransactionSuccess && txState.currentStep === 'repaying' && txState.transactionHash) {
             txActions.setCurrentStep('success');
             txActions.setIsSubmitting(false);
+            crossChain.startTracking(txState.transactionHash);
         }
-    }, [contractState.isTransactionSuccess, txState.currentStep, txState.transactionHash, txActions]);
+    }, [contractState.isTransactionSuccess, txState.currentStep, txState.transactionHash, crossChain, txActions]);
 
     // Handle repay transaction failure
     useEffect(() => {
@@ -167,8 +264,32 @@ export function RepayDialog({
         }
     }, [contractState.isTransactionError, txState.currentStep, txActions]);
 
+    // Handle successful network switch
+    useEffect(() => {
+        if (txState.currentStep === 'switchNetwork' && isOnCorrectNetwork) {
+            // Network switch successful, proceed with the transaction
+            txActions.setCurrentStep('input');
+            txActions.setIsSubmitting(false);
+
+            // Auto-proceed with the transaction after network switch
+            setTimeout(() => {
+                if (amount && selectedAsset && amountBigInt && depositContract) {
+                    txActions.setIsSubmitting(true);
+                    const isNativeToken = selectedAsset.unit === 'ETH';
+                    if (isNativeToken) {
+                        txActions.setCurrentStep('repay');
+                        void handleRepay();
+                    } else {
+                        txActions.setCurrentStep('approve');
+                        handleApproveToken();
+                    }
+                }
+            }, 500); // Small delay to ensure network switch is complete
+        }
+    }, [txState.currentStep, isOnCorrectNetwork, amount, selectedAsset, amountBigInt, depositContract, txActions, handleRepay, handleApproveToken]);
+
     // Early return after all hooks
-    if (!selectedAsset || !simpleLendingProtocol) return null;
+    if (!selectedAsset || !depositContract || !isValidChain) return null;
 
     return (
         <BaseTransactionDialog
@@ -183,10 +304,23 @@ export function RepayDialog({
             onSubmit={() => { void handleSubmit() }}
             isValidAmount={validation.isValid}
             isConnected={Boolean(address)}
-            submitButtonText="Repay"
+            submitButtonText={!isOnCorrectNetwork ? `Switch to ${targetNetworkConfig?.name || 'Network'}` : "Repay"}
         >
             {txState.currentStep === 'input' && (
                 <div className="space-y-4 w-full overflow-hidden">
+                    {/* Network Warning */}
+                    {!isOnCorrectNetwork && targetNetworkConfig && (
+                        <div className="p-3 border border-yellow-200 dark:border-yellow-800 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-sm">
+                            <div className="text-yellow-800 dark:text-yellow-200 font-medium">
+                                Network Switch Required
+                            </div>
+                            <div className="text-yellow-700 dark:text-yellow-300 mt-1">
+                                You need to switch to {targetNetworkConfig.name} to repay {selectedAsset.unit}.
+                                Click "Repay" to switch networks automatically.
+                            </div>
+                        </div>
+                    )}
+
                     {/* Amount Input */}
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
@@ -229,6 +363,43 @@ export function RepayDialog({
                             <span className="font-medium text-xs">{formatHexString(safeAddress || '')}</span>
                         </div>
                     </div>
+
+                    {/* Health Factor Display */}
+                    {validation.currentHealthFactor > 0 && (
+                        <div className="p-3 bg-muted rounded-lg text-sm">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="font-medium">Health Factor</span>
+                                <span className="text-xs text-muted-foreground">Minimum: 1.50</span>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between">
+                                    <span>Current:</span>
+                                    <span className={`font-medium ${validation.currentHealthFactor < 1.2 ? 'text-red-600 dark:text-red-400' :
+                                        validation.currentHealthFactor < 1.5 ? 'text-yellow-600 dark:text-yellow-400' :
+                                            'text-green-600 dark:text-green-400'
+                                        }`}>
+                                        {validation.currentHealthFactor === Infinity || validation.currentHealthFactor > 999 ? '∞' : validation.currentHealthFactor.toFixed(2)}
+                                    </span>
+                                </div>
+                                {amount && validation.newHealthFactor > 0 && (
+                                    <div className="flex justify-between">
+                                        <span>After repay:</span>
+                                        <span className={`font-medium ${validation.newHealthFactor < 1.2 ? 'text-red-600 dark:text-red-400' :
+                                            validation.newHealthFactor < 1.5 ? 'text-yellow-600 dark:text-yellow-400' :
+                                                'text-green-600 dark:text-green-400'
+                                            }`}>
+                                            {validation.newHealthFactor === Infinity || validation.newHealthFactor > 999 ? '∞' : validation.newHealthFactor.toFixed(2)}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                            {amount && validation.newHealthFactor > validation.currentHealthFactor && (
+                                <div className="mt-2 text-xs text-green-600 dark:text-green-400">
+                                    ↗ Health factor will improve{validation.newHealthFactor === Infinity || validation.currentHealthFactor === Infinity ? '' : ` by ${(validation.newHealthFactor - validation.currentHealthFactor).toFixed(2)}`}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Full Repayment Notice */}
                     {validation.isFullRepayment && (
@@ -288,7 +459,7 @@ export function RepayDialog({
                 isApprovalSuccess={contractState.isApprovalSuccess}
                 isTransactionTx={contractState.isTransactionTx}
                 isTransactionSuccess={contractState.isTransactionSuccess}
-                chainId={SupportedChain.ZETA_TESTNET}
+                chainId={targetChainId}
                 crossChain={crossChain}
                 transactionType="repay"
             />

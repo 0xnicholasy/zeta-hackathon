@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useSwitchChain, useChainId } from 'wagmi';
 import { parseUnits } from 'viem';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -10,7 +10,7 @@ import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
 import { useContracts } from '../../hooks/useContracts';
 import { useBorrowTransactionFlow } from '../../hooks/useTransactionFlow';
 import { useBorrowValidation } from '../../hooks/useBorrowValidation';
-import { SupportedChain } from '../../contracts/deployments';
+import { SupportedChain, getNetworkConfig } from '../../contracts/deployments';
 import { getChainDisplayName } from '../../utils/chainUtils';
 import { safeEVMAddressOrZeroAddress, type UserAssetData } from './types';
 import { SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
@@ -36,8 +36,14 @@ export function BorrowDialog({
     const crossChain = useCrossChainTracking();
     const transactionFlow = useBorrowTransactionFlow();
     const { address } = useAccount();
+    const currentChainId = useChainId();
+    const { switchChain } = useSwitchChain();
     const safeAddress = safeEVMAddressOrZeroAddress(address);
     const { simpleLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+
+    // Check if user is on ZetaChain (required for borrowing)
+    const isOnZetaChain = currentChainId === SupportedChain.ZETA_TESTNET;
+    const zetaNetworkConfig = getNetworkConfig(SupportedChain.ZETA_TESTNET);
 
     // Validation hook
     const validation = useBorrowValidation({
@@ -53,6 +59,20 @@ export function BorrowDialog({
     // Destructure transaction flow state
     const { state: txState, actions: txActions, contractState } = transactionFlow;
 
+    // Handle network switching to ZetaChain
+    const handleSwitchToZeta = useCallback(async () => {
+        if (!switchChain) return;
+
+        try {
+            txActions.setCurrentStep('switchNetwork');
+            void switchChain({ chainId: SupportedChain.ZETA_TESTNET });
+        } catch (error) {
+            console.error('Error switching to ZetaChain:', error);
+            txActions.setCurrentStep('input');
+            txActions.setIsSubmitting(false);
+        }
+    }, [switchChain, txActions]);
+
     // Main submit handler
     const handleSubmit = useCallback(async () => {
         if (!amount || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
@@ -61,6 +81,12 @@ export function BorrowDialog({
         txActions.resetContract();
 
         try {
+            // First check if user is on ZetaChain
+            if (!isOnZetaChain) {
+                await handleSwitchToZeta();
+                return; // Exit here, the network switch will trigger a re-render
+            }
+
             // For now, borrow to same chain as selected asset (could be made configurable)
             txActions.setCurrentStep('borrow');
             txActions.writeContract({
@@ -70,7 +96,7 @@ export function BorrowDialog({
                 args: [
                     selectedAsset.address,
                     amountBigInt,
-                    BigInt(SupportedChain.ARBITRUM_SEPOLIA), // Default to Arbitrum for now
+                    BigInt(selectedAsset.externalChainId || SupportedChain.ARBITRUM_SEPOLIA),
                     safeAddress,
                 ],
             });
@@ -79,7 +105,7 @@ export function BorrowDialog({
             txActions.setIsSubmitting(false);
             txActions.setCurrentStep('input');
         }
-    }, [amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, safeAddress]);
+    }, [amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, isOnZetaChain, handleSwitchToZeta, safeAddress]);
 
     // Handle max click
     const handleMaxClick = useCallback(() => {
@@ -97,6 +123,8 @@ export function BorrowDialog({
     // Get step text
     const getStepText = useCallback(() => {
         switch (txState.currentStep) {
+            case 'switchNetwork':
+                return `Switch to ${zetaNetworkConfig?.name || 'ZetaChain'} to borrow`;
             case 'borrow':
                 return 'Sign transaction to borrow from protocol';
             case 'borrowing':
@@ -114,9 +142,12 @@ export function BorrowDialog({
             case 'failed':
                 return 'Borrow transaction failed';
             default:
+                if (!isOnZetaChain && zetaNetworkConfig) {
+                    return `Switch to ${zetaNetworkConfig.name} to borrow ${selectedAsset.unit}`;
+                }
                 return `Enter amount to borrow ${selectedAsset.unit}`;
         }
-    }, [txState.currentStep, crossChain.status, selectedAsset.unit]);
+    }, [txState.currentStep, crossChain.status, selectedAsset.unit, isOnZetaChain, zetaNetworkConfig]);
 
     // Handle amount change
     const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,6 +186,33 @@ export function BorrowDialog({
         }
     }, [contractState.error, txState.currentStep, txActions]);
 
+    // Handle successful network switch to ZetaChain
+    useEffect(() => {
+        if (txState.currentStep === 'switchNetwork' && isOnZetaChain) {
+            // Network switch successful, proceed with the borrow transaction
+            txActions.setCurrentStep('input');
+            txActions.setIsSubmitting(false);
+
+            // Auto-proceed with the borrow transaction after network switch
+            setTimeout(() => {
+                if (amount && selectedAsset && amountBigInt && simpleLendingProtocol) {
+                    txActions.setCurrentStep('borrow');
+                    txActions.writeContract({
+                        address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+                        abi: lendingProtocolAbi,
+                        functionName: 'borrowCrossChain',
+                        args: [
+                            selectedAsset.address,
+                            amountBigInt,
+                            BigInt(selectedAsset.externalChainId || SupportedChain.ARBITRUM_SEPOLIA),
+                            safeAddress,
+                        ],
+                    });
+                }
+            }, 500); // Small delay to ensure network switch is complete
+        }
+    }, [txState.currentStep, isOnZetaChain, amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, safeAddress]);
+
     // Early return after all hooks
     if (!selectedAsset || !simpleLendingProtocol) return null;
 
@@ -172,10 +230,23 @@ export function BorrowDialog({
             onRetry={handleRetry}
             isValidAmount={validation.isValid}
             isConnected={Boolean(address)}
-            submitButtonText="Borrow"
+            submitButtonText={!isOnZetaChain ? `Switch to ${zetaNetworkConfig?.name || 'ZetaChain'}` : "Borrow"}
         >
             {(txState.currentStep === 'input' || txState.currentStep === 'failed') && (
                 <div className="space-y-4 w-full overflow-hidden">
+                    {/* Network Warning */}
+                    {!isOnZetaChain && zetaNetworkConfig && (
+                        <div className="p-3 border border-yellow-200 dark:border-yellow-800 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-sm">
+                            <div className="text-yellow-800 dark:text-yellow-200 font-medium">
+                                Network Switch Required
+                            </div>
+                            <div className="text-yellow-700 dark:text-yellow-300 mt-1">
+                                You need to switch to {zetaNetworkConfig.name} to borrow {selectedAsset.unit}.
+                                Click "Borrow" to switch networks automatically.
+                            </div>
+                        </div>
+                    )}
+
                     {/* Amount Input */}
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
@@ -280,9 +351,9 @@ export function BorrowDialog({
                                 Borrow Transaction Failed
                             </div>
                             <div className="text-destructive/80 mt-1 break-words overflow-hidden text-wrap max-w-full">
-                                {contractState.transactionError?.message ?? 
-                                 contractState.error?.message ?? 
-                                 'The borrow transaction failed. This could be due to insufficient collateral, network issues, or transaction being rejected. Please check your position and try again.'}
+                                {contractState.transactionError?.message ??
+                                    contractState.error?.message ??
+                                    'The borrow transaction failed. This could be due to insufficient collateral, network issues, or transaction being rejected. Please check your position and try again.'}
                             </div>
                             {(contractState.transactionError ?? contractState.error) && (
                                 <div className="mt-2 text-xs text-destructive/60">
