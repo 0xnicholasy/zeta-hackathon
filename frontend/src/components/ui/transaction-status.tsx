@@ -4,10 +4,10 @@ import { getTransactionUrl, SupportedChain } from '../../contracts/deployments';
 import { formatHexString } from '../../utils/formatHexString';
 import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
 import type { EVMTransactionHash } from '../dashboard/types';
-import type { TransactionStep } from '../../hooks/useTransactionFlow';
+import type { StepsForTransactionType, TransactionType } from '../../types/transactions';
 
-interface TransactionStatusProps {
-    currentStep: TransactionStep;
+interface TransactionStatusProps<T extends TransactionType = TransactionType> {
+    currentStep: StepsForTransactionType<T>;
     approvalHash?: EVMTransactionHash | null;
     transactionHash?: EVMTransactionHash | null;
     isApprovingTx?: boolean;
@@ -20,10 +20,10 @@ interface TransactionStatusProps {
     gasTokenSymbol?: string;
     // gasTokenDecimals?: number;
     destinationChainName?: string;
-    transactionType?: 'supply' | 'withdraw';
+    transactionType?: T;
 }
 
-export function TransactionStatus({
+export function TransactionStatus<T extends TransactionType = TransactionType>({
     currentStep,
     approvalHash,
     transactionHash,
@@ -37,8 +37,8 @@ export function TransactionStatus({
     gasTokenSymbol = 'ETH',
     // gasTokenDecimals = 18,
     destinationChainName = 'Unknown Chain',
-    transactionType = 'supply',
-}: TransactionStatusProps) {
+    transactionType = 'supply' as T,
+}: TransactionStatusProps<T>) {
     // Approval step
     if (currentStep === 'approve') {
         return (
@@ -59,7 +59,7 @@ export function TransactionStatus({
     }
 
     // Loading states
-    if (['checkWithdraw', 'checkGas', 'approving', 'depositing', 'withdrawing'].includes(currentStep)) {
+    if (['checkWithdraw', 'checkGas', 'approving', 'depositing', 'withdrawing', 'borrowing', 'repaying'].includes(currentStep)) {
         return (
             <div className="flex flex-col items-center py-6">
                 <HourglassLoader size="lg" className="mb-4" />
@@ -69,6 +69,8 @@ export function TransactionStatus({
                     {currentStep === 'approving' && 'Waiting for approval transaction...'}
                     {currentStep === 'depositing' && 'Waiting for deposit transaction...'}
                     {currentStep === 'withdrawing' && 'Waiting for withdrawal transaction...'}
+                    {currentStep === 'borrowing' && 'Waiting for borrow transaction...'}
+                    {currentStep === 'repaying' && 'Waiting for repay transaction...'}
                 </div>
 
                 {/* Show transaction hashes */}
@@ -88,9 +90,12 @@ export function TransactionStatus({
                     </div>
                 )}
 
-                {transactionHash && (currentStep === 'depositing' || currentStep === 'withdrawing') && (
+                {transactionHash && (currentStep === 'depositing' || currentStep === 'withdrawing' || currentStep === 'borrowing' || currentStep === 'repaying') && (
                     <div className="mt-2 text-xs text-muted-foreground">
-                        {transactionType === 'supply' ? 'Deposit' : 'Withdrawal'}:
+                        {transactionType === 'supply' ? 'Deposit' : 
+                         transactionType === 'withdraw' ? 'Withdrawal' :
+                         transactionType === 'borrow' ? 'Borrow' :
+                         transactionType === 'repay' ? 'Repay' : 'Transaction'}:
                         <a
                             href={getTransactionUrl(chainId, transactionHash) || '#'}
                             target="_blank"
@@ -128,8 +133,13 @@ export function TransactionStatus({
 
                 <div className="text-center text-sm text-muted-foreground">
                     {!crossChain && `Your ${transactionType} transaction has been completed successfully!`}
-                    {crossChain?.status === 'pending' && `Processing cross-chain ${transactionType} ${transactionType === 'withdraw' ? `to ${destinationChainName}` : 'to ZetaChain'}...`}
-                    {crossChain?.status === 'success' && `Cross-chain ${transactionType} completed successfully! ${transactionType === 'supply' ? 'Tokens are now available for borrowing.' : `Assets have been sent to ${destinationChainName}.`}`}
+                    {crossChain?.status === 'pending' && `Processing cross-chain ${transactionType} ${['withdraw', 'borrow'].includes(transactionType) ? `to ${destinationChainName}` : 'to ZetaChain'}...`}
+                    {crossChain?.status === 'success' && `Cross-chain ${transactionType} completed successfully! ${
+                        transactionType === 'supply' ? 'Tokens are now available for borrowing.' : 
+                        transactionType === 'borrow' ? `Borrowed assets have been sent to ${destinationChainName}.` :
+                        transactionType === 'repay' ? 'Debt has been successfully repaid.' :
+                        `Assets have been sent to ${destinationChainName}.`
+                    }`}
                     {crossChain?.status === 'failed' && `Cross-chain ${transactionType} failed. Please check the transaction status or try again.`}
                     {crossChain?.status === 'idle' && `Your ${transactionType} transaction has been completed successfully! Starting cross-chain transfer...`}
                 </div>
@@ -137,7 +147,10 @@ export function TransactionStatus({
                 {/* Show transaction hashes */}
                 {transactionHash && (
                     <div className="mt-2 text-xs text-muted-foreground flex items-center">
-                        <span>{transactionType === 'supply' ? 'Deposit' : 'Withdrawal'}:</span>
+                        <span>{transactionType === 'supply' ? 'Deposit' : 
+                               transactionType === 'withdraw' ? 'Withdrawal' :
+                               transactionType === 'borrow' ? 'Borrow' :
+                               transactionType === 'repay' ? 'Repay' : 'Transaction'}:</span>
                         <a
                             href={getTransactionUrl(chainId, transactionHash) || '#'}
                             target="_blank"

@@ -1,8 +1,9 @@
 import { formatUnits } from 'viem';
 import { formatHexString } from '../../utils/formatHexString';
+import { TransactionType } from '../../types/transactions';
 
 interface TransactionSummaryProps {
-    transactionType: 'supply' | 'withdraw';
+    transactionType: TransactionType;
     amount: string;
     tokenSymbol: string;
     destinationChain?: string;
@@ -30,6 +31,8 @@ export function TransactionSummary({
 }: TransactionSummaryProps) {
     const isSupply = transactionType === 'supply';
     const isWithdraw = transactionType === 'withdraw';
+    const isBorrow = transactionType === 'borrow';
+    const isRepay = transactionType === 'repay';
 
     return (
         <div className={`p-3 border border-border rounded-lg text-sm break-words ${className}`}>
@@ -63,6 +66,16 @@ export function TransactionSummary({
                         )}
                     </>
                 )}
+                {isBorrow && (
+                    <>
+                        You will borrow {amount} {tokenSymbol} from the lending protocol using your collateral. The borrowed amount will be sent to your wallet on {destinationChain || 'the selected chain'}.
+                    </>
+                )}
+                {isRepay && (
+                    <>
+                        You will repay {amount} {tokenSymbol} to the lending protocol. This will reduce your debt and improve your health factor.
+                    </>
+                )}
             </div>
 
             {recipientAddress && (
@@ -78,6 +91,8 @@ export function TransactionSummary({
                         'Gas fee is paid from the withdrawal amount' :
                         'Note: Cross-chain withdrawal fees will be deducted from the amount.'
                 )}
+                {isBorrow && 'Cross-chain transaction fees may apply. Ensure sufficient collateral to maintain health factor above 1.5.'}
+                {isRepay && 'Repaying debt will improve your health factor and free up borrowing capacity.'}
             </div>
         </div>
     );

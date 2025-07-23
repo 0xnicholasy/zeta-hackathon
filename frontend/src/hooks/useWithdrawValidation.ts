@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useReadContract } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { SimpleLendingProtocol__factory, ERC20__factory } from '@/contracts/typechain-types';
@@ -245,10 +245,12 @@ export function useWithdrawValidation(props: UseWithdrawValidationProps): Withdr
         gasTokenDecimals, isGasToken, receiveAmount, maxAmount, amount, createErrorResult, createSuccessResult
     ]);
 
-    const validationResult = validateWithdrawal();
+    const validationResult = useMemo(() => validateWithdrawal(), [
+        validateWithdrawal
+    ]);
 
-    return {
+    return useMemo(() => ({
         ...validationResult,
         gasTokenInfo: gasTokenInfo.needsApproval ? gasTokenInfo : validationResult.gasTokenInfo,
-    };
+    }), [validationResult, gasTokenInfo]);
 }

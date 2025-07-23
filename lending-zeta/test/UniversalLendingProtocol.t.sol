@@ -10,6 +10,7 @@ import {MockZRC20} from "../contracts/mocks/MockZRC20.sol";
 import {MockPriceOracle} from "../contracts/mocks/MockPriceOracle.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IUniversalLendingProtocol} from "../contracts/interfaces/IUniversalLendingProtocol.sol";
+import {ISimpleLendingProtocol} from "../contracts/interfaces/ISimpleLendingProtocol.sol";
 
 contract UniversalLendingProtocolTest is Test {
     UniversalLendingProtocol public lendingProtocol;
@@ -170,7 +171,7 @@ contract UniversalLendingProtocolTest is Test {
 
     function testAssetConfiguration() public view {
         IUniversalLendingProtocol.AssetConfig memory config = lendingProtocol
-            .getAssetConfig(address(ethToken));
+            .getEnhancedAssetConfig(address(ethToken));
         assertTrue(config.isSupported);
         assertEq(config.collateralFactor, ETH_COLLATERAL_FACTOR);
         assertEq(config.liquidationThreshold, LIQUIDATION_THRESHOLD);
@@ -199,7 +200,7 @@ contract UniversalLendingProtocolTest is Test {
 
     function testCrossChainSupply() public {
         uint256 supplyAmount = 1 * 10 ** 18; // 1 ETH
-        bytes memory message = abi.encode(user1, uint8(0)); // operation 0 = supply
+        bytes memory message = abi.encode("supply", user1); // action and onBehalfOf
         MessageContext memory context = MessageContext({
             sender: abi.encodePacked(user1),
             senderEVM: user1,
@@ -239,7 +240,7 @@ contract UniversalLendingProtocolTest is Test {
         vm.prank(address(gateway));
         vm.expectRevert(
             abi.encodeWithSelector(
-                UniversalLendingProtocol.ChainNotAllowed.selector,
+                IUniversalLendingProtocol.ChainNotAllowed.selector,
                 999
             )
         );
@@ -264,7 +265,7 @@ contract UniversalLendingProtocolTest is Test {
         vm.prank(address(gateway));
         vm.expectRevert(
             abi.encodeWithSelector(
-                UniversalLendingProtocol.AssetNotSupported.selector,
+                ISimpleLendingProtocol.AssetNotSupported.selector,
                 unsupportedAsset
             )
         );
@@ -291,7 +292,7 @@ contract UniversalLendingProtocolTest is Test {
         vm.stopPrank();
 
         // Cross-chain repay
-        bytes memory message = abi.encode(user1, uint8(1)); // operation 1 = repay
+        bytes memory message = abi.encode("repay", user1); // action and onBehalfOf
         MessageContext memory context = MessageContext({
             sender: abi.encodePacked(user1),
             senderEVM: user1,
@@ -385,7 +386,7 @@ contract UniversalLendingProtocolTest is Test {
         );
 
         IUniversalLendingProtocol.AssetConfig memory config = lendingProtocol
-            .getAssetConfig(address(ethToken));
+            .getEnhancedAssetConfig(address(ethToken));
         assertEq(config.totalSupply, supplyAmount);
     }
 
@@ -518,7 +519,9 @@ contract UniversalLendingProtocolTest is Test {
         );
 
         vm.expectRevert(
-            UniversalLendingProtocol.InsufficientCollateral.selector
+            abi.encodeWithSelector(
+                ISimpleLendingProtocol.InsufficientCollateral.selector
+            )
         );
         lendingProtocol.withdrawCrossChain(
             address(ethToken),
@@ -594,7 +597,11 @@ contract UniversalLendingProtocolTest is Test {
 
         vm.startPrank(liquidator);
         usdcToken.approve(address(lendingProtocol), 100 * 10 ** 6);
-        vm.expectRevert(UniversalLendingProtocol.HealthFactorTooLow.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISimpleLendingProtocol.HealthFactorTooLow.selector
+            )
+        );
         lendingProtocol.liquidate(
             user2,
             address(ethToken),
@@ -663,7 +670,7 @@ contract UniversalLendingProtocolTest is Test {
         );
 
         IUniversalLendingProtocol.AssetConfig memory config = lendingProtocol
-            .getAssetConfig(newAsset);
+            .getEnhancedAssetConfig(newAsset);
         assertTrue(config.isSupported);
         assertEq(config.collateralFactor, 0.7e18);
         assertEq(config.liquidationThreshold, 0.8e18);
@@ -724,7 +731,11 @@ contract UniversalLendingProtocolTest is Test {
         });
 
         vm.prank(user1);
-        vm.expectRevert(UniversalLendingProtocol.Unauthorized.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISimpleLendingProtocol.Unauthorized.selector
+            )
+        );
         lendingProtocol.onCall(context, address(ethToken), 1000, message);
     }
 
@@ -766,7 +777,11 @@ contract UniversalLendingProtocolTest is Test {
         lendingProtocol.supply(address(ethToken), supplyAmount, user1);
         lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
 
-        vm.expectRevert(UniversalLendingProtocol.HealthFactorTooLow.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISimpleLendingProtocol.HealthFactorTooLow.selector
+            )
+        );
         lendingProtocol.withdraw(address(ethToken), withdrawAmount, user1);
         vm.stopPrank();
     }
@@ -774,16 +789,32 @@ contract UniversalLendingProtocolTest is Test {
     function testZeroAmountOperations() public {
         vm.startPrank(user1);
 
-        vm.expectRevert(UniversalLendingProtocol.InvalidAmount.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISimpleLendingProtocol.InvalidAmount.selector
+            )
+        );
         lendingProtocol.supply(address(ethToken), 0, user1);
 
-        vm.expectRevert(UniversalLendingProtocol.InvalidAmount.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISimpleLendingProtocol.InvalidAmount.selector
+            )
+        );
         lendingProtocol.borrow(address(usdcToken), 0, user1);
 
-        vm.expectRevert(UniversalLendingProtocol.InvalidAmount.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISimpleLendingProtocol.InvalidAmount.selector
+            )
+        );
         lendingProtocol.repay(address(usdcToken), 0, user1);
 
-        vm.expectRevert(UniversalLendingProtocol.InvalidAmount.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISimpleLendingProtocol.InvalidAmount.selector
+            )
+        );
         lendingProtocol.withdraw(address(ethToken), 0, user1);
 
         vm.stopPrank();
@@ -796,7 +827,7 @@ contract UniversalLendingProtocolTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                UniversalLendingProtocol.AssetNotSupported.selector,
+                ISimpleLendingProtocol.AssetNotSupported.selector,
                 unsupportedAsset
             )
         );
@@ -804,7 +835,7 @@ contract UniversalLendingProtocolTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                UniversalLendingProtocol.AssetNotSupported.selector,
+                ISimpleLendingProtocol.AssetNotSupported.selector,
                 unsupportedAsset
             )
         );
@@ -848,10 +879,10 @@ contract UniversalLendingProtocolTest is Test {
         
         vm.startPrank(user1);
         usdcToken.approve(address(lendingProtocol), supplyAmount);
-        lendingProtocol.supply(address(usdcToken), supplyAmount);
+        lendingProtocol.supply(address(usdcToken), supplyAmount, user1);
         
         // This should work with proper decimal normalization
-        lendingProtocol.borrow(address(usdcToken), borrowAmount);
+        lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
         
         vm.stopPrank();
         
@@ -877,28 +908,14 @@ contract UniversalLendingProtocolTest is Test {
             address(ethToken),
             ethAmount / 4, // 0.25 ETH
             ARBITRUM_CHAIN_ID,
-            user1,
-            RevertOptions({
-                revertAddress: address(0),
-                callOnRevert: false,
-                abortAddress: address(0),
-                revertMessage: "",
-                onRevertGasLimit: 0
-            })
+            user1
         );
         
         lendingProtocol.borrowCrossChain(
             address(usdcToken),
             usdcAmount / 4, // 500 USDC
             ETHEREUM_CHAIN_ID,
-            user1,
-            RevertOptions({
-                revertAddress: address(0),
-                callOnRevert: false,
-                abortAddress: address(0),
-                revertMessage: "",
-                onRevertGasLimit: 0
-            })
+            user1
         );
         
         vm.stopPrank();
@@ -917,7 +934,7 @@ contract UniversalLendingProtocolTest is Test {
         _supplyAsset(user2, address(ethToken), ethSupply);
         
         vm.prank(user2);
-        lendingProtocol.borrow(address(usdcToken), usdcBorrow);
+        lendingProtocol.borrow(address(usdcToken), usdcBorrow, user2);
         
         // Price drop to trigger liquidation
         priceOracle.setPrice(address(ethToken), 1600 * 1e18); // ETH drops to $1600
@@ -943,7 +960,7 @@ contract UniversalLendingProtocolTest is Test {
     function _supplyAsset(address user, address asset, uint256 amount) internal {
         vm.startPrank(user);
         MockZRC20(asset).approve(address(lendingProtocol), amount);
-        lendingProtocol.supply(asset, amount);
+        lendingProtocol.supply(asset, amount, user);
         vm.stopPrank();
     }
 }

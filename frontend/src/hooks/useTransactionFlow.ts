@@ -2,18 +2,20 @@ import { useState, useCallback, useEffect } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import type { EVMTransactionHash } from '../components/dashboard/types';
 import { safeEVMTransactionHashOrZeroTransactionHash } from '../components/dashboard/types';
+import type { 
+    TransactionType, 
+    StepsForTransactionType
+} from '../types/transactions';
 
-export type TransactionStep = 'input' | 'approve' | 'approving' | 'deposit' | 'depositing' | 'withdraw' | 'withdrawing' | 'checkWithdraw' | 'checkGas' | 'success';
-
-export interface TransactionFlowState {
-    currentStep: TransactionStep;
+export interface TransactionFlowState<T extends TransactionType> {
+    currentStep: StepsForTransactionType<T>;
     isSubmitting: boolean;
     approvalHash: EVMTransactionHash | null;
     transactionHash: EVMTransactionHash | null;
 }
 
-export interface TransactionFlowActions {
-    setCurrentStep: (step: TransactionStep) => void;
+export interface TransactionFlowActions<T extends TransactionType> {
+    setCurrentStep: (step: StepsForTransactionType<T>) => void;
     setIsSubmitting: (submitting: boolean) => void;
     setApprovalHash: (hash: EVMTransactionHash | null) => void;
     setTransactionHash: (hash: EVMTransactionHash | null) => void;
@@ -22,9 +24,9 @@ export interface TransactionFlowActions {
     resetContract: ReturnType<typeof useWriteContract>['reset'];
 }
 
-export interface TransactionFlowHookReturn {
-    state: TransactionFlowState;
-    actions: TransactionFlowActions;
+export interface TransactionFlowHookReturn<T extends TransactionType> {
+    state: TransactionFlowState<T>;
+    actions: TransactionFlowActions<T>;
     contractState: {
         hash: ReturnType<typeof useWriteContract>['data'];
         error: ReturnType<typeof useWriteContract>['error'];
@@ -37,9 +39,9 @@ export interface TransactionFlowHookReturn {
     };
 }
 
-export function useTransactionFlow(): TransactionFlowHookReturn {
+export function useTransactionFlow<T extends TransactionType>(): TransactionFlowHookReturn<T> {
     // State
-    const [currentStep, setCurrentStep] = useState<TransactionStep>('input');
+    const [currentStep, setCurrentStep] = useState<StepsForTransactionType<T>>('input' as StepsForTransactionType<T>);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [approvalHash, setApprovalHash] = useState<EVMTransactionHash | null>(null);
     const [transactionHash, setTransactionHash] = useState<EVMTransactionHash | null>(null);
@@ -72,7 +74,7 @@ export function useTransactionFlow(): TransactionFlowHookReturn {
 
     // Reset function
     const reset = useCallback(() => {
-        setCurrentStep('input');
+        setCurrentStep('input' as StepsForTransactionType<T>);
         setIsSubmitting(false);
         setApprovalHash(null);
         setTransactionHash(null);
@@ -86,10 +88,21 @@ export function useTransactionFlow(): TransactionFlowHookReturn {
             if (validHash) {
                 if (currentStep === 'approve') {
                     setApprovalHash(validHash);
-                    setCurrentStep('approving');
-                } else if (currentStep === 'deposit' || currentStep === 'withdraw') {
+                    setCurrentStep('approving' as StepsForTransactionType<T>);
+                } else {
+                    // Handle main transaction steps
                     setTransactionHash(validHash);
-                    setCurrentStep(currentStep === 'deposit' ? 'depositing' : 'withdrawing');
+                    
+                    // Map current step to its corresponding pending step
+                    if (currentStep === 'deposit') {
+                        setCurrentStep('depositing' as StepsForTransactionType<T>);
+                    } else if (currentStep === 'withdraw') {
+                        setCurrentStep('withdrawing' as StepsForTransactionType<T>);
+                    } else if (currentStep === 'borrow') {
+                        setCurrentStep('borrowing' as StepsForTransactionType<T>);
+                    } else if (currentStep === 'repay') {
+                        setCurrentStep('repaying' as StepsForTransactionType<T>);
+                    }
                 }
             }
         }
@@ -122,4 +135,21 @@ export function useTransactionFlow(): TransactionFlowHookReturn {
             transactionError,
         },
     };
+}
+
+// Specific hooks for each transaction type
+export function useSupplyTransactionFlow(): TransactionFlowHookReturn<'supply'> {
+    return useTransactionFlow<'supply'>();
+}
+
+export function useWithdrawTransactionFlow(): TransactionFlowHookReturn<'withdraw'> {
+    return useTransactionFlow<'withdraw'>();
+}
+
+export function useBorrowTransactionFlow(): TransactionFlowHookReturn<'borrow'> {
+    return useTransactionFlow<'borrow'>();
+}
+
+export function useRepayTransactionFlow(): TransactionFlowHookReturn<'repay'> {
+    return useTransactionFlow<'repay'>();
 }

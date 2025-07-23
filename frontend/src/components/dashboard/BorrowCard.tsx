@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { TokenNetworkIcon } from '../ui/token-network-icon';
 import { FaArrowDown } from 'react-icons/fa';
 import { SupportedChain } from '../../contracts/deployments';
 import type { UserAssetData } from './types';
+import { BorrowDialog } from './BorrowDialog';
+import { RepayDialog } from './RepayDialog';
 
 interface BorrowCardProps {
     userAssets: UserAssetData[];
@@ -11,6 +14,11 @@ interface BorrowCardProps {
 }
 
 export function BorrowCard({ userAssets, selectedChain }: BorrowCardProps) {
+    // Dialog state
+    const [isBorrowDialogOpen, setIsBorrowDialogOpen] = useState(false);
+    const [isRepayDialogOpen, setIsRepayDialogOpen] = useState(false);
+    const [selectedAsset, setSelectedAsset] = useState<UserAssetData | null>(null);
+
     const borrowedAssets = userAssets.filter(asset => {
         const chainId = selectedChain === SupportedChain.ARBITRUM_SEPOLIA.toString() ?
             SupportedChain.ARBITRUM_SEPOLIA : SupportedChain.ETHEREUM_SEPOLIA;
@@ -22,6 +30,25 @@ export function BorrowCard({ userAssets, selectedChain }: BorrowCardProps) {
     const availableForBorrow = userAssets.filter(asset => {
         return asset.externalChainId === chainId && asset.isSupported;
     });
+
+    // Handle borrow click
+    const handleBorrowClick = (asset: UserAssetData) => {
+        setSelectedAsset(asset);
+        setIsBorrowDialogOpen(true);
+    };
+
+    // Handle repay click
+    const handleRepayClick = (asset: UserAssetData) => {
+        setSelectedAsset(asset);
+        setIsRepayDialogOpen(true);
+    };
+
+    // Handle dialog close
+    const handleDialogClose = () => {
+        setIsBorrowDialogOpen(false);
+        setIsRepayDialogOpen(false);
+        setSelectedAsset(null);
+    };
 
     return (
         <Card>
@@ -58,7 +85,12 @@ export function BorrowCard({ userAssets, selectedChain }: BorrowCardProps) {
                                     </div>
                                     <div className="text-right">
                                         <div className="text-sm font-medium">{asset.formattedBorrowedBalance}</div>
-                                        <Button variant="zeta-outline" size="sm" className="mt-1 h-7 text-xs">
+                                        <Button 
+                                            variant="zeta-outline" 
+                                            size="sm" 
+                                            className="mt-1 h-7 text-xs"
+                                            onClick={() => handleRepayClick(asset)}
+                                        >
                                             Repay
                                         </Button>
                                     </div>
@@ -93,7 +125,12 @@ export function BorrowCard({ userAssets, selectedChain }: BorrowCardProps) {
                                     </div>
                                     <div className="text-right">
                                         <div className="text-sm font-medium text-muted-foreground">Available</div>
-                                        <Button variant="zeta-outline" size="sm" className="mt-1 h-7 text-xs">
+                                        <Button 
+                                            variant="zeta-outline" 
+                                            size="sm" 
+                                            className="mt-1 h-7 text-xs"
+                                            onClick={() => handleBorrowClick(asset)}
+                                        >
                                             Borrow
                                         </Button>
                                     </div>
@@ -107,6 +144,22 @@ export function BorrowCard({ userAssets, selectedChain }: BorrowCardProps) {
                     )}
                 </div>
             </CardContent>
+
+            {/* Dialogs */}
+            {selectedAsset && (
+                <>
+                    <BorrowDialog
+                        isOpen={isBorrowDialogOpen}
+                        onClose={handleDialogClose}
+                        selectedAsset={selectedAsset}
+                    />
+                    <RepayDialog
+                        isOpen={isRepayDialogOpen}
+                        onClose={handleDialogClose}
+                        selectedAsset={selectedAsset}
+                    />
+                </>
+            )}
         </Card>
     );
 }

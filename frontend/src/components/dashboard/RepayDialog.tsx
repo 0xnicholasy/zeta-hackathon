@@ -8,15 +8,14 @@ import { TransactionStatus } from '../ui/transaction-status';
 import { TransactionSummary } from '../ui/transaction-summary';
 import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
 import { useContracts } from '../../hooks/useContracts';
-import { useTransactionFlow } from '../../hooks/useTransactionFlow';
-import { useWithdrawValidation } from '../../hooks/useWithdrawValidation';
+import { useRepayTransactionFlow } from '../../hooks/useTransactionFlow';
+import { useRepayValidation } from '../../hooks/useRepayValidation';
 import { SupportedChain } from '../../contracts/deployments';
-import { getChainDisplayName } from '../../utils/chainUtils';
 import { safeEVMAddressOrZeroAddress, type UserAssetData } from './types';
 import { ERC20__factory, SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
 
-interface WithdrawDialogProps {
+interface RepayDialogProps {
     isOpen: boolean;
     onClose: () => void;
     selectedAsset: UserAssetData;
@@ -26,18 +25,22 @@ interface WithdrawDialogProps {
 const lendingProtocolAbi = SimpleLendingProtocol__factory.abi;
 const erc20Abi = ERC20__factory.abi;
 
-export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialogProps) {
+export function RepayDialog({ 
+    isOpen, 
+    onClose, 
+    selectedAsset 
+}: RepayDialogProps) {
     const [amount, setAmount] = useState('');
 
     // Custom hooks
     const crossChain = useCrossChainTracking();
-    const transactionFlow = useTransactionFlow();
+    const transactionFlow = useRepayTransactionFlow();
     const { address } = useAccount();
     const safeAddress = safeEVMAddressOrZeroAddress(address);
     const { simpleLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
 
     // Validation hook
-    const validation = useWithdrawValidation({
+    const validation = useRepayValidation({
         selectedAsset,
         amount,
         simpleLendingProtocol: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
@@ -45,27 +48,46 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     });
 
     // Computed values
-    const maxAmount = selectedAsset?.formattedSuppliedBalance || '0';
-    const destinationChainName = selectedAsset ? getChainDisplayName(selectedAsset.sourceChain) : 'Unknown';
     const amountBigInt = amount && selectedAsset ? parseUnits(amount, selectedAsset.decimals) : BigInt(0);
-    const isValidAmount = amount && parseFloat(amount) > 0 && parseFloat(amount) <= parseFloat(maxAmount);
 
     // Destructure transaction flow state
     const { state: txState, actions: txActions, contractState } = transactionFlow;
 
-
-    // Handle gas token approval
-    const handleApproveGasToken = useCallback(() => {
-        if (!validation.gasTokenInfo.needsApproval || !simpleLendingProtocol) return;
+    // Handle approval for ZRC-20 token
+    const handleApproveToken = useCallback(() => {
+        if (!selectedAsset || !simpleLendingProtocol || !amountBigInt) return;
 
         txActions.setCurrentStep('approving');
         txActions.writeContract({
-            address: validation.gasTokenInfo.address,
+            address: selectedAsset.address,
             abi: erc20Abi,
             functionName: 'approve',
-            args: [safeEVMAddressOrZeroAddress(simpleLendingProtocol), validation.gasTokenInfo.amount],
+            args: [safeEVMAddressOrZeroAddress(simpleLendingProtocol), amountBigInt],
         });
-    }, [validation.gasTokenInfo, simpleLendingProtocol, txActions]);
+    }, [selectedAsset, simpleLendingProtocol, amountBigInt, txActions]);
+
+    // Handle repay function
+    const handleRepay = useCallback(async () => {
+        if (!address || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
+
+        try {
+            txActions.setCurrentStep('repay');
+            txActions.writeContract({
+                address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+                abi: lendingProtocolAbi,
+                functionName: 'repay',
+                args: [
+                    selectedAsset.address,
+                    amountBigInt,
+                    address,
+                ],
+            });
+        } catch (error) {
+            console.error('Repay failed:', error);
+            txActions.setIsSubmitting(false);
+            txActions.setCurrentStep('input');
+        }
+    }, [address, selectedAsset, amountBigInt, simpleLendingProtocol, txActions]);
 
     // Main submit handler
     const handleSubmit = useCallback(async () => {
@@ -74,43 +96,23 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
         txActions.setIsSubmitting(true);
         txActions.resetContract();
 
-        // Step 1: Check validation
-        txActions.setCurrentStep('checkWithdraw');
-        txActions.setCurrentStep('checkGas');
-
-        if (!validation.isValid) {
-            if (validation.needsApproval) {
-                txActions.setCurrentStep('approve');
-            } else {
-                txActions.setCurrentStep('input');
-            }
+        try {
+            // Start with token approval
+            txActions.setCurrentStep('approve');
+            handleApproveToken();
+        } catch (error) {
+            console.error('Transaction failed:', error);
             txActions.setIsSubmitting(false);
-            return;
+            txActions.setCurrentStep('input');
         }
-
-        // Step 2: Proceed with withdrawal
-        txActions.setCurrentStep('withdraw');
-        txActions.writeContract({
-            address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
-            abi: lendingProtocolAbi,
-            functionName: 'withdrawCrossChain',
-            args: [
-                selectedAsset.address,
-                amountBigInt,
-                BigInt(SupportedChain.ARBITRUM_SEPOLIA), // Using default for now
-                safeAddress,
-            ],
-        });
-    }, [amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, validation, safeAddress]);
+    }, [amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, handleApproveToken]);
 
     // Handle max click
     const handleMaxClick = useCallback(() => {
-        if (selectedAsset) {
-            setAmount(selectedAsset.formattedSuppliedBalance);
-        }
-    }, [selectedAsset]);
+        setAmount(validation.maxRepayAmount);
+    }, [validation.maxRepayAmount]);
 
-    // Handle close
+    // Handle close  
     const handleClose = useCallback(() => {
         setAmount('');
         txActions.reset();
@@ -121,90 +123,45 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     // Get step text
     const getStepText = useCallback(() => {
         switch (txState.currentStep) {
-            case 'checkWithdraw':
-                return 'Checking withdrawal eligibility...';
-            case 'checkGas':
-                return 'Checking gas token requirements...';
             case 'approve':
-                return 'Gas token approval required';
+                return 'Click to approve token spending';
             case 'approving':
-                return 'Waiting for gas token approval...';
-            case 'withdraw':
-                return 'Sign transaction to withdraw from protocol';
-            case 'withdrawing':
-                return 'Waiting for withdrawal confirmation...';
+                return 'Waiting for approval confirmation...';
+            case 'repay':
+                return 'Sign transaction to repay debt';
+            case 'repaying':
+                return 'Waiting for repay confirmation...';
             case 'success':
-                if (crossChain.status === 'pending') {
-                    return 'Processing cross-chain withdrawal...';
-                } else if (crossChain.status === 'success') {
-                    return 'Cross-chain withdrawal completed!';
-                } else if (crossChain.status === 'failed') {
-                    return 'Cross-chain withdrawal failed';
-                } else {
-                    return 'Withdrawal transaction confirmed!';
-                }
+                return 'Repay transaction confirmed!';
             default:
-                return `Enter amount to withdraw to ${destinationChainName}`;
+                return `Enter amount to repay ${selectedAsset.unit}`;
         }
-    }, [txState.currentStep, destinationChainName, crossChain.status]);
+    }, [txState.currentStep, selectedAsset.unit]);
 
     // Handle amount change
     const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         setAmount(e.target.value);
     }, []);
 
-    // Handle approve success -> retry withdrawal
+    // Handle approval transaction success -> proceed to repay
     useEffect(() => {
         if (contractState.isApprovalSuccess && txState.currentStep === 'approving') {
-            setTimeout(() => {
-                if (!amount || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
-
-                txActions.setIsSubmitting(true);
-                txActions.resetContract();
-
-                // Step 1: Check validation
-                txActions.setCurrentStep('checkWithdraw');
-                txActions.setCurrentStep('checkGas');
-
-                if (!validation.isValid) {
-                    if (validation.needsApproval) {
-                        txActions.setCurrentStep('approve');
-                    } else {
-                        txActions.setCurrentStep('input');
-                    }
-                    txActions.setIsSubmitting(false);
-                    return;
-                }
-
-                // Step 2: Proceed with withdrawal
-                txActions.setCurrentStep('withdraw');
-                txActions.writeContract({
-                    address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
-                    abi: lendingProtocolAbi,
-                    functionName: 'withdrawCrossChain',
-                    args: [
-                        selectedAsset.address,
-                        amountBigInt,
-                        BigInt(SupportedChain.ARBITRUM_SEPOLIA), // Using default for now
-                        safeAddress,
-                    ],
-                });
-            }, 2000);
+            txActions.setCurrentStep('repay');
+            handleRepay();
         }
-    }, [contractState.isApprovalSuccess, txState.currentStep, amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, validation, safeAddress]);
+    }, [contractState.isApprovalSuccess, txState.currentStep, handleRepay, txActions]);
 
-    // Handle withdraw transaction success
+    // Handle repay transaction success
     useEffect(() => {
-        if (contractState.isTransactionSuccess && txState.currentStep === 'withdrawing' && txState.transactionHash) {
+        if (contractState.isTransactionSuccess && txState.currentStep === 'repaying' && txState.transactionHash) {
             txActions.setCurrentStep('success');
             txActions.setIsSubmitting(false);
-            crossChain.startTracking(txState.transactionHash);
         }
-    }, [contractState.isTransactionSuccess, txState.currentStep, txState.transactionHash, crossChain, txActions]);
+    }, [contractState.isTransactionSuccess, txState.currentStep, txState.transactionHash, txActions]);
 
-    // Handle withdraw transaction failure
+    // Handle repay transaction failure
     useEffect(() => {
-        if (contractState.isTransactionError && txState.currentStep === 'withdrawing') {
+        if (contractState.isTransactionError && txState.currentStep === 'repaying') {
             txActions.setCurrentStep('input');
             txActions.setIsSubmitting(false);
         }
@@ -217,19 +174,16 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
         <BaseTransactionDialog
             isOpen={isOpen}
             onClose={handleClose}
-            title={`Withdraw ${selectedAsset.unit}`}
+            title={`Repay ${selectedAsset.unit}`}
             description={getStepText()}
             tokenSymbol={selectedAsset.unit}
             sourceChain={selectedAsset.sourceChain}
             currentStep={txState.currentStep}
             isSubmitting={txState.isSubmitting}
             onSubmit={handleSubmit}
-            onApprove={handleApproveGasToken}
-            isValidAmount={!!(isValidAmount && validation.isValid)}
+            isValidAmount={validation.isValid}
             isConnected={!!address}
-            submitButtonText="Withdraw"
-            approveButtonText="Approve Gas Tokens"
-            canApprove={validation.gasTokenInfo.needsApproval}
+            submitButtonText="Repay"
         >
             {txState.currentStep === 'input' && (
                 <div className="space-y-4 w-full overflow-hidden">
@@ -237,7 +191,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                             <span>Amount</span>
-                            <span>Supplied: {Number(maxAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</span>
+                            <span>Max Repay: {Number(validation.maxRepayAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</span>
                         </div>
                         <div className="relative">
                             <Input
@@ -247,7 +201,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                                 placeholder="0.00"
                                 step="any"
                                 min="0"
-                                max={maxAmount}
+                                max={validation.maxRepayAmount}
                             />
                             <Button
                                 variant="zeta-outline"
@@ -260,32 +214,41 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                         </div>
                     </div>
 
-                    {/* Withdrawal Destination Info */}
+                    {/* Debt Information */}
                     <div className="p-3 bg-muted rounded-lg text-sm">
                         <div className="flex justify-between">
-                            <span>Withdrawing to chain:</span>
-                            <span className="font-medium">{destinationChainName}</span>
+                            <span>Current Debt:</span>
+                            <span className="font-medium">{validation.formattedCurrentDebt} {selectedAsset.unit}</span>
                         </div>
                         <div className="flex justify-between mt-1">
-                            <span>Asset:</span>
-                            <span className="font-medium">{selectedAsset.unit}</span>
+                            <span>Available Balance:</span>
+                            <span className="font-medium">{validation.formattedAvailableBalance} {selectedAsset.unit}</span>
                         </div>
                         <div className="flex justify-between mt-1">
-                            <span>Recipient:</span>
+                            <span>Repaying from:</span>
                             <span className="font-medium text-xs">{formatHexString(safeAddress || '')}</span>
                         </div>
                     </div>
 
+                    {/* Full Repayment Notice */}
+                    {validation.isFullRepayment && (
+                        <div className="p-3 border border-green-200 dark:border-green-800 rounded-lg bg-green-50 dark:bg-green-900/20 text-sm">
+                            <div className="text-green-800 dark:text-green-200 font-medium">
+                                Full Repayment
+                            </div>
+                            <div className="text-green-700 dark:text-green-300 mt-1">
+                                This will fully repay your debt for {selectedAsset.unit}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Transaction Summary */}
                     {amount && (
                         <TransactionSummary
-                            transactionType="withdraw"
+                            transactionType="repay"
                             amount={amount}
                             tokenSymbol={selectedAsset.unit}
-                            destinationChain={destinationChainName}
-                            recipientAddress={safeAddress || ''}
-                            formattedReceiveAmount={validation.formattedReceiveAmount}
-                            className="bg-secondary/50"
+                            className="border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20"
                         />
                     )}
 
@@ -327,10 +290,8 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                 isTransactionSuccess={contractState.isTransactionSuccess}
                 chainId={SupportedChain.ZETA_TESTNET}
                 crossChain={crossChain}
-                gasTokenInfo={validation.gasTokenInfo.needsApproval ? validation.gasTokenInfo : undefined}
-                destinationChainName={destinationChainName}
-                transactionType="withdraw"
+                transactionType="repay"
             />
         </BaseTransactionDialog>
     );
-} 
+}
