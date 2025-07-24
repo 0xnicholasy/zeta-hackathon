@@ -4,7 +4,11 @@ import { useNavigateTo } from '@/types/routes';
 import { ROUTES } from '@/config/routes';
 import zetaLendLogo from '@/assets/zetalend-logo.png';
 
-export function Header() {
+interface HeaderProps {
+    useWalletConnector?: boolean;
+}
+
+export function Header({ useWalletConnector = true }: HeaderProps) {
     const navigate = useNavigateTo();
 
     const handleLogoClick = () => {
@@ -14,11 +18,11 @@ export function Header() {
     return (
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4 md:flex-nowrap md:gap-0">
-                <div className="flex items-center space-x-2 cursor-pointer" onClick={handleLogoClick}>
+                <div className="flex items-center space-x-4 cursor-pointer" onClick={handleLogoClick}>
                     <img
                         src={zetaLendLogo}
                         alt="ZetaLend Logo"
-                        className="size-10 rounded-lg"
+                        className="size-8 rounded-lg"
                     />
                     <span className="text-xl font-bold text-foreground">
                         ZetaLend
@@ -33,7 +37,7 @@ export function Header() {
                 {/* Desktop: Theme toggle + Connect button together */}
                 <div className="hidden md:flex items-center space-x-4">
                     <ThemeToggle />
-                    <ConnectButton />
+                    {useWalletConnector && <ConnectButton />}
                 </div>
 
                 {/* Mobile: Connect button on new row, full width and centered */}

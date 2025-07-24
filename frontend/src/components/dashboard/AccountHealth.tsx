@@ -50,7 +50,7 @@ export function AccountHealth({ healthFactor, totalSupplied, totalBorrowed }: Ac
                 {/* Total Supplied Card */}
                 <Card>
                     <CardContent className="p-6 text-center">
-                        <div className="text-3xl font-bold text-green-500 mb-2">
+                        <div className="text-3xl font-bold text-zeta-500 dark:text-zeta-400 mb-2">
                             {totalSupplied}
                         </div>
                         <div className="text-sm font-medium text-muted-foreground mb-1">

@@ -7,8 +7,11 @@ import { FaPlus } from 'react-icons/fa';
 import { isSupportedChain, SupportedChain } from '../../contracts/deployments';
 import { SupplyDialog } from './SupplyDialog';
 import { WithdrawDialog } from './WithdrawDialog';
+import { ZetaSupplyDialog } from './ZetaSupplyDialog';
+import { ZetaWithdrawDialog } from './ZetaWithdrawDialog';
 import type { UserAssetData } from './types';
 import type { TokenBalance } from '../../hooks/useMultiChainBalances';
+import { useZetaChainBalances } from '../../hooks/useMultiChainBalances';
 
 interface SupplyCardProps {
     userAssets: UserAssetData[];
@@ -23,13 +26,35 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
     if (!isSupportedChain(chainId)) {
         throw new Error(`Invalid chain ID: ${chainId}`);
     }
+
+    // Get Zeta chain balances for ZRC-20 tokens
+    const { zetaBalances } = useZetaChainBalances();
     const [isSupplyDialogOpen, setIsSupplyDialogOpen] = useState(false);
     const [selectedToken, setSelectedToken] = useState<TokenBalance | null>(null);
     const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
     const [selectedAssetForWithdraw, setSelectedAssetForWithdraw] = useState<UserAssetData | null>(null);
 
+    // Zeta dialog states
+    const [isZetaSupplyDialogOpen, setIsZetaSupplyDialogOpen] = useState(false);
+    const [selectedAssetForZetaSupply, setSelectedAssetForZetaSupply] = useState<UserAssetData | null>(null);
+    const [isZetaWithdrawDialogOpen, setIsZetaWithdrawDialogOpen] = useState(false);
+    const [selectedAssetForZetaWithdraw, setSelectedAssetForZetaWithdraw] = useState<UserAssetData | null>(null);
+
     // Check if we're on ZetaChain
     const isOnZetaChain = walletChainId === SupportedChain.ZETA_TESTNET;
+
+    // Helper function to get ZRC-20 token symbol and balance for an asset
+    const getZetaTokenInfo = (asset: UserAssetData) => {
+        // Create ZRC-20 token symbol based on asset's unit and source chain
+        const zrc20Symbol = `${asset.unit}.${asset.sourceChain}`;
+        const zetaBalance = zetaBalances[zrc20Symbol];
+
+        return {
+            zrc20Symbol,
+            zetaBalance: zetaBalance?.formattedBalance ?? '0',
+            hasBalance: zetaBalance && Number(zetaBalance.formattedBalance) > 0
+        };
+    };
 
     // Filter supplied assets based on network
     const suppliedAssets = userAssets.filter(asset => {
@@ -55,6 +80,17 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
     const handleWithdrawClick = (asset: UserAssetData) => {
         setSelectedAssetForWithdraw(asset);
         setIsWithdrawDialogOpen(true);
+    };
+
+    // Zeta-specific handlers
+    const handleZetaSupplyClick = (asset: UserAssetData) => {
+        setSelectedAssetForZetaSupply(asset);
+        setIsZetaSupplyDialogOpen(true);
+    };
+
+    const handleZetaWithdrawClick = (asset: UserAssetData) => {
+        setSelectedAssetForZetaWithdraw(asset);
+        setIsZetaWithdrawDialogOpen(true);
     };
 
     return (
@@ -95,14 +131,35 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                                         </div>
                                         <div className="text-right">
                                             <div className="text-sm font-medium">{asset.formattedSuppliedBalance}</div>
-                                            <Button
-                                                variant="zeta-outline"
-                                                size="sm"
-                                                className="mt-1 h-7 text-xs"
-                                                onClick={() => handleWithdrawClick(asset)}
-                                            >
-                                                Withdraw
-                                            </Button>
+                                            {isOnZetaChain ? (
+                                                <div className="flex gap-1 mt-1">
+                                                    <Button
+                                                        variant="zeta-outline"
+                                                        size="sm"
+                                                        className="h-7 text-xs"
+                                                        onClick={() => handleZetaWithdrawClick(asset)}
+                                                    >
+                                                        Zeta Withdraw
+                                                    </Button>
+                                                    <Button
+                                                        variant="zeta-outline"
+                                                        size="sm"
+                                                        className="h-7 text-xs"
+                                                        onClick={() => handleWithdrawClick(asset)}
+                                                    >
+                                                        Withdraw
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <Button
+                                                    variant="zeta-outline"
+                                                    size="sm"
+                                                    className="mt-1 h-7 text-xs"
+                                                    onClick={() => handleWithdrawClick(asset)}
+                                                >
+                                                    Withdraw
+                                                </Button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -112,6 +169,49 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                                 <p className="text-sm">No assets supplied yet</p>
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* Supply Existing Assets on Zeta - Show when on ZetaChain */}
+                {isOnZetaChain && suppliedAssets.length > 0 && (
+                    <div>
+                        <h3 className="text-base font-semibold mb-3 text-muted-foreground">Supply On ZetaChain</h3>
+                        <div className="space-y-2">
+                            {suppliedAssets.map((asset) => {
+                                const { zrc20Symbol, zetaBalance } = getZetaTokenInfo(asset);
+                                if (Number(zetaBalance) === 0) {
+                                    return null;
+                                }
+                                return (
+                                    <div key={`${asset.address}-zeta-supply`} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border-light dark:border-border-dark hover:border-green-300 dark:hover:border-green-700 cursor-pointer transition-colors">
+                                        <div className="flex items-center space-x-3">
+                                            <TokenNetworkIcon
+                                                tokenSymbol={asset.unit}
+                                                sourceChain={asset.sourceChain}
+                                                size="sm"
+                                                shadow="sm"
+                                            />
+                                            <div>
+                                                <div className="font-medium text-sm">{zrc20Symbol}</div>
+                                                <div className="text-xs text-green-600 dark:text-green-400">On Zeta</div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-sm font-medium">{Number(zetaBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
+                                            <Button
+                                                variant="zeta"
+                                                size="sm"
+                                                className="mt-1 h-7 text-xs"
+                                                disabled={Number(zetaBalance) === 0}
+                                                onClick={() => handleZetaSupplyClick(asset)}
+                                            >
+                                                Zeta Supply
+                                            </Button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
 
@@ -180,6 +280,18 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                 isOpen={isWithdrawDialogOpen}
                 onClose={() => setIsWithdrawDialogOpen(false)}
                 selectedAsset={selectedAssetForWithdraw}
+            />}
+
+            {selectedAssetForZetaSupply && <ZetaSupplyDialog
+                isOpen={isZetaSupplyDialogOpen}
+                onClose={() => setIsZetaSupplyDialogOpen(false)}
+                selectedAsset={selectedAssetForZetaSupply}
+            />}
+
+            {selectedAssetForZetaWithdraw && <ZetaWithdrawDialog
+                isOpen={isZetaWithdrawDialogOpen}
+                onClose={() => setIsZetaWithdrawDialogOpen(false)}
+                selectedAsset={selectedAssetForZetaWithdraw}
             />}
         </Card>
     );

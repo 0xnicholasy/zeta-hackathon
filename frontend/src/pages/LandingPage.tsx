@@ -1,42 +1,21 @@
-import { useNavigate } from 'react-router-dom';
-import ThemeToggle from '../components/ThemeToggle';
 import Stats from '../components/landing/Stats';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import zetaLendLogo from '../assets/zetalend-logo.png';
+import { Header } from '@/components/dashboard/Header';
+import { ROUTES } from '@/config/routes';
+import { useNavigateTo } from '@/types/routes';
 
 function LandingPage() {
-    const navigate = useNavigate();
+    const navigate = useNavigateTo();
 
     const handleLaunchApp = () => {
-        navigate('/dashboard');
-    };
-
-    const handleGoHome = () => {
-        navigate('/');
+        navigate(ROUTES.DASHBOARD);
     };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-zeta-50 to-zeta-100 dark:from-background dark:to-secondary">
             {/* Header */}
-            <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-                    <div className="flex items-center space-x-3 cursor-pointer" onClick={handleGoHome}>
-                        <img
-                            src={zetaLendLogo}
-                            alt="ZetaLend Logo"
-                            className="size-10 rounded-lg"
-                        />
-                        <span className="text-xl font-bold text-foreground">
-                            ZetaLend
-                        </span>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                        <ThemeToggle />
-                        {/* <ConnectButton /> */}
-                    </div>
-                </div>
-            </header>
+            <Header useWalletConnector={false} />
 
             {/* Main Content */}
             <div className="container mx-auto px-4 py-16">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useChainId } from 'wagmi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { TokenNetworkIcon } from '../ui/token-network-icon';
@@ -7,17 +8,30 @@ import { getChainDisplayNameFromId } from '../../utils/chainUtils';
 import type { UserAssetData, EVMAddress } from './types';
 import { BorrowDialog } from './BorrowDialog';
 import { RepayDialog } from './RepayDialog';
+import { ZetaBorrowDialog } from './ZetaBorrowDialog';
+import { ZetaRepayDialog } from './ZetaRepayDialog';
 import { getBorrowableAssets, type BorrowableAssetData } from '../../utils/directContractCalls';
+import { SupportedChain } from '../../contracts/deployments';
 
 interface BorrowCardProps {
     userAssets: UserAssetData[];
 }
 
 export function BorrowCard({ userAssets }: BorrowCardProps) {
+    // Wallet chain detection
+    const walletChainId = useChainId();
+    const isOnZetaChain = walletChainId === SupportedChain.ZETA_TESTNET;
+
     // Dialog state
     const [isBorrowDialogOpen, setIsBorrowDialogOpen] = useState(false);
     const [isRepayDialogOpen, setIsRepayDialogOpen] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState<UserAssetData | null>(null);
+
+    // Zeta dialog states
+    const [isZetaBorrowDialogOpen, setIsZetaBorrowDialogOpen] = useState(false);
+    const [selectedAssetForZetaBorrow, setSelectedAssetForZetaBorrow] = useState<UserAssetData | null>(null);
+    const [isZetaRepayDialogOpen, setIsZetaRepayDialogOpen] = useState(false);
+    const [selectedAssetForZetaRepay, setSelectedAssetForZetaRepay] = useState<UserAssetData | null>(null);
 
     // State for borrowable assets - fetched directly from protocol
     const [borrowableAssets, setBorrowableAssets] = useState<BorrowableAssetData[]>([]);
@@ -32,7 +46,9 @@ export function BorrowCard({ userAssets }: BorrowCardProps) {
     useEffect(() => {
         const fetchBorrowableAssets = async () => {
             try {
-                setLoadingBorrowable(true);
+                if (borrowableAssets.length === 0) {
+                    setLoadingBorrowable(true);
+                }
                 const assets = await getBorrowableAssets();
                 setBorrowableAssets(assets);
             } catch (error) {
@@ -51,7 +67,7 @@ export function BorrowCard({ userAssets }: BorrowCardProps) {
         }, 30000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [borrowableAssets.length]);
 
     // Handle borrow click for borrowable assets
     const handleBorrowClick = (asset: BorrowableAssetData) => {
@@ -91,6 +107,36 @@ export function BorrowCard({ userAssets }: BorrowCardProps) {
         setSelectedAsset(null);
     };
 
+    // Zeta-specific handlers
+    const handleZetaBorrowClick = (asset: BorrowableAssetData) => {
+        if (asset.isAvailableToBorrow) {
+            // Convert BorrowableAssetData to UserAssetData format for the dialog
+            const userAssetData: UserAssetData = {
+                address: asset.address as EVMAddress,
+                symbol: asset.symbol,
+                unit: asset.unit,
+                sourceChain: asset.sourceChain,
+                decimals: asset.decimals,
+                borrowedBalance: '0',
+                formattedBorrowedBalance: '0',
+                borrowedUsdValue: '$0',
+                suppliedBalance: '0',
+                formattedSuppliedBalance: '0',
+                suppliedUsdValue: '$0',
+                price: asset.price,
+                isSupported: asset.isSupported,
+                externalChainId: asset.externalChainId,
+            };
+            setSelectedAssetForZetaBorrow(userAssetData);
+            setIsZetaBorrowDialogOpen(true);
+        }
+    };
+
+    const handleZetaRepayClick = (asset: UserAssetData) => {
+        setSelectedAssetForZetaRepay(asset);
+        setIsZetaRepayDialogOpen(true);
+    };
+
     return (
         <Card>
             <CardHeader>
@@ -128,14 +174,35 @@ export function BorrowCard({ userAssets }: BorrowCardProps) {
                                     </div>
                                     <div className="text-right">
                                         <div className="text-sm font-medium">{asset.formattedBorrowedBalance}</div>
-                                        <Button
-                                            variant="zeta-outline"
-                                            size="sm"
-                                            className="mt-1 h-7 text-xs"
-                                            onClick={() => handleRepayClick(asset)}
-                                        >
-                                            Repay
-                                        </Button>
+                                        {isOnZetaChain ? (
+                                            <div className="flex gap-1 mt-1">
+                                                <Button
+                                                    variant="zeta-outline"
+                                                    size="sm"
+                                                    className="h-7 text-xs"
+                                                    onClick={() => handleZetaRepayClick(asset)}
+                                                >
+                                                    Zeta Repay
+                                                </Button>
+                                                <Button
+                                                    variant="zeta-outline"
+                                                    size="sm"
+                                                    className="h-7 text-xs"
+                                                    onClick={() => handleRepayClick(asset)}
+                                                >
+                                                    Repay
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <Button
+                                                variant="zeta-outline"
+                                                size="sm"
+                                                className="mt-1 h-7 text-xs"
+                                                onClick={() => handleRepayClick(asset)}
+                                            >
+                                                Repay
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -173,7 +240,7 @@ export function BorrowCard({ userAssets }: BorrowCardProps) {
                         <div className="space-y-2">
                             {borrowableAssets.map((asset) => (
                                 <div key={`${asset.address}-borrow`} className={`flex items-center justify-between p-3 bg-background rounded-lg border transition-colors ${asset.isAvailableToBorrow
-                                    ? 'border-border-light dark:border-border-dark hover:border-red-300 dark:hover:border-red-700 cursor-pointer'
+                                    ? 'border-border-light dark:border-border-dark hover:border-zeta-accent-light dark:hover:border-zeta-accent-dark cursor-pointer'
                                     : 'border-muted-foreground/20 opacity-60'
                                     }`}>
                                     <div className="flex items-center space-x-3">
@@ -197,14 +264,35 @@ export function BorrowCard({ userAssets }: BorrowCardProps) {
                                                 : 'No tokens available'
                                             }
                                         </div>
-                                        <Button
-                                            size="sm"
-                                            className="mt-1 h-7 text-xs"
-                                            disabled={!asset.isAvailableToBorrow}
-                                            onClick={() => handleBorrowClick(asset)}
-                                        >
-                                            Borrow
-                                        </Button>
+                                        {isOnZetaChain && asset.isAvailableToBorrow ? (
+                                            <div className="flex gap-1 mt-1">
+                                                <Button
+                                                    variant='outline'
+                                                    size="sm"
+                                                    className="h-7 text-xs"
+                                                    onClick={() => handleZetaBorrowClick(asset)}
+                                                >
+                                                    Zeta Borrow
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant='zeta'
+                                                    className="h-7 text-xs"
+                                                    onClick={() => handleBorrowClick(asset)}
+                                                >
+                                                    Borrow
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <Button
+                                                size="sm"
+                                                className="mt-1 h-7 text-xs"
+                                                disabled={!asset.isAvailableToBorrow}
+                                                onClick={() => handleBorrowClick(asset)}
+                                            >
+                                                Borrow
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -234,6 +322,22 @@ export function BorrowCard({ userAssets }: BorrowCardProps) {
                     </>
                 )
             }
+
+            {selectedAssetForZetaBorrow && (
+                <ZetaBorrowDialog
+                    isOpen={isZetaBorrowDialogOpen}
+                    onClose={() => setIsZetaBorrowDialogOpen(false)}
+                    selectedAsset={selectedAssetForZetaBorrow}
+                />
+            )}
+
+            {selectedAssetForZetaRepay && (
+                <ZetaRepayDialog
+                    isOpen={isZetaRepayDialogOpen}
+                    onClose={() => setIsZetaRepayDialogOpen(false)}
+                    selectedAsset={selectedAssetForZetaRepay}
+                />
+            )}
         </Card >
     );
 }

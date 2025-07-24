@@ -63,28 +63,28 @@ export default {
         },
         // ZetaChain UI Colors
         'zeta-accent': {
-          light: '#99F36F', // Light green accent
-          dark: '#006E4C',  // Dark green accent
+          light: '#008462', // Primary green for light mode
+          dark: '#33ECC9',  // Bright green for dark mode
         },
         // Background colors
-        'bg-light': '#FFFFFF',
+        'bg-light': '#F8FCFB', // Soft mint background for light mode
         'bg-dark': '#000000',
         // Surface colors (cards, modals, etc.)
         'surface-light': '#FFFFFF',
         'surface-dark': '#1F2328',
         // Border colors
-        'border-light': '#E5E8EC',
+        'border-light': '#D1E8E2', // Softer teal border for light mode
         'border-dark': '#2D3237',
         // Text colors
-        'text-primary-light': '#000000',
+        'text-primary-light': '#001E16', // Darker greenish-black for better readability
         'text-primary-dark': '#FFFFFF',
-        'text-secondary-light': '#6B7280',
+        'text-secondary-light': '#5D706C', // Muted teal for secondary text
         'text-secondary-dark': '#A9ACB0',
         'text-info-light': '#0066CC',
         'text-info-dark': '#66B3FF',
         'text-success-light': '#008462',
         'text-success-dark': '#33ECC9',
-        'text-warning-light': '#F59E0B',
+        'text-warning-light': '#B45309', // Darker amber for better contrast
         'text-warning-dark': '#FCD34D',
         'text-error-light': '#DC2626',
         'text-error-dark': '#F87171',

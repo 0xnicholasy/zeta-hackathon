@@ -69,6 +69,7 @@
         "bnb",
         "bool",
         "borrow",
+        "borrowable",
         "borrowed",
         "borrower",
         "borrowers",
