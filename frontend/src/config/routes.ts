@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { RouteObject } from 'react-router-dom';
 
@@ -6,6 +7,7 @@ const LandingPage = React.lazy(() => import('../pages/LandingPage'));
 const DashBoardPage = React.lazy(() => import('../pages/DashBoardPage'));
 const DebuggingPage = React.lazy(() => import('../pages/DebuggingPage'));
 const NotFoundPage = React.lazy(() => import('../pages/NotFoundPage'));
+const AdminPage = React.lazy(() => import('../pages/AdminPage'));
 
 export interface AppRoute {
   path: string;
@@ -19,6 +21,7 @@ export const ROUTES = {
   HOME: '/',
   DASHBOARD: '/dashboard',
   DEBUGGING: '/debugging',
+  ADMIN: '/admin',
   NOT_FOUND: '*',
 } as const;
 
@@ -43,6 +46,13 @@ export const appRoutes: AppRoute[] = [
     element: DebuggingPage,
     isPublic: true,
     description: 'Debug page for deployments and spinner components',
+  },
+  {
+    path: ROUTES.ADMIN,
+    name: 'Admin',
+    element: AdminPage,
+    isPublic: true,
+    description: 'Admin page for ZetaLend protocol',
   },
   {
     path: ROUTES.NOT_FOUND,

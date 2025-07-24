@@ -18,9 +18,9 @@ import {
  * Hook to get contract and token addresses for a specific chain
  * @param targetChainId - Optional chain ID to query. If not provided, uses current wallet chain
  */
-export function useContracts(targetChainId: SupportedChainId) {
+export function useContracts(targetChainId?: SupportedChainId) {
   const walletChainId = useChainId();
-  const chainId = targetChainId ?? walletChainId;
+  const chainId = targetChainId ?? (walletChainId as SupportedChainId);
 
   const contracts = useMemo(() => {
     if (!chainId) return null;
@@ -84,6 +84,9 @@ export function useContracts(targetChainId: SupportedChainId) {
     SupportedChain,
   };
 }
+
+// Export SupportedChain for external use
+export { SupportedChain };
 
 /**
  * Hook to get contract address for a specific contract
