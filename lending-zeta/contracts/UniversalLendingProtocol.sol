@@ -320,10 +320,10 @@ contract UniversalLendingProtocol is
         override(ISimpleLendingProtocol, SimpleLendingProtocol)
         nonReentrant
     {
-        if (
-            !enhancedAssets[collateralAsset].isSupported ||
-            !enhancedAssets[debtAsset].isSupported
-        ) revert AssetNotSupported(collateralAsset);
+        if (!enhancedAssets[collateralAsset].isSupported)
+            revert AssetNotSupported(collateralAsset);
+        if (!enhancedAssets[debtAsset].isSupported)
+            revert AssetNotSupported(debtAsset);
 
         uint256 healthFactor = getHealthFactor(user);
         if (healthFactor >= LIQUIDATION_THRESHOLD) revert HealthFactorTooLow();
@@ -380,25 +380,28 @@ contract UniversalLendingProtocol is
         returns (uint256)
     {
         uint256 totalDebtValue = getTotalDebtValue(user);
-        
+
         if (totalDebtValue == 0) {
             return type(uint256).max;
         }
 
         // Calculate weighted collateral value using liquidation thresholds
         uint256 totalWeightedCollateral = 0;
-        
+
         for (uint256 i = 0; i < supportedAssets.length; i++) {
             address asset = supportedAssets[i];
             uint256 supplyBalance = userSupplies[user][asset];
-            
+
             if (supplyBalance > 0) {
                 uint256 assetPrice = priceOracle.getPrice(asset);
-                uint256 collateralValue = (supplyBalance * assetPrice) / PRECISION;
-                
+                uint256 collateralValue = (supplyBalance * assetPrice) /
+                    PRECISION;
+
                 // Apply both collateral factor and liquidation threshold for health factor calculation
-                uint256 adjustedCollateral = (collateralValue * enhancedAssets[asset].collateralFactor) / PRECISION;
-                uint256 weightedCollateral = (adjustedCollateral * enhancedAssets[asset].liquidationThreshold) / PRECISION;
+                uint256 adjustedCollateral = (collateralValue *
+                    enhancedAssets[asset].collateralFactor) / PRECISION;
+                uint256 weightedCollateral = (adjustedCollateral *
+                    enhancedAssets[asset].liquidationThreshold) / PRECISION;
                 totalWeightedCollateral += weightedCollateral;
             }
         }
@@ -410,7 +413,12 @@ contract UniversalLendingProtocol is
     function getDebtValue(
         address user,
         address asset
-    ) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (uint256) {
+    )
+        public
+        view
+        override(ISimpleLendingProtocol, SimpleLendingProtocolBase)
+        returns (uint256)
+    {
         uint256 amount = userBorrows[user][asset];
         uint256 price = priceOracle.getPrice(asset);
 
@@ -568,20 +576,26 @@ contract UniversalLendingProtocol is
      */
     function maxAvailableBorrowsInUsd(
         address user
-    ) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (uint256 maxBorrowUsdValue) {
+    )
+        public
+        view
+        override(ISimpleLendingProtocol, SimpleLendingProtocolBase)
+        returns (uint256 maxBorrowUsdValue)
+    {
         uint256 totalCollateralValue = getTotalCollateralValue(user);
         uint256 totalDebtValue = getTotalDebtValue(user);
-        
+
         if (totalCollateralValue == 0) return 0;
-        
+
         // Calculate max total debt value while maintaining minimum health factor
         // healthFactor = totalCollateralValue / totalDebtValue >= MINIMUM_HEALTH_FACTOR
         // So: totalDebtValue <= totalCollateralValue / MINIMUM_HEALTH_FACTOR
-        uint256 maxTotalDebtValue = (totalCollateralValue * PRECISION) / MINIMUM_HEALTH_FACTOR;
-        
+        uint256 maxTotalDebtValue = (totalCollateralValue * PRECISION) /
+            MINIMUM_HEALTH_FACTOR;
+
         // Calculate how much more we can borrow
         if (maxTotalDebtValue <= totalDebtValue) return 0;
-        
+
         maxBorrowUsdValue = maxTotalDebtValue - totalDebtValue;
     }
 
@@ -594,24 +608,34 @@ contract UniversalLendingProtocol is
     function maxAvailableBorrows(
         address user,
         address asset
-    ) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (uint256 maxBorrowAmount) {
+    )
+        public
+        view
+        override(ISimpleLendingProtocol, SimpleLendingProtocolBase)
+        returns (uint256 maxBorrowAmount)
+    {
         if (!enhancedAssets[asset].isSupported) return 0;
-        
+
         uint256 maxBorrowUsdValue = maxAvailableBorrowsInUsd(user);
         if (maxBorrowUsdValue == 0) return 0;
-        
+
         // Convert USD value to asset amount using the price oracle
         uint256 assetPrice = priceOracle.getPrice(asset);
         if (assetPrice == 0) return 0;
-        
+
         // Calculate asset amount and denormalize to asset decimals
-        uint256 maxBorrowValueNormalized = (maxBorrowUsdValue * PRECISION) / assetPrice;
-        
+        uint256 maxBorrowValueNormalized = (maxBorrowUsdValue * PRECISION) /
+            assetPrice;
+
         uint256 decimals = IERC20Metadata(asset).decimals();
         if (decimals < 18) {
-            maxBorrowAmount = maxBorrowValueNormalized / (10 ** (18 - decimals));
+            maxBorrowAmount =
+                maxBorrowValueNormalized /
+                (10 ** (18 - decimals));
         } else if (decimals > 18) {
-            maxBorrowAmount = maxBorrowValueNormalized * (10 ** (decimals - 18));
+            maxBorrowAmount =
+                maxBorrowValueNormalized *
+                (10 ** (decimals - 18));
         } else {
             maxBorrowAmount = maxBorrowValueNormalized;
         }

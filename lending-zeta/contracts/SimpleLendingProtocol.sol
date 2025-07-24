@@ -90,12 +90,14 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
 
             if (IERC20(asset).balanceOf(address(this)) < approvalAmount)
                 revert InsufficientLiquidity();
-            IERC20(asset).approve(address(gateway), approvalAmount);
+            IERC20(asset).safeIncreaseAllowance(
+                address(gateway),
+                approvalAmount
+            );
         } else {
             if (IERC20(asset).balanceOf(address(this)) < amount)
                 revert InsufficientLiquidity();
-            IERC20(asset).approve(address(gateway), amount);
-
+            IERC20(asset).safeIncreaseAllowance(address(gateway), amount);
             uint256 userGasBalance = IERC20(gasZRC20).balanceOf(msg.sender);
             if (userGasBalance < gasFee)
                 revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
@@ -106,7 +108,7 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
                     gasFee
                 )
             ) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
-            IERC20(gasZRC20).approve(address(gateway), gasFee);
+            IERC20(gasZRC20).safeIncreaseAllowance(address(gateway), gasFee);
         }
 
         gateway.withdraw(
@@ -172,16 +174,15 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         } else {
             if (IERC20(asset).balanceOf(address(this)) < amount)
                 revert InsufficientLiquidity();
-            IERC20(asset).approve(address(gateway), amount);
-
+            uint256 userGasBalance = IERC20(gasZRC20).balanceOf(msg.sender);
             if (
                 !IERC20(gasZRC20).transferFrom(
                     msg.sender,
                     address(this),
                     gasFee
                 )
-            ) revert InsufficientCollateral();
-            IERC20(gasZRC20).approve(address(gateway), gasFee);
+            ) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            IERC20(gasZRC20).safeIncreaseAllowance(address(gateway), gasFee);
         }
 
         gateway.withdraw(

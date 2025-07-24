@@ -28,7 +28,7 @@ abstract contract SimpleLendingProtocolBase is
 
     uint256 internal constant PRECISION = 1e18;
     uint256 internal constant MINIMUM_HEALTH_FACTOR = 1.5e18;
-    uint256 internal constant LIQUIDATION_THRESHOLD = 1e18;
+    uint256 internal constant LIQUIDATION_THRESHOLD = 1.1e18; // 110%
 
     mapping(address => Asset) public assets;
     mapping(address => mapping(address => uint256)) public userSupplies;
@@ -286,17 +286,18 @@ abstract contract SimpleLendingProtocolBase is
     ) public view virtual returns (uint256 maxBorrowUsdValue) {
         uint256 totalCollateralValue = getTotalCollateralValue(user);
         uint256 totalDebtValue = getTotalDebtValue(user);
-        
+
         if (totalCollateralValue == 0) return 0;
-        
+
         // Calculate max total debt value while maintaining minimum health factor
         // healthFactor = totalCollateralValue / totalDebtValue >= MINIMUM_HEALTH_FACTOR
         // So: totalDebtValue <= totalCollateralValue / MINIMUM_HEALTH_FACTOR
-        uint256 maxTotalDebtValue = (totalCollateralValue * PRECISION) / MINIMUM_HEALTH_FACTOR;
-        
+        uint256 maxTotalDebtValue = (totalCollateralValue * PRECISION) /
+            MINIMUM_HEALTH_FACTOR;
+
         // Calculate how much more we can borrow
         if (maxTotalDebtValue <= totalDebtValue) return 0;
-        
+
         maxBorrowUsdValue = maxTotalDebtValue - totalDebtValue;
     }
 
@@ -311,38 +312,44 @@ abstract contract SimpleLendingProtocolBase is
         address asset
     ) public view virtual returns (uint256 maxBorrowAmount) {
         if (!assets[asset].isSupported) return 0;
-        
+
         uint256 totalCollateralValue = getTotalCollateralValue(user);
         uint256 totalDebtValue = getTotalDebtValue(user);
-        
+
         if (totalCollateralValue == 0) return 0;
-        
+
         // Calculate max total debt value while maintaining minimum health factor
         // healthFactor = totalCollateralValue / totalDebtValue >= MINIMUM_HEALTH_FACTOR
         // So: totalDebtValue <= totalCollateralValue / MINIMUM_HEALTH_FACTOR
-        uint256 maxTotalDebtValue = (totalCollateralValue * PRECISION) / MINIMUM_HEALTH_FACTOR;
-        
+        uint256 maxTotalDebtValue = (totalCollateralValue * PRECISION) /
+            MINIMUM_HEALTH_FACTOR;
+
         // Calculate how much more we can borrow
         if (maxTotalDebtValue <= totalDebtValue) return 0;
-        
+
         uint256 additionalBorrowValueUsd = maxTotalDebtValue - totalDebtValue;
-        
+
         // Convert USD value to asset amount
         uint256 assetPrice = assets[asset].price;
         if (assetPrice == 0) return 0;
-        
+
         // Calculate asset amount and denormalize to asset decimals
-        uint256 maxBorrowValueNormalized = (additionalBorrowValueUsd * PRECISION) / assetPrice;
-        
+        uint256 maxBorrowValueNormalized = (additionalBorrowValueUsd *
+            PRECISION) / assetPrice;
+
         uint256 decimals = IERC20Metadata(asset).decimals();
         if (decimals < 18) {
-            maxBorrowAmount = maxBorrowValueNormalized / (10 ** (18 - decimals));
+            maxBorrowAmount =
+                maxBorrowValueNormalized /
+                (10 ** (18 - decimals));
         } else if (decimals > 18) {
-            maxBorrowAmount = maxBorrowValueNormalized * (10 ** (decimals - 18));
+            maxBorrowAmount =
+                maxBorrowValueNormalized *
+                (10 ** (decimals - 18));
         } else {
             maxBorrowAmount = maxBorrowValueNormalized;
         }
-        
+
         // Limit by contract's available balance
         uint256 contractBalance = IERC20(asset).balanceOf(address(this));
         if (maxBorrowAmount > contractBalance) {

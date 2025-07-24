@@ -14,6 +14,7 @@ import { SupportedChain, isSupportedChain, getNetworkConfig, getTokenAddress } f
 import { safeEVMAddressOrZeroAddress, safeEVMAddress, type UserAssetData } from './types';
 import { ERC20__factory, DepositContract__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
+import { getHealthFactorColorClass, formatHealthFactor } from '../../utils/healthFactorUtils';
 
 interface RepayDialogProps {
     isOpen: boolean;
@@ -41,8 +42,11 @@ export function RepayDialog({
     const safeAddress = safeEVMAddressOrZeroAddress(address);
 
     // Get the chain ID from the selected asset and ensure it's supported
-    const targetChainId = selectedAsset?.externalChainId;
+    const targetChainId = selectedAsset.externalChainId;
     const isValidChain = targetChainId && isSupportedChain(targetChainId);
+    const hasInvalidChain = targetChainId && !isSupportedChain(targetChainId);
+
+    // Only use contracts if chain is valid, otherwise we'll show an error
     const { depositContract } = useContracts(isValidChain ? targetChainId : SupportedChain.ZETA_TESTNET);
 
     // Check if user is on the correct network
@@ -161,6 +165,12 @@ export function RepayDialog({
     const handleSubmit = useCallback(async () => {
         if (!amount || !selectedAsset || !amountBigInt || !depositContract) return;
 
+        // Check for invalid chain first
+        if (hasInvalidChain) {
+            console.error('Cannot submit: Invalid chain ID', targetChainId);
+            return;
+        }
+
         txActions.setIsSubmitting(true);
         txActions.resetContract();
 
@@ -188,7 +198,7 @@ export function RepayDialog({
             txActions.setIsSubmitting(false);
             txActions.setCurrentStep('input');
         }
-    }, [amount, selectedAsset, amountBigInt, depositContract, txActions, isOnCorrectNetwork, handleSwitchNetwork, handleApproveToken, handleRepay]);
+    }, [amount, selectedAsset, amountBigInt, depositContract, hasInvalidChain, targetChainId, txActions, isOnCorrectNetwork, handleSwitchNetwork, handleApproveToken, handleRepay]);
 
     // Handle max click
     const handleMaxClick = useCallback(() => {
@@ -289,20 +299,20 @@ export function RepayDialog({
     }, [txState.currentStep, isOnCorrectNetwork, amount, selectedAsset, amountBigInt, depositContract, txActions, handleRepay, handleApproveToken]);
 
     // Early return after all hooks
-    if (!selectedAsset || !depositContract || !isValidChain) return null;
+    if (!selectedAsset) return null;
 
     return (
         <BaseTransactionDialog
             isOpen={isOpen}
             onClose={handleClose}
             title={`Repay ${selectedAsset.unit}`}
-            description={getStepText()}
+            description={hasInvalidChain ? `Unsupported chain (ID: ${targetChainId}). Please select an asset from a supported chain.` : getStepText()}
             tokenSymbol={selectedAsset.unit}
             sourceChain={selectedAsset.sourceChain}
             currentStep={txState.currentStep}
             isSubmitting={txState.isSubmitting}
             onSubmit={() => { void handleSubmit() }}
-            isValidAmount={validation.isValid}
+            isValidAmount={validation.isValid && !hasInvalidChain}
             isConnected={Boolean(address)}
             submitButtonText={!isOnCorrectNetwork ? `Switch to ${targetNetworkConfig?.name || 'Network'}` : "Repay"}
         >
@@ -317,6 +327,19 @@ export function RepayDialog({
                             <div className="text-yellow-700 dark:text-yellow-300 mt-1">
                                 You need to switch to {targetNetworkConfig.name} to repay {selectedAsset.unit}.
                                 Click "Repay" to switch networks automatically.
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Invalid Chain Error */}
+                    {hasInvalidChain && (
+                        <div className="p-3 border border-destructive/50 rounded-lg bg-destructive/10 text-sm">
+                            <div className="text-destructive font-medium">
+                                Unsupported Chain
+                            </div>
+                            <div className="text-destructive/80 mt-1">
+                                The selected asset is from an unsupported chain (ID: {targetChainId}).
+                                Please select an asset from a supported chain (Arbitrum Sepolia, Ethereum Sepolia, or ZetaChain).
                             </div>
                         </div>
                     )}
@@ -374,21 +397,15 @@ export function RepayDialog({
                             <div className="space-y-2">
                                 <div className="flex justify-between">
                                     <span>Current:</span>
-                                    <span className={`font-medium ${validation.currentHealthFactor < 1.2 ? 'text-red-600 dark:text-red-400' :
-                                        validation.currentHealthFactor < 1.5 ? 'text-yellow-600 dark:text-yellow-400' :
-                                            'text-green-600 dark:text-green-400'
-                                        }`}>
-                                        {validation.currentHealthFactor === Infinity || validation.currentHealthFactor > 999 ? '∞' : validation.currentHealthFactor.toFixed(2)}
+                                    <span className={`font-medium ${getHealthFactorColorClass(validation.currentHealthFactor)}`}>
+                                        {formatHealthFactor(validation.currentHealthFactor)}
                                     </span>
                                 </div>
                                 {amount && validation.newHealthFactor > 0 && (
                                     <div className="flex justify-between">
                                         <span>After repay:</span>
-                                        <span className={`font-medium ${validation.newHealthFactor < 1.2 ? 'text-red-600 dark:text-red-400' :
-                                            validation.newHealthFactor < 1.5 ? 'text-yellow-600 dark:text-yellow-400' :
-                                                'text-green-600 dark:text-green-400'
-                                            }`}>
-                                            {validation.newHealthFactor === Infinity || validation.newHealthFactor > 999 ? '∞' : validation.newHealthFactor.toFixed(2)}
+                                        <span className={`font-medium ${getHealthFactorColorClass(validation.newHealthFactor)}`}>
+                                            {formatHealthFactor(validation.newHealthFactor)}
                                         </span>
                                     </div>
                                 )}

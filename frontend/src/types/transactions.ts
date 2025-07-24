@@ -36,12 +36,13 @@ export type TransactionStep = SupplyTransactionStep | WithdrawTransactionStep | 
 /**
  * Type mapping for transaction types to their specific steps
  */
-export interface TransactionStepMap {
-    supply: SupplyTransactionStep;
-    withdraw: WithdrawTransactionStep;
-    borrow: BorrowTransactionStep;
-    repay: RepayTransactionStep;
-}
+export type TransactionStepMap = {
+    [K in TransactionType]: K extends 'supply' ? SupplyTransactionStep :
+    K extends 'withdraw' ? WithdrawTransactionStep :
+    K extends 'borrow' ? BorrowTransactionStep :
+    K extends 'repay' ? RepayTransactionStep :
+    never;
+};
 
 /**
  * Helper type to get the specific step type for a transaction type

@@ -1,17 +1,13 @@
-import { useState } from 'react';
-import { useReadContracts } from 'wagmi';
-import { formatUnits } from 'viem';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { TokenNetworkIcon } from '../ui/token-network-icon';
 import { FaArrowDown } from 'react-icons/fa';
-import { SupportedChain } from '../../contracts/deployments';
 import { getChainDisplayNameFromId } from '../../utils/chainUtils';
-import { useContracts } from '../../hooks/useContracts';
-import { SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
-import type { UserAssetData } from './types';
+import type { UserAssetData, EVMAddress } from './types';
 import { BorrowDialog } from './BorrowDialog';
 import { RepayDialog } from './RepayDialog';
+import { getBorrowableAssets, type BorrowableAssetData } from '../../utils/directContractCalls';
 
 interface BorrowCardProps {
     userAssets: UserAssetData[];
@@ -23,79 +19,66 @@ export function BorrowCard({ userAssets }: BorrowCardProps) {
     const [isRepayDialogOpen, setIsRepayDialogOpen] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState<UserAssetData | null>(null);
 
-    // Get contract instance
-    const { simpleLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+    // State for borrowable assets - fetched directly from protocol
+    const [borrowableAssets, setBorrowableAssets] = useState<BorrowableAssetData[]>([]);
+    const [loadingBorrowable, setLoadingBorrowable] = useState(true);
 
-    // Show all borrowed assets across all supported chains
+    // Show all borrowed assets across all supported chains (from user's actual borrows)
     const borrowedAssets = userAssets.filter(asset => {
         return Number(asset.borrowedBalance) > 0;
     });
 
-    // Show all assets available to borrow from all supported chains, sorted by chain
-    const availableForBorrow = userAssets
-        .filter(asset => {
-            return asset.isSupported && asset.externalChainId !== undefined;
-        })
-        .sort((a, b) => {
-            // Sort by chain first, then by symbol
-            if (a.externalChainId !== b.externalChainId) {
-                return (a.externalChainId ?? 0) - (b.externalChainId ?? 0);
+    // Fetch borrowable assets from protocol directly (independent of wallet network)
+    useEffect(() => {
+        const fetchBorrowableAssets = async () => {
+            try {
+                setLoadingBorrowable(true);
+                const assets = await getBorrowableAssets();
+                setBorrowableAssets(assets);
+            } catch (error) {
+                // eslint-disable-next-line no-console
+                console.error('Error fetching borrowable assets:', error);
+            } finally {
+                setLoadingBorrowable(false);
             }
-            return a.unit.localeCompare(b.unit);
-        });
+        };
 
-    // Check available amounts for each asset in the protocol
-    const { data: availableAmounts } = useReadContracts({
-        contracts: simpleLendingProtocol && availableForBorrow.length > 0
-            ? availableForBorrow.map((asset) => ({
-                address: simpleLendingProtocol,
-                abi: SimpleLendingProtocol__factory.abi,
-                functionName: 'maxAvailableAmount',
-                args: [asset.address],
-                chainId: SupportedChain.ZETA_TESTNET, // Add this line
-            }))
-            : [],
-        query: {
-            enabled: Boolean(simpleLendingProtocol) && availableForBorrow.length > 0,
-            refetchInterval: 10000,
-        },
-    });
+        void fetchBorrowableAssets();
 
-    // Create a map of asset availability
-    const assetAvailability = new Map<string, { available: string; isAvailable: boolean }>();
+        // Refresh borrowable assets every 30 seconds
+        const interval = setInterval(() => {
+            void fetchBorrowableAssets();
+        }, 30000);
 
-    if (availableAmounts) {
-        availableForBorrow.forEach((asset, index) => {
-            const result = availableAmounts[index];
-            if (result?.status === 'success' && result.result !== undefined) {
-                const availableAmount = result.result as bigint;
-                const formattedAmount = formatUnits(availableAmount, asset.decimals);
-                const isAvailable = availableAmount > BigInt(0);
+        return () => clearInterval(interval);
+    }, []);
 
-                assetAvailability.set(asset.address, {
-                    available: formattedAmount,
-                    isAvailable
-                });
-            } else {
-                // Default to unavailable if we can't determine
-                assetAvailability.set(asset.address, {
-                    available: '0',
-                    isAvailable: false
-                });
-            }
-        });
-    }
-
-    // Handle borrow click
-    const handleBorrowClick = (asset: UserAssetData) => {
-        const availability = assetAvailability.get(asset.address);
-        if (availability?.isAvailable) {
-            setSelectedAsset(asset);
+    // Handle borrow click for borrowable assets
+    const handleBorrowClick = (asset: BorrowableAssetData) => {
+        if (asset.isAvailableToBorrow) {
+            // Convert BorrowableAssetData to UserAssetData format for the dialog
+            const userAssetData: UserAssetData = {
+                address: asset.address as EVMAddress,
+                symbol: asset.symbol,
+                unit: asset.unit,
+                sourceChain: asset.sourceChain,
+                decimals: asset.decimals,
+                borrowedBalance: '0',
+                formattedBorrowedBalance: '0',
+                borrowedUsdValue: '$0',
+                suppliedBalance: '0',
+                formattedSuppliedBalance: '0',
+                suppliedUsdValue: '$0',
+                price: asset.price,
+                isSupported: asset.isSupported,
+                externalChainId: asset.externalChainId,
+            };
+            setSelectedAsset(userAssetData);
             setIsBorrowDialogOpen(true);
         }
     };
 
-    // Handle repay click
+    // Handle repay click for borrowed assets
     const handleRepayClick = (asset: UserAssetData) => {
         setSelectedAsset(asset);
         setIsRepayDialogOpen(true);
@@ -118,7 +101,7 @@ export function BorrowCard({ userAssets }: BorrowCardProps) {
                     Borrow
                 </CardTitle>
                 <CardDescription>
-                    Your borrows and assets available to borrow from all supported chains
+                    Your borrows and all assets available to borrow (displayed for all supported chains regardless of wallet network)
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -167,51 +150,64 @@ export function BorrowCard({ userAssets }: BorrowCardProps) {
                 {/* Assets to Borrow */}
                 <div>
                     <h3 className="text-base font-semibold mb-3 text-muted-foreground">Assets to Borrow</h3>
-                    {availableForBorrow.length > 0 ? (
+                    {loadingBorrowable ? (
                         <div className="space-y-2">
-                            {availableForBorrow.map((asset) => {
-                                const availability = assetAvailability.get(asset.address);
-                                const isAvailable = availability?.isAvailable ?? false;
-                                const availableAmount = availability?.available ?? '0';
-
-                                return (
-                                    <div key={`${asset.address}-borrow`} className={`flex items-center justify-between p-3 bg-background rounded-lg border transition-colors ${isAvailable
-                                        ? 'border-border-light dark:border-border-dark hover:border-red-300 dark:hover:border-red-700 cursor-pointer'
-                                        : 'border-muted-foreground/20 opacity-60'
-                                        }`}>
-                                        <div className="flex items-center space-x-3">
-                                            <TokenNetworkIcon
-                                                tokenSymbol={asset.unit}
-                                                sourceChain={asset.sourceChain}
-                                                size="sm"
-                                                shadow="sm"
-                                            />
-                                            <div>
-                                                <div className="font-medium text-sm">{asset.unit}</div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {asset.price} • To {getChainDisplayNameFromId(asset.externalChainId)}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-sm font-medium text-muted-foreground">
-                                                {isAvailable
-                                                    ? `${Number(availableAmount).toLocaleString('en-US', { maximumFractionDigits: 6 })} available`
-                                                    : 'No tokens available'
-                                                }
-                                            </div>
-                                            <Button
-                                                size="sm"
-                                                className="mt-1 h-7 text-xs"
-                                                disabled={!isAvailable}
-                                                onClick={() => handleBorrowClick(asset)}
-                                            >
-                                                Borrow
-                                            </Button>
+                            {/* Loading skeleton */}
+                            {Array.from({ length: 4 }, (_, i) => (
+                                <div key={i} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border-light dark:border-border-dark">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
+                                        <div>
+                                            <div className="w-12 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-1"></div>
+                                            <div className="w-16 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
                                         </div>
                                     </div>
-                                );
-                            })}
+                                    <div className="text-right">
+                                        <div className="w-20 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-1"></div>
+                                        <div className="w-16 h-7 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : borrowableAssets.length > 0 ? (
+                        <div className="space-y-2">
+                            {borrowableAssets.map((asset) => (
+                                <div key={`${asset.address}-borrow`} className={`flex items-center justify-between p-3 bg-background rounded-lg border transition-colors ${asset.isAvailableToBorrow
+                                    ? 'border-border-light dark:border-border-dark hover:border-red-300 dark:hover:border-red-700 cursor-pointer'
+                                    : 'border-muted-foreground/20 opacity-60'
+                                    }`}>
+                                    <div className="flex items-center space-x-3">
+                                        <TokenNetworkIcon
+                                            tokenSymbol={asset.unit}
+                                            sourceChain={asset.sourceChain}
+                                            size="sm"
+                                            shadow="sm"
+                                        />
+                                        <div>
+                                            <div className="font-medium text-sm">{asset.unit}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {asset.price} • To {getChainDisplayNameFromId(asset.externalChainId)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-sm font-medium text-muted-foreground">
+                                            {asset.isAvailableToBorrow
+                                                ? `${asset.formattedMaxAvailable} available`
+                                                : 'No tokens available'
+                                            }
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            className="mt-1 h-7 text-xs"
+                                            disabled={!asset.isAvailableToBorrow}
+                                            onClick={() => handleBorrowClick(asset)}
+                                        >
+                                            Borrow
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     ) : (
                         <div className="text-center py-4 text-muted-foreground border-2 border-dashed border-border-light dark:border-border-dark rounded-lg">

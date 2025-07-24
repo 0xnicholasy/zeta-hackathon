@@ -5,6 +5,7 @@ import { formatHexString } from '../../utils/formatHexString';
 import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
 import type { EVMTransactionHash } from '../dashboard/types';
 import type { StepsForTransactionType, TransactionType } from '../../types/transactions';
+import { getChainDisplayNameFromId } from '../../utils/chainUtils';
 
 interface TransactionStatusProps<T extends TransactionType = TransactionType> {
     currentStep: StepsForTransactionType<T>;
@@ -18,9 +19,17 @@ interface TransactionStatusProps<T extends TransactionType = TransactionType> {
     crossChain?: ReturnType<typeof useCrossChainTracking>;
     gasTokenInfo?: { amount: bigint; needsApproval: boolean } | null;
     gasTokenSymbol?: string;
-    // gasTokenDecimals?: number;
-    destinationChainName?: string;
     transactionType?: T;
+}
+
+function getTransactionLabel(transactionType: TransactionType): string {
+    switch (transactionType) {
+        case 'supply': return 'Deposit';
+        case 'withdraw': return 'Withdrawal';
+        case 'borrow': return 'Borrow';
+        case 'repay': return 'Repay';
+        default: return 'Transaction';
+    }
 }
 
 export function TransactionStatus<T extends TransactionType = TransactionType>({
@@ -35,10 +44,9 @@ export function TransactionStatus<T extends TransactionType = TransactionType>({
     crossChain,
     gasTokenInfo,
     gasTokenSymbol = 'ETH',
-    // gasTokenDecimals = 18,
-    destinationChainName = 'Unknown Chain',
     transactionType = 'supply' as T,
 }: TransactionStatusProps<T>) {
+    const destinationChainName = getChainDisplayNameFromId(chainId);
     // Network switch step
     if (currentStep === 'switchNetwork') {
         return (
@@ -107,10 +115,7 @@ export function TransactionStatus<T extends TransactionType = TransactionType>({
 
                 {transactionHash && (currentStep === 'depositing' || currentStep === 'withdrawing' || currentStep === 'borrowing' || currentStep === 'repaying') && (
                     <div className="mt-2 text-xs text-muted-foreground flex items-center flex-nowrap">
-                        <span>{transactionType === 'supply' ? 'Deposit' :
-                            transactionType === 'withdraw' ? 'Withdrawal' :
-                                transactionType === 'borrow' ? 'Borrow' :
-                                    transactionType === 'repay' ? 'Repay' : 'Transaction'}:</span>
+                        <span>{getTransactionLabel(transactionType)}:</span>
                         <a
                             href={getTransactionUrl(chainId, transactionHash) ?? '#'}
                             target="_blank"
@@ -135,10 +140,7 @@ export function TransactionStatus<T extends TransactionType = TransactionType>({
                     <FaTimes className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-center text-sm text-muted-foreground">
-                    {transactionType === 'supply' ? 'Deposit' : 
-                     transactionType === 'withdraw' ? 'Withdrawal' :
-                     transactionType === 'borrow' ? 'Borrow' :
-                     transactionType === 'repay' ? 'Repay' : 'Transaction'} failed. Please try again.
+                    {getTransactionLabel(transactionType)} failed. Please try again.
                 </div>
             </div>
         );
@@ -167,9 +169,9 @@ export function TransactionStatus<T extends TransactionType = TransactionType>({
                     {!crossChain && `Your ${transactionType} transaction has been completed successfully!`}
                     {crossChain?.status === 'pending' && `Processing cross-chain ${transactionType} ${['withdraw', 'borrow'].includes(transactionType) ? `to ${destinationChainName}` : 'to ZetaChain'}...`}
                     {crossChain?.status === 'success' && `Cross-chain ${transactionType} completed successfully! ${transactionType === 'supply' ? 'Tokens are now available for borrowing.' :
-                            transactionType === 'borrow' ? `Borrowed assets have been sent to ${destinationChainName}.` :
-                                transactionType === 'repay' ? 'Debt has been successfully repaid.' :
-                                    `Assets have been sent to ${destinationChainName}.`
+                        transactionType === 'borrow' ? `Borrowed assets have been sent to ${destinationChainName}.` :
+                            transactionType === 'repay' ? 'Debt has been successfully repaid.' :
+                                `Assets have been sent to ${destinationChainName}.`
                         }`}
                     {crossChain?.status === 'failed' && `Cross-chain ${transactionType} failed. Please check the transaction status or try again.`}
                     {crossChain?.status === 'idle' && `Your ${transactionType} transaction has been completed successfully! Starting cross-chain transfer...`}
@@ -178,10 +180,7 @@ export function TransactionStatus<T extends TransactionType = TransactionType>({
                 {/* Show transaction hashes */}
                 {transactionHash && (
                     <div className="mt-2 text-xs text-muted-foreground flex items-center flex-nowrap">
-                        <span>{transactionType === 'supply' ? 'Deposit' :
-                            transactionType === 'withdraw' ? 'Withdrawal' :
-                                transactionType === 'borrow' ? 'Borrow' :
-                                    transactionType === 'repay' ? 'Repay' : 'Transaction'}:</span>
+                        <span>{getTransactionLabel(transactionType)}:</span>
                         <a
                             href={getTransactionUrl(chainId, transactionHash) ?? '#'}
                             target="_blank"

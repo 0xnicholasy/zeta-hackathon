@@ -149,10 +149,10 @@ export function useBorrowValidation({
         const priceString = selectedAsset.price.replace(/[$,]/g, '');
         const assetPriceUsd = parseFloat(priceString);
 
-        if (assetPriceUsd <= 0) {
+        if (isNaN(assetPriceUsd) || assetPriceUsd <= 0) {
             setValidationResult({
                 isValid: false,
-                error: 'Asset price is not available',
+                error: 'Asset price is invalid or not available',
                 canBorrow: false,
                 maxBorrowAmount: '0',
                 currentHealthFactor: 0,

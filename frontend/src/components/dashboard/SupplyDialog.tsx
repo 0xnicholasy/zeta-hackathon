@@ -42,7 +42,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
   const isNativeToken = selectedToken?.isNative ?? false;
   const maxAmount = selectedToken?.formattedBalance ?? '0';
   const amountBigInt = amount && selectedToken ? parseUnits(amount, selectedToken.decimals) : BigInt(0);
-  const isValidAmount = amount && parseFloat(amount) > 0 && parseFloat(amount) <= parseFloat(maxAmount);
+  const isValidAmount = Boolean(amount && parseFloat(amount) > 0 && parseFloat(amount) <= parseFloat(maxAmount));
 
   // Handle deposit function
   const handleDeposit = useCallback(async () => {
@@ -178,8 +178,9 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
       sourceChain={selectedToken.chainName}
       currentStep={txState.currentStep}
       isSubmitting={txState.isSubmitting}
-      onSubmit={() => { void handleSubmit() }}
-      isValidAmount={Boolean(isValidAmount)}
+      /* simplest: just pass the memoised function – the caller can `void` it */
+      onSubmit={handleSubmit as unknown as () => void}
+      isValidAmount={isValidAmount}
       isConnected={Boolean(address)}
       submitButtonText="Supply"
     >

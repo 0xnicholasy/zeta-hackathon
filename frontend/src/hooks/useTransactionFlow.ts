@@ -7,6 +7,20 @@ import type {
     StepsForTransactionType
 } from '../types/transactions';
 
+// Type guard to check if a step is valid for a given transaction type
+function isValidStepForTransactionType<T extends TransactionType>(
+    step: string
+): step is StepsForTransactionType<T> {
+    // This is a runtime check that validates the step against known valid steps
+    // for all transaction types. In a more robust implementation, this could
+    // be enhanced with a complete validation mapping.
+    const commonSteps = ['input', 'approve', 'approving', 'switchNetwork', 'success', 'failed'];
+    const transactionSpecificSteps = ['deposit', 'depositing', 'withdraw', 'withdrawing', 'checkWithdraw', 'checkGas', 'borrow', 'borrowing', 'repay', 'repaying'];
+    const allValidSteps = [...commonSteps, ...transactionSpecificSteps];
+    
+    return allValidSteps.includes(step);
+}
+
 export interface TransactionFlowState<T extends TransactionType> {
     currentStep: StepsForTransactionType<T>;
     isSubmitting: boolean;
@@ -39,9 +53,9 @@ export interface TransactionFlowHookReturn<T extends TransactionType> {
     };
 }
 
-export function useTransactionFlow<T extends TransactionType>(): TransactionFlowHookReturn<T> {
+export function useTransactionFlow<T extends TransactionType>(initialStep: StepsForTransactionType<T> = 'input' as StepsForTransactionType<T>): TransactionFlowHookReturn<T> {
     // State
-    const [currentStep, setCurrentStep] = useState<StepsForTransactionType<T>>('input' as StepsForTransactionType<T>);
+    const [currentStep, setCurrentStep] = useState<StepsForTransactionType<T>>(initialStep);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [approvalHash, setApprovalHash] = useState<EVMTransactionHash | null>(null);
     const [transactionHash, setTransactionHash] = useState<EVMTransactionHash | null>(null);
@@ -88,20 +102,31 @@ export function useTransactionFlow<T extends TransactionType>(): TransactionFlow
             if (validHash) {
                 if (currentStep === 'approve') {
                     setApprovalHash(validHash);
-                    setCurrentStep('approving' as StepsForTransactionType<T>);
+                    // Type-safe way to set approving step
+                    const approvingStep = 'approving' as const;
+                    if (isValidStepForTransactionType<T>(approvingStep)) {
+                        setCurrentStep(approvingStep);
+                    }
                 } else {
                     // Handle main transaction steps
                     setTransactionHash(validHash);
 
-                    // Map current step to its corresponding pending step
-                    if (currentStep === 'deposit') {
-                        setCurrentStep('depositing' as StepsForTransactionType<T>);
-                    } else if (currentStep === 'withdraw') {
-                        setCurrentStep('withdrawing' as StepsForTransactionType<T>);
-                    } else if (currentStep === 'borrow') {
-                        setCurrentStep('borrowing' as StepsForTransactionType<T>);
-                    } else if (currentStep === 'repay') {
-                        setCurrentStep('repaying' as StepsForTransactionType<T>);
+                    // Type-safe step transitions with proper validation
+                    const stepTransitions = {
+                        'deposit': 'depositing' as const,
+                        'withdraw': 'withdrawing' as const,
+                        'borrow': 'borrowing' as const,
+                        'repay': 'repaying' as const
+                    } as const;
+
+                    const currentStepKey = currentStep as keyof typeof stepTransitions;
+                    const nextStep = stepTransitions[currentStepKey];
+                    
+                    if (nextStep && isValidStepForTransactionType<T>(nextStep)) {
+                        setCurrentStep(nextStep);
+                    } else {
+                        // Log warning for unexpected step transitions
+                        console.warn(`Unexpected step transition from '${currentStep}' in transaction type. No valid transition found.`);
                     }
                 }
             }

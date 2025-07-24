@@ -10,11 +10,13 @@ import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
 import { useContracts } from '../../hooks/useContracts';
 import { useBorrowTransactionFlow } from '../../hooks/useTransactionFlow';
 import { useBorrowValidation } from '../../hooks/useBorrowValidation';
+import { useGasTokenApproval, getGasTokenApprovalContractCall } from '../../hooks/useGasTokenApproval';
 import { SupportedChain, getNetworkConfig } from '../../contracts/deployments';
-import { getChainDisplayName } from '../../utils/chainUtils';
+import { getChainDisplayNameFromId } from '../../utils/chainUtils';
 import { safeEVMAddressOrZeroAddress, type UserAssetData } from './types';
 import { SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
+import { getHealthFactorColorClass, formatHealthFactor } from '../../utils/healthFactorUtils';
 
 interface BorrowDialogProps {
     isOpen: boolean;
@@ -56,6 +58,13 @@ export function BorrowDialog({
     // Computed values
     const amountBigInt = amount && selectedAsset ? parseUnits(amount, selectedAsset.decimals) : BigInt(0);
 
+    // Gas token approval hook
+    const gasApproval = useGasTokenApproval({
+        selectedAsset,
+        borrowAmount: amountBigInt,
+        simpleLendingProtocol: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+    });
+
     // Destructure transaction flow state
     const { state: txState, actions: txActions, contractState } = transactionFlow;
 
@@ -87,7 +96,18 @@ export function BorrowDialog({
                 return; // Exit here, the network switch will trigger a re-render
             }
 
-            // For now, borrow to same chain as selected asset (could be made configurable)
+            // Check if gas token approval is needed
+            if (gasApproval.needsApproval && gasApproval.gasTokenAddress) {
+                txActions.setCurrentStep('approve');
+                const approvalCall = getGasTokenApprovalContractCall(
+                    gasApproval.gasTokenAddress,
+                    safeEVMAddressOrZeroAddress(simpleLendingProtocol)
+                );
+                txActions.writeContract(approvalCall);
+                return; // Exit here, approval success will trigger borrow transaction
+            }
+
+            // Proceed with borrow transaction
             txActions.setCurrentStep('borrow');
             txActions.writeContract({
                 address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
@@ -96,7 +116,7 @@ export function BorrowDialog({
                 args: [
                     selectedAsset.address,
                     amountBigInt,
-                    BigInt(selectedAsset.externalChainId || SupportedChain.ARBITRUM_SEPOLIA),
+                    BigInt(selectedAsset.externalChainId),
                     safeAddress,
                 ],
             });
@@ -105,7 +125,7 @@ export function BorrowDialog({
             txActions.setIsSubmitting(false);
             txActions.setCurrentStep('input');
         }
-    }, [amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, isOnZetaChain, handleSwitchToZeta, safeAddress]);
+    }, [amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, isOnZetaChain, handleSwitchToZeta, safeAddress, gasApproval]);
 
     // Handle max click
     const handleMaxClick = useCallback(() => {
@@ -125,6 +145,10 @@ export function BorrowDialog({
         switch (txState.currentStep) {
             case 'switchNetwork':
                 return `Switch to ${zetaNetworkConfig?.name || 'ZetaChain'} to borrow`;
+            case 'approve':
+                return 'Approve gas token for withdrawal fees';
+            case 'approving':
+                return 'Waiting for approval confirmation...';
             case 'borrow':
                 return 'Sign transaction to borrow from protocol';
             case 'borrowing':
@@ -186,6 +210,25 @@ export function BorrowDialog({
         }
     }, [contractState.error, txState.currentStep, txActions]);
 
+    // Handle approval success - proceed with borrow transaction
+    useEffect(() => {
+        if (contractState.isApprovalSuccess && txState.currentStep === 'approving' && amount && selectedAsset && amountBigInt && simpleLendingProtocol) {
+            // Approval successful, proceed with borrow transaction
+            txActions.setCurrentStep('borrow');
+            txActions.writeContract({
+                address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+                abi: lendingProtocolAbi,
+                functionName: 'borrowCrossChain',
+                args: [
+                    selectedAsset.address,
+                    amountBigInt,
+                    BigInt(selectedAsset.externalChainId),
+                    safeAddress,
+                ],
+            });
+        }
+    }, [contractState.isApprovalSuccess, txState.currentStep, amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, safeAddress]);
+
     // Handle successful network switch to ZetaChain
     useEffect(() => {
         if (txState.currentStep === 'switchNetwork' && isOnZetaChain) {
@@ -196,22 +239,33 @@ export function BorrowDialog({
             // Auto-proceed with the borrow transaction after network switch
             setTimeout(() => {
                 if (amount && selectedAsset && amountBigInt && simpleLendingProtocol) {
-                    txActions.setCurrentStep('borrow');
-                    txActions.writeContract({
-                        address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
-                        abi: lendingProtocolAbi,
-                        functionName: 'borrowCrossChain',
-                        args: [
-                            selectedAsset.address,
-                            amountBigInt,
-                            BigInt(selectedAsset.externalChainId || SupportedChain.ARBITRUM_SEPOLIA),
-                            safeAddress,
-                        ],
-                    });
+                    // Check if approval is needed first
+                    if (gasApproval.needsApproval && gasApproval.gasTokenAddress) {
+                        txActions.setCurrentStep('approve');
+                        const approvalCall = getGasTokenApprovalContractCall(
+                            gasApproval.gasTokenAddress,
+                            safeEVMAddressOrZeroAddress(simpleLendingProtocol)
+                        );
+                        txActions.writeContract(approvalCall);
+                    } else {
+                        // No approval needed, proceed with borrow
+                        txActions.setCurrentStep('borrow');
+                        txActions.writeContract({
+                            address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+                            abi: lendingProtocolAbi,
+                            functionName: 'borrowCrossChain',
+                            args: [
+                                selectedAsset.address,
+                                amountBigInt,
+                                BigInt(selectedAsset.externalChainId),
+                                safeAddress,
+                            ],
+                        });
+                    }
                 }
             }, 500); // Small delay to ensure network switch is complete
         }
-    }, [txState.currentStep, isOnZetaChain, amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, safeAddress]);
+    }, [txState.currentStep, isOnZetaChain, amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, safeAddress, gasApproval]);
 
     // Early return after all hooks
     if (!selectedAsset || !simpleLendingProtocol) return null;
@@ -228,9 +282,15 @@ export function BorrowDialog({
             isSubmitting={txState.isSubmitting}
             onSubmit={() => { void handleSubmit() }}
             onRetry={handleRetry}
-            isValidAmount={validation.isValid}
+            isValidAmount={validation.isValid && !gasApproval.hasInsufficientBalance && !gasApproval.error}
             isConnected={Boolean(address)}
-            submitButtonText={!isOnZetaChain ? `Switch to ${zetaNetworkConfig?.name || 'ZetaChain'}` : "Borrow"}
+            submitButtonText={
+                !isOnZetaChain 
+                    ? `Switch to ${zetaNetworkConfig?.name || 'ZetaChain'}` 
+                    : gasApproval.needsApproval 
+                        ? "Approve & Borrow"
+                        : "Borrow"
+            }
         >
             {(txState.currentStep === 'input' || txState.currentStep === 'failed') && (
                 <div className="space-y-4 w-full overflow-hidden">
@@ -278,7 +338,7 @@ export function BorrowDialog({
                     <div className="p-3 bg-muted rounded-lg text-sm">
                         <div className="flex justify-between">
                             <span>Borrowing to chain:</span>
-                            <span className="font-medium">{getChainDisplayName('Arbitrum Sepolia')}</span>
+                            <span className="font-medium">{getChainDisplayNameFromId(selectedAsset.externalChainId)}</span>
                         </div>
                         <div className="flex justify-between mt-1">
                             <span>Asset:</span>
@@ -300,24 +360,55 @@ export function BorrowDialog({
                             <div className="space-y-2">
                                 <div className="flex justify-between">
                                     <span>Current:</span>
-                                    <span className={`font-medium ${validation.currentHealthFactor < 1.2 ? 'text-red-600 dark:text-red-400' :
-                                        validation.currentHealthFactor < 1.5 ? 'text-yellow-600 dark:text-yellow-400' :
-                                            'text-green-600 dark:text-green-400'
-                                        }`}>
-                                        {validation.currentHealthFactor > 999 ? '∞' : validation.currentHealthFactor.toFixed(2)}
+                                    <span className={`font-medium ${getHealthFactorColorClass(validation.currentHealthFactor)}`}>
+                                        {formatHealthFactor(validation.currentHealthFactor)}
                                     </span>
                                 </div>
                                 {amount && validation.estimatedHealthFactor > 0 && (
                                     <div className="flex justify-between">
                                         <span>After borrow:</span>
-                                        <span className={`font-medium ${validation.estimatedHealthFactor < 1.2 ? 'text-red-600 dark:text-red-400' :
-                                            validation.estimatedHealthFactor < 1.5 ? 'text-yellow-600 dark:text-yellow-400' :
-                                                'text-green-600 dark:text-green-400'
-                                            }`}>
-                                            {validation.estimatedHealthFactor.toFixed(2)}
+                                        <span className={`font-medium ${getHealthFactorColorClass(validation.estimatedHealthFactor)}`}>
+                                            {formatHealthFactor(validation.estimatedHealthFactor)}
                                         </span>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Gas Fee Info (show when borrowing different asset than gas token) */}
+                    {gasApproval.gasTokenAddress && selectedAsset && 
+                     selectedAsset.address.toLowerCase() !== gasApproval.gasTokenAddress.toLowerCase() && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm">
+                            <div className="text-blue-800 dark:text-blue-200 font-medium mb-2">
+                                Gas Fee Information
+                            </div>
+                            <div className="space-y-1 text-blue-700 dark:text-blue-300">
+                                <div className="flex justify-between">
+                                    <span>Gas fee:</span>
+                                    <span>{(Number(gasApproval.gasFee) / 1e18).toFixed(6)} ETH.ARBI</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span>Your balance:</span>
+                                    <span>{(Number(gasApproval.userGasBalance) / 1e18).toFixed(6)} ETH.ARBI</span>
+                                </div>
+                                {gasApproval.needsApproval && (
+                                    <div className="text-blue-600 dark:text-blue-400 text-xs mt-2">
+                                        Approval needed for gas token to pay withdrawal fees
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Gas Token Error Display */}
+                    {gasApproval.error && (
+                        <div className="p-3 border border-destructive/50 rounded-lg bg-destructive/10 text-sm break-words max-w-full">
+                            <div className="text-destructive font-medium">
+                                Gas Token Error
+                            </div>
+                            <div className="text-destructive/80 mt-1 break-words overflow-hidden text-wrap max-w-full">
+                                {gasApproval.error}
                             </div>
                         </div>
                     )}

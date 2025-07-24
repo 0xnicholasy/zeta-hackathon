@@ -157,41 +157,10 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     useEffect(() => {
         if (contractState.isApprovalSuccess && txState.currentStep === 'approving') {
             setTimeout(() => {
-                if (!amount || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
-
-                txActions.setIsSubmitting(true);
-                txActions.resetContract();
-
-                // Step 1: Check validation
-                txActions.setCurrentStep('checkWithdraw');
-                txActions.setCurrentStep('checkGas');
-
-                if (!validation.isValid) {
-                    if (validation.needsApproval) {
-                        txActions.setCurrentStep('approve');
-                    } else {
-                        txActions.setCurrentStep('input');
-                    }
-                    txActions.setIsSubmitting(false);
-                    return;
-                }
-
-                // Step 2: Proceed with withdrawal
-                txActions.setCurrentStep('withdraw');
-                txActions.writeContract({
-                    address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
-                    abi: lendingProtocolAbi,
-                    functionName: 'withdrawCrossChain',
-                    args: [
-                        selectedAsset.address,
-                        amountBigInt,
-                        BigInt(SupportedChain.ARBITRUM_SEPOLIA), // Using default for now
-                        safeAddress,
-                    ],
-                });
+                void handleSubmit();
             }, 2000);
         }
-    }, [contractState.isApprovalSuccess, txState.currentStep, amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, validation, safeAddress]);
+    }, [contractState.isApprovalSuccess, txState.currentStep, handleSubmit]);
 
     // Handle withdraw transaction success
     useEffect(() => {
@@ -328,7 +297,6 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                 chainId={SupportedChain.ZETA_TESTNET}
                 crossChain={crossChain}
                 gasTokenInfo={validation.gasTokenInfo.needsApproval ? validation.gasTokenInfo : null}
-                destinationChainName={destinationChainName}
                 transactionType="withdraw"
             />
         </BaseTransactionDialog>

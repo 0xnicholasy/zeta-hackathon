@@ -24,6 +24,133 @@ interface RepayValidationResult {
     isFullRepayment: boolean;
 }
 
+const FOREIGN_CHAIN_ASSET_MAPPING = {
+    'ARBI': {
+        chainId: SupportedChain.ARBITRUM_SEPOLIA,
+        tokens: {
+            'ETH': 'ETH',
+            'USDC': 'USDC',
+        }
+    },
+    'ETH': {
+        chainId: SupportedChain.ETHEREUM_SEPOLIA,
+        tokens: {
+            'ETH': 'ETH',
+            'USDC': 'USDC',
+        }
+    }
+} as const;
+
+// Constants for configuration and magic numbers
+const HEALTH_FACTOR_INFINITY_THRESHOLD = 999;
+const DEFAULT_LTV_RATIO = 0.8;
+const PRICE_PRECISION = 1e18;
+const DISPLAY_PRECISION = 6;
+
+// Helper function to safely parse asset prices
+function parseAssetPrice(priceString: string | undefined): number {
+    if (!priceString) return 0;
+
+    try {
+        // Remove currency symbols, commas, and whitespace
+        const cleanPrice = priceString.replace(/[$,\s]/g, '');
+        const parsed = parseFloat(cleanPrice);
+        return isNaN(parsed) || !isFinite(parsed) ? 0 : parsed;
+    } catch {
+        return 0;
+    }
+}
+
+// Helper function to format asset values from BigInt
+function formatAssetValues(
+    borrowBalance: bigint,
+    tokenBalance: bigint,
+    decimals: number
+) {
+    const currentDebtFormatted = Number(borrowBalance) / Math.pow(10, decimals);
+    const availableBalanceFormatted = Number(tokenBalance) / Math.pow(10, decimals);
+    const maxRepayAmount = Math.min(currentDebtFormatted, availableBalanceFormatted);
+
+    return {
+        currentDebtFormatted,
+        availableBalanceFormatted,
+        maxRepayAmount: maxRepayAmount.toString(),
+    };
+}
+
+// Helper function to normalize health factor
+function normalizeHealthFactor(healthFactor: number): number {
+    return healthFactor > HEALTH_FACTOR_INFINITY_THRESHOLD ? Infinity : healthFactor;
+}
+
+// Helper function to calculate new health factor after repayment
+function calculateNewHealthFactor(
+    currentHealthFactor: number,
+    totalCollateralValue: number,
+    totalDebtValue: number,
+    repayValueUsd: number,
+    ltvRatio: number = DEFAULT_LTV_RATIO
+): number {
+    if (totalDebtValue <= 0 || repayValueUsd <= 0) {
+        return currentHealthFactor;
+    }
+
+    const newTotalDebtValue = Math.max(0, totalDebtValue - repayValueUsd);
+
+    return newTotalDebtValue > 0
+        ? (totalCollateralValue * ltvRatio) / newTotalDebtValue
+        : Infinity; // No debt = infinite health factor
+}
+
+// Helper function to validate repay amount
+function validateRepayAmount(
+    repayAmount: number,
+    availableBalance: number,
+    currentDebt: number,
+    assetUnit: string
+): { isValid: boolean; error: string } {
+    if (repayAmount > availableBalance) {
+        return {
+            isValid: false,
+            error: `Insufficient balance. Available: ${availableBalance.toFixed(DISPLAY_PRECISION)} ${assetUnit}`,
+        };
+    }
+
+    if (repayAmount > currentDebt) {
+        return {
+            isValid: false,
+            error: `Repay amount exceeds debt. Current debt: ${currentDebt.toFixed(DISPLAY_PRECISION)} ${assetUnit}`,
+        };
+    }
+
+    return { isValid: true, error: '' };
+}
+
+// Helper function to create validation result object
+function createValidationResult(
+    isValid: boolean,
+    error: string,
+    maxRepayAmount: string,
+    availableBalance: number,
+    currentDebt: number,
+    currentHealthFactor: number,
+    newHealthFactor: number,
+    isFullRepayment = false
+): RepayValidationResult {
+    return {
+        isValid,
+        error,
+        maxRepayAmount,
+        availableBalance: availableBalance.toString(),
+        formattedAvailableBalance: availableBalance.toFixed(DISPLAY_PRECISION),
+        currentDebt: currentDebt.toString(),
+        formattedCurrentDebt: currentDebt.toFixed(DISPLAY_PRECISION),
+        currentHealthFactor: normalizeHealthFactor(currentHealthFactor),
+        newHealthFactor: normalizeHealthFactor(newHealthFactor),
+        isFullRepayment,
+    };
+}
+
 export function useRepayValidation({
     selectedAsset,
     amount,
@@ -97,23 +224,13 @@ export function useRepayValidation({
     const getForeignChainTokenAddress = () => {
         if (!selectedAsset) return undefined;
 
-        // Map ZetaChain asset to foreign chain token
-        if (selectedAsset.sourceChain === 'ARBI') {
-            // For Arbitrum assets
-            if (selectedAsset.unit === 'ETH') {
-                return getTokenAddress('ETH', SupportedChain.ARBITRUM_SEPOLIA); // address(0) for native ETH
-            } else if (selectedAsset.unit === 'USDC') {
-                return getTokenAddress('USDC', SupportedChain.ARBITRUM_SEPOLIA);
-            }
-        } else if (selectedAsset.sourceChain === 'ETH') {
-            // For Ethereum assets
-            if (selectedAsset.unit === 'ETH') {
-                return getTokenAddress('ETH', SupportedChain.ETHEREUM_SEPOLIA); // address(0) for native ETH
-            } else if (selectedAsset.unit === 'USDC') {
-                return getTokenAddress('USDC', SupportedChain.ETHEREUM_SEPOLIA);
-            }
-        }
-        return undefined;
+        const chainMapping = FOREIGN_CHAIN_ASSET_MAPPING[selectedAsset.sourceChain as keyof typeof FOREIGN_CHAIN_ASSET_MAPPING];
+        if (!chainMapping) return undefined;
+
+        const tokenSymbol = chainMapping.tokens[selectedAsset.unit as keyof typeof chainMapping.tokens];
+        if (!tokenSymbol) return undefined;
+
+        return getTokenAddress(tokenSymbol, chainMapping.chainId);
     };
 
     const foreignTokenAddress = getForeignChainTokenAddress();
@@ -129,133 +246,111 @@ export function useRepayValidation({
         },
     });
 
-    // Validate repay parameters
+    // Refactored validate repay function
     const validateRepay = useCallback(() => {
+        // Early validation: check required parameters
         if (!selectedAsset || !userAddress || !simpleLendingProtocol) {
-            setValidationResult({
-                isValid: false,
-                error: 'Missing required parameters',
-                maxRepayAmount: '0',
-                availableBalance: '0',
-                formattedAvailableBalance: '0',
-                currentDebt: '0',
-                formattedCurrentDebt: '0',
-                currentHealthFactor: 0,
-                newHealthFactor: 0,
-                isFullRepayment: false,
-            });
+            setValidationResult(createValidationResult(
+                false,
+                'Missing required parameters',
+                '0',
+                0,
+                0,
+                0,
+                0
+            ));
             return;
         }
 
-        if (!borrowBalance || !tokenBalance || healthFactor === undefined || totalCollateralValue === undefined || totalDebtValue === undefined) {
-            setValidationResult({
-                isValid: false,
-                error: 'Loading data...',
-                maxRepayAmount: '0',
-                availableBalance: '0',
-                formattedAvailableBalance: '0',
-                currentDebt: '0',
-                formattedCurrentDebt: '0',
-                currentHealthFactor: 0,
-                newHealthFactor: 0,
-                isFullRepayment: false,
-            });
+        // Early validation: check data availability
+        if (!borrowBalance || !tokenBalance || healthFactor === undefined ||
+            totalCollateralValue === undefined || totalDebtValue === undefined) {
+            setValidationResult(createValidationResult(
+                false,
+                'Loading data...',
+                '0',
+                0,
+                0,
+                0,
+                0
+            ));
             return;
         }
 
-        // Format current debt and available balance
-        const currentDebtBigInt = borrowBalance;
-        const availableBalanceBigInt = tokenBalance.value;
+        // Format asset values
+        const {
+            currentDebtFormatted,
+            availableBalanceFormatted,
+            maxRepayAmount
+        } = formatAssetValues(borrowBalance, tokenBalance.value, selectedAsset.decimals);
 
-        const currentDebtFormatted = Number(currentDebtBigInt) / Math.pow(10, selectedAsset.decimals);
-        const availableBalanceFormatted = Number(availableBalanceBigInt) / Math.pow(10, selectedAsset.decimals);
+        // Format blockchain values
+        const totalCollateralValueFormatted = Number(totalCollateralValue) / PRICE_PRECISION;
+        const totalDebtValueFormatted = Number(totalDebtValue) / PRICE_PRECISION;
+        const currentHealthFactorFormatted = Number(healthFactor) / PRICE_PRECISION;
 
-        // Calculate max repay amount (minimum of debt and available balance)
-        const maxRepayAmountNumber = Math.min(currentDebtFormatted, availableBalanceFormatted);
-        const maxRepayAmount = maxRepayAmountNumber.toString();
-
-        // Calculate current health factor
-        const totalCollateralValueFormatted = Number(totalCollateralValue) / 1e18;
-        const totalDebtValueFormatted = Number(totalDebtValue) / 1e18;
-        const currentHealthFactorFormatted = Number(healthFactor) / 1e18;
-
-        // Check if no debt exists
+        // Handle case where there's no debt to repay
         if (currentDebtFormatted === 0) {
-            setValidationResult({
-                isValid: false,
-                error: `No debt to repay for ${selectedAsset.unit}`,
-                maxRepayAmount: '0',
-                availableBalance: availableBalanceFormatted.toString(),
-                formattedAvailableBalance: availableBalanceFormatted.toFixed(6),
-                currentDebt: '0',
-                formattedCurrentDebt: '0',
-                currentHealthFactor: currentHealthFactorFormatted > 999 ? Infinity : currentHealthFactorFormatted,
-                newHealthFactor: currentHealthFactorFormatted > 999 ? Infinity : currentHealthFactorFormatted,
-                isFullRepayment: false,
-            });
+            setValidationResult(createValidationResult(
+                false,
+                `No debt to repay for ${selectedAsset.unit}`,
+                '0',
+                availableBalanceFormatted,
+                0,
+                currentHealthFactorFormatted,
+                currentHealthFactorFormatted
+            ));
             return;
         }
 
-        // If no amount entered yet, return basic info
+        // Handle case where no amount is entered yet
         if (!amount || parseFloat(amount) <= 0) {
-            setValidationResult({
-                isValid: false,
-                error: '',
+            setValidationResult(createValidationResult(
+                false,
+                '',
                 maxRepayAmount,
-                availableBalance: availableBalanceFormatted.toString(),
-                formattedAvailableBalance: availableBalanceFormatted.toFixed(6),
-                currentDebt: currentDebtFormatted.toString(),
-                formattedCurrentDebt: currentDebtFormatted.toFixed(6),
-                currentHealthFactor: currentHealthFactorFormatted > 999 ? Infinity : currentHealthFactorFormatted,
-                newHealthFactor: currentHealthFactorFormatted > 999 ? Infinity : currentHealthFactorFormatted,
-                isFullRepayment: false,
-            });
+                availableBalanceFormatted,
+                currentDebtFormatted,
+                currentHealthFactorFormatted,
+                currentHealthFactorFormatted
+            ));
             return;
         }
 
+        // Parse and validate repay amount
         const repayAmount = parseFloat(amount);
         const isFullRepayment = repayAmount >= currentDebtFormatted;
 
         // Calculate new health factor after repayment
-        const priceString = selectedAsset.price || '0';
-        const assetPriceUsd = parseFloat(priceString.replace(/[$,]/g, '') || '0');
+        const assetPriceUsd = parseAssetPrice(selectedAsset.price);
         const repayValueUsd = repayAmount * assetPriceUsd;
 
-        let newHealthFactor = currentHealthFactorFormatted;
-        if (totalDebtValueFormatted > 0 && repayValueUsd > 0) {
-            const newTotalDebtValue = Math.max(0, totalDebtValueFormatted - repayValueUsd);
-            newHealthFactor = newTotalDebtValue > 0
-                ? (totalCollateralValueFormatted * 0.8) / newTotalDebtValue // Assuming 80% LTV
-                : Infinity; // No debt = infinite health factor
-        }
+        const newHealthFactor = calculateNewHealthFactor(
+            currentHealthFactorFormatted,
+            totalCollateralValueFormatted,
+            totalDebtValueFormatted,
+            repayValueUsd
+        );
 
-        // Validation checks
-        let error = '';
-        let isValid = true;
+        // Validate the repay amount
+        const validation = validateRepayAmount(
+            repayAmount,
+            availableBalanceFormatted,
+            currentDebtFormatted,
+            selectedAsset.unit
+        );
 
-        // Check if user has sufficient balance
-        if (repayAmount > availableBalanceFormatted) {
-            error = `Insufficient balance. Available: ${availableBalanceFormatted.toFixed(6)} ${selectedAsset.unit}`;
-            isValid = false;
-        }
-        // Check if repay amount exceeds debt
-        else if (repayAmount > currentDebtFormatted) {
-            error = `Repay amount exceeds debt. Current debt: ${currentDebtFormatted.toFixed(6)} ${selectedAsset.unit}`;
-            isValid = false;
-        }
-
-        setValidationResult({
-            isValid,
-            error,
+        // Set final validation result
+        setValidationResult(createValidationResult(
+            validation.isValid,
+            validation.error,
             maxRepayAmount,
-            availableBalance: availableBalanceFormatted.toString(),
-            formattedAvailableBalance: availableBalanceFormatted.toFixed(6),
-            currentDebt: currentDebtFormatted.toString(),
-            formattedCurrentDebt: currentDebtFormatted.toFixed(6),
-            currentHealthFactor: currentHealthFactorFormatted > 999 ? Infinity : currentHealthFactorFormatted,
+            availableBalanceFormatted,
+            currentDebtFormatted,
+            currentHealthFactorFormatted,
             newHealthFactor,
-            isFullRepayment,
-        });
+            isFullRepayment
+        ));
     }, [selectedAsset, userAddress, simpleLendingProtocol, amount, borrowBalance, tokenBalance, healthFactor, totalCollateralValue, totalDebtValue]);
 
     // Run validation when dependencies change
