@@ -128,6 +128,7 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
     "isAssetAdded(address)": FunctionFragment;
     "isChainAllowed(uint256)": FunctionFragment;
     "isLiquidatable(address)": FunctionFragment;
+    "lastGlobalInterestUpdate(address)": FunctionFragment;
     "lastInterestUpdate(address,address)": FunctionFragment;
     "liquidate(address,address,address,uint256)": FunctionFragment;
     "mapZRC20Asset(address,uint256,string)": FunctionFragment;
@@ -184,6 +185,7 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
       | "isAssetAdded"
       | "isChainAllowed"
       | "isLiquidatable"
+      | "lastGlobalInterestUpdate"
       | "lastInterestUpdate"
       | "liquidate"
       | "mapZRC20Asset"
@@ -339,6 +341,10 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "isLiquidatable",
+    values: [PromiseOrValue<string>]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "lastGlobalInterestUpdate",
     values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
@@ -567,6 +573,10 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "lastGlobalInterestUpdate",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "lastInterestUpdate",
     data: BytesLike
   ): Result;
@@ -646,6 +656,7 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
     "AllowedChainUpdated(uint256,bool)": EventFragment;
     "Borrow(address,address,uint256)": EventFragment;
     "CrossChainDeposit(address,address,uint256,uint256,bytes32)": EventFragment;
+    "CrossChainRepay(address,address,uint256,uint256,bytes32)": EventFragment;
     "CrossChainWithdrawal(address,address,uint256,uint256,address)": EventFragment;
     "Liquidate(address,address,address,address,uint256,uint256)": EventFragment;
     "OwnershipTransferred(address,address)": EventFragment;
@@ -658,6 +669,7 @@ export interface UniversalLendingProtocolInterface extends utils.Interface {
   getEvent(nameOrSignatureOrTopic: "AllowedChainUpdated"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "Borrow"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "CrossChainDeposit"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "CrossChainRepay"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "CrossChainWithdrawal"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "Liquidate"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "OwnershipTransferred"): EventFragment;
@@ -705,6 +717,20 @@ export type CrossChainDepositEvent = TypedEvent<
 
 export type CrossChainDepositEventFilter =
   TypedEventFilter<CrossChainDepositEvent>;
+
+export interface CrossChainRepayEventObject {
+  user: string;
+  zrc20: string;
+  amount: BigNumber;
+  sourceChain: BigNumber;
+  txHash: string;
+}
+export type CrossChainRepayEvent = TypedEvent<
+  [string, string, BigNumber, BigNumber, string],
+  CrossChainRepayEventObject
+>;
+
+export type CrossChainRepayEventFilter = TypedEventFilter<CrossChainRepayEvent>;
 
 export interface CrossChainWithdrawalEventObject {
   user: string;
@@ -1006,6 +1032,11 @@ export interface UniversalLendingProtocol extends BaseContract {
       user: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<[boolean]>;
+
+    lastGlobalInterestUpdate(
+      arg0: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber]>;
 
     lastInterestUpdate(
       arg0: PromiseOrValue<string>,
@@ -1324,6 +1355,11 @@ export interface UniversalLendingProtocol extends BaseContract {
     user: PromiseOrValue<string>,
     overrides?: CallOverrides
   ): Promise<boolean>;
+
+  lastGlobalInterestUpdate(
+    arg0: PromiseOrValue<string>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
 
   lastInterestUpdate(
     arg0: PromiseOrValue<string>,
@@ -1645,6 +1681,11 @@ export interface UniversalLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<boolean>;
 
+    lastGlobalInterestUpdate(
+      arg0: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
     lastInterestUpdate(
       arg0: PromiseOrValue<string>,
       arg1: PromiseOrValue<string>,
@@ -1815,6 +1856,21 @@ export interface UniversalLendingProtocol extends BaseContract {
       sourceChain?: PromiseOrValue<BigNumberish> | null,
       txHash?: null
     ): CrossChainDepositEventFilter;
+
+    "CrossChainRepay(address,address,uint256,uint256,bytes32)"(
+      user?: PromiseOrValue<string> | null,
+      zrc20?: PromiseOrValue<string> | null,
+      amount?: null,
+      sourceChain?: PromiseOrValue<BigNumberish> | null,
+      txHash?: null
+    ): CrossChainRepayEventFilter;
+    CrossChainRepay(
+      user?: PromiseOrValue<string> | null,
+      zrc20?: PromiseOrValue<string> | null,
+      amount?: null,
+      sourceChain?: PromiseOrValue<BigNumberish> | null,
+      txHash?: null
+    ): CrossChainRepayEventFilter;
 
     "CrossChainWithdrawal(address,address,uint256,uint256,address)"(
       user?: PromiseOrValue<string> | null,
@@ -2053,6 +2109,11 @@ export interface UniversalLendingProtocol extends BaseContract {
 
     isLiquidatable(
       user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    lastGlobalInterestUpdate(
+      arg0: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
@@ -2346,6 +2407,11 @@ export interface UniversalLendingProtocol extends BaseContract {
 
     isLiquidatable(
       user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    lastGlobalInterestUpdate(
+      arg0: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 

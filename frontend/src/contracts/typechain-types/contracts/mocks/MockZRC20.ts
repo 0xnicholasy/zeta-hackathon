@@ -36,9 +36,11 @@ export interface MockZRC20Interface extends utils.Interface {
     "burn(address,uint256)": FunctionFragment;
     "decimals()": FunctionFragment;
     "deposit(address,uint256)": FunctionFragment;
+    "gasFee()": FunctionFragment;
     "gasToken()": FunctionFragment;
     "mint(address,uint256)": FunctionFragment;
     "name()": FunctionFragment;
+    "setGasFee(address,uint256)": FunctionFragment;
     "setGasToken(address)": FunctionFragment;
     "symbol()": FunctionFragment;
     "totalSupply()": FunctionFragment;
@@ -57,9 +59,11 @@ export interface MockZRC20Interface extends utils.Interface {
       | "burn"
       | "decimals"
       | "deposit"
+      | "gasFee"
       | "gasToken"
       | "mint"
       | "name"
+      | "setGasFee"
       | "setGasToken"
       | "symbol"
       | "totalSupply"
@@ -94,12 +98,17 @@ export interface MockZRC20Interface extends utils.Interface {
     functionFragment: "deposit",
     values: [PromiseOrValue<string>, PromiseOrValue<BigNumberish>]
   ): string;
+  encodeFunctionData(functionFragment: "gasFee", values?: undefined): string;
   encodeFunctionData(functionFragment: "gasToken", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "mint",
     values: [PromiseOrValue<string>, PromiseOrValue<BigNumberish>]
   ): string;
   encodeFunctionData(functionFragment: "name", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "setGasFee",
+    values: [PromiseOrValue<string>, PromiseOrValue<BigNumberish>]
+  ): string;
   encodeFunctionData(
     functionFragment: "setGasToken",
     values: [PromiseOrValue<string>]
@@ -140,9 +149,11 @@ export interface MockZRC20Interface extends utils.Interface {
   decodeFunctionResult(functionFragment: "burn", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "decimals", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "deposit", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "gasFee", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "gasToken", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "mint", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "name", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "setGasFee", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "setGasToken",
     data: BytesLike
@@ -256,6 +267,8 @@ export interface MockZRC20 extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
+    gasFee(overrides?: CallOverrides): Promise<[BigNumber]>;
+
     gasToken(overrides?: CallOverrides): Promise<[string]>;
 
     mint(
@@ -265,6 +278,12 @@ export interface MockZRC20 extends BaseContract {
     ): Promise<ContractTransaction>;
 
     name(overrides?: CallOverrides): Promise<[string]>;
+
+    setGasFee(
+      _gasToken: PromiseOrValue<string>,
+      _gasFee: PromiseOrValue<BigNumberish>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<ContractTransaction>;
 
     setGasToken(
       _gasToken: PromiseOrValue<string>,
@@ -330,6 +349,8 @@ export interface MockZRC20 extends BaseContract {
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
+  gasFee(overrides?: CallOverrides): Promise<BigNumber>;
+
   gasToken(overrides?: CallOverrides): Promise<string>;
 
   mint(
@@ -339,6 +360,12 @@ export interface MockZRC20 extends BaseContract {
   ): Promise<ContractTransaction>;
 
   name(overrides?: CallOverrides): Promise<string>;
+
+  setGasFee(
+    _gasToken: PromiseOrValue<string>,
+    _gasFee: PromiseOrValue<BigNumberish>,
+    overrides?: Overrides & { from?: PromiseOrValue<string> }
+  ): Promise<ContractTransaction>;
 
   setGasToken(
     _gasToken: PromiseOrValue<string>,
@@ -404,6 +431,8 @@ export interface MockZRC20 extends BaseContract {
       overrides?: CallOverrides
     ): Promise<boolean>;
 
+    gasFee(overrides?: CallOverrides): Promise<BigNumber>;
+
     gasToken(overrides?: CallOverrides): Promise<string>;
 
     mint(
@@ -413,6 +442,12 @@ export interface MockZRC20 extends BaseContract {
     ): Promise<void>;
 
     name(overrides?: CallOverrides): Promise<string>;
+
+    setGasFee(
+      _gasToken: PromiseOrValue<string>,
+      _gasFee: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<void>;
 
     setGasToken(
       _gasToken: PromiseOrValue<string>,
@@ -503,6 +538,8 @@ export interface MockZRC20 extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
+    gasFee(overrides?: CallOverrides): Promise<BigNumber>;
+
     gasToken(overrides?: CallOverrides): Promise<BigNumber>;
 
     mint(
@@ -512,6 +549,12 @@ export interface MockZRC20 extends BaseContract {
     ): Promise<BigNumber>;
 
     name(overrides?: CallOverrides): Promise<BigNumber>;
+
+    setGasFee(
+      _gasToken: PromiseOrValue<string>,
+      _gasFee: PromiseOrValue<BigNumberish>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<BigNumber>;
 
     setGasToken(
       _gasToken: PromiseOrValue<string>,
@@ -578,6 +621,8 @@ export interface MockZRC20 extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 
+    gasFee(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
     gasToken(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     mint(
@@ -587,6 +632,12 @@ export interface MockZRC20 extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     name(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
+    setGasFee(
+      _gasToken: PromiseOrValue<string>,
+      _gasFee: PromiseOrValue<BigNumberish>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<PopulatedTransaction>;
 
     setGasToken(
       _gasToken: PromiseOrValue<string>,

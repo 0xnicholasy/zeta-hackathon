@@ -193,6 +193,43 @@ const _abi = [
       {
         indexed: true,
         internalType: "uint256",
+        name: "sourceChain",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "bytes32",
+        name: "txHash",
+        type: "bytes32",
+      },
+    ],
+    name: "CrossChainRepay",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "user",
+        type: "address",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "zrc20",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
+      {
+        indexed: true,
+        internalType: "uint256",
         name: "destinationChain",
         type: "uint256",
       },

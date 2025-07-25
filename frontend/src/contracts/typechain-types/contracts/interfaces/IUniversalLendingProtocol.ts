@@ -413,6 +413,7 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
     "AllowedChainUpdated(uint256,bool)": EventFragment;
     "Borrow(address,address,uint256)": EventFragment;
     "CrossChainDeposit(address,address,uint256,uint256,bytes32)": EventFragment;
+    "CrossChainRepay(address,address,uint256,uint256,bytes32)": EventFragment;
     "CrossChainWithdrawal(address,address,uint256,uint256,address)": EventFragment;
     "Liquidate(address,address,address,address,uint256,uint256)": EventFragment;
     "Repay(address,address,uint256)": EventFragment;
@@ -424,6 +425,7 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
   getEvent(nameOrSignatureOrTopic: "AllowedChainUpdated"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "Borrow"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "CrossChainDeposit"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "CrossChainRepay"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "CrossChainWithdrawal"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "Liquidate"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "Repay"): EventFragment;
@@ -470,6 +472,20 @@ export type CrossChainDepositEvent = TypedEvent<
 
 export type CrossChainDepositEventFilter =
   TypedEventFilter<CrossChainDepositEvent>;
+
+export interface CrossChainRepayEventObject {
+  user: string;
+  zrc20: string;
+  amount: BigNumber;
+  sourceChain: BigNumber;
+  txHash: string;
+}
+export type CrossChainRepayEvent = TypedEvent<
+  [string, string, BigNumber, BigNumber, string],
+  CrossChainRepayEventObject
+>;
+
+export type CrossChainRepayEventFilter = TypedEventFilter<CrossChainRepayEvent>;
 
 export interface CrossChainWithdrawalEventObject {
   user: string;
@@ -1230,6 +1246,21 @@ export interface IUniversalLendingProtocol extends BaseContract {
       sourceChain?: PromiseOrValue<BigNumberish> | null,
       txHash?: null
     ): CrossChainDepositEventFilter;
+
+    "CrossChainRepay(address,address,uint256,uint256,bytes32)"(
+      user?: PromiseOrValue<string> | null,
+      zrc20?: PromiseOrValue<string> | null,
+      amount?: null,
+      sourceChain?: PromiseOrValue<BigNumberish> | null,
+      txHash?: null
+    ): CrossChainRepayEventFilter;
+    CrossChainRepay(
+      user?: PromiseOrValue<string> | null,
+      zrc20?: PromiseOrValue<string> | null,
+      amount?: null,
+      sourceChain?: PromiseOrValue<BigNumberish> | null,
+      txHash?: null
+    ): CrossChainRepayEventFilter;
 
     "CrossChainWithdrawal(address,address,uint256,uint256,address)"(
       user?: PromiseOrValue<string> | null,

@@ -17,12 +17,22 @@ export interface ProtocolConfig {
 }
 
 /**
- * Parse command line arguments to determine protocol type
+ * Parse command line arguments and environment variables to determine protocol type
  * @returns ProtocolConfig object with protocol type information
  */
 export function parseProtocolArgs(): ProtocolConfig {
+  // Check environment variable first, then command line arguments
+  const envProtocolType = process.env.PROTOCOL_TYPE?.toLowerCase();
   const args = process.argv.slice(2);
-  const useUniversal = args.includes('universal');
+  
+  let useUniversal = false;
+  
+  if (envProtocolType) {
+    useUniversal = envProtocolType === 'universal';
+  } else {
+    useUniversal = args.includes('universal');
+  }
+  
   const protocolType = useUniversal ? 'universal' : 'simple';
   const protocolContractName = useUniversal ? "UniversalLendingProtocol" : "SimpleLendingProtocol";
 

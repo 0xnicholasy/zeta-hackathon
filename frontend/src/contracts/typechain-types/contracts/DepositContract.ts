@@ -61,6 +61,7 @@ export interface DepositContractInterface extends utils.Interface {
     "repayToken(address,uint256,address)": FunctionFragment;
     "supportedAssets(address)": FunctionFragment;
     "transferOwnership(address)": FunctionFragment;
+    "updateLendingProtocolAddress(address,uint256)": FunctionFragment;
     "withdrawCrossChain(address,uint256,uint256,address)": FunctionFragment;
     "zetaChainId()": FunctionFragment;
   };
@@ -84,6 +85,7 @@ export interface DepositContractInterface extends utils.Interface {
       | "repayToken"
       | "supportedAssets"
       | "transferOwnership"
+      | "updateLendingProtocolAddress"
       | "withdrawCrossChain"
       | "zetaChainId"
   ): FunctionFragment;
@@ -168,6 +170,10 @@ export interface DepositContractInterface extends utils.Interface {
     values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
+    functionFragment: "updateLendingProtocolAddress",
+    values: [PromiseOrValue<string>, PromiseOrValue<BigNumberish>]
+  ): string;
+  encodeFunctionData(
     functionFragment: "withdrawCrossChain",
     values: [
       PromiseOrValue<string>,
@@ -232,6 +238,10 @@ export interface DepositContractInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "updateLendingProtocolAddress",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "withdrawCrossChain",
     data: BytesLike
   ): Result;
@@ -245,6 +255,7 @@ export interface DepositContractInterface extends utils.Interface {
     "AssetRemoved(address)": EventFragment;
     "BorrowCrossChainInitiated(address,address,uint256,uint256,address)": EventFragment;
     "DepositInitiated(address,address,uint256,address)": EventFragment;
+    "LendingProtocolAddressUpdated(address,address,uint256)": EventFragment;
     "OwnershipTransferred(address,address)": EventFragment;
     "WithdrawCrossChainInitiated(address,address,uint256,uint256,address)": EventFragment;
   };
@@ -253,6 +264,9 @@ export interface DepositContractInterface extends utils.Interface {
   getEvent(nameOrSignatureOrTopic: "AssetRemoved"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "BorrowCrossChainInitiated"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "DepositInitiated"): EventFragment;
+  getEvent(
+    nameOrSignatureOrTopic: "LendingProtocolAddressUpdated"
+  ): EventFragment;
   getEvent(nameOrSignatureOrTopic: "OwnershipTransferred"): EventFragment;
   getEvent(
     nameOrSignatureOrTopic: "WithdrawCrossChainInitiated"
@@ -306,6 +320,19 @@ export type DepositInitiatedEvent = TypedEvent<
 
 export type DepositInitiatedEventFilter =
   TypedEventFilter<DepositInitiatedEvent>;
+
+export interface LendingProtocolAddressUpdatedEventObject {
+  oldAddress: string;
+  newAddress: string;
+  chainId: BigNumber;
+}
+export type LendingProtocolAddressUpdatedEvent = TypedEvent<
+  [string, string, BigNumber],
+  LendingProtocolAddressUpdatedEventObject
+>;
+
+export type LendingProtocolAddressUpdatedEventFilter =
+  TypedEventFilter<LendingProtocolAddressUpdatedEvent>;
 
 export interface OwnershipTransferredEventObject {
   previousOwner: string;
@@ -448,6 +475,12 @@ export interface DepositContract extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
+    updateLendingProtocolAddress(
+      _newLendingProtocolAddress: PromiseOrValue<string>,
+      _expectedZetaChainId: PromiseOrValue<BigNumberish>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<ContractTransaction>;
+
     withdrawCrossChain(
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
@@ -543,6 +576,12 @@ export interface DepositContract extends BaseContract {
 
   transferOwnership(
     newOwner: PromiseOrValue<string>,
+    overrides?: Overrides & { from?: PromiseOrValue<string> }
+  ): Promise<ContractTransaction>;
+
+  updateLendingProtocolAddress(
+    _newLendingProtocolAddress: PromiseOrValue<string>,
+    _expectedZetaChainId: PromiseOrValue<BigNumberish>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
@@ -642,6 +681,12 @@ export interface DepositContract extends BaseContract {
       overrides?: CallOverrides
     ): Promise<void>;
 
+    updateLendingProtocolAddress(
+      _newLendingProtocolAddress: PromiseOrValue<string>,
+      _expectedZetaChainId: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<void>;
+
     withdrawCrossChain(
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
@@ -699,6 +744,17 @@ export interface DepositContract extends BaseContract {
       amount?: null,
       onBehalfOf?: PromiseOrValue<string> | null
     ): DepositInitiatedEventFilter;
+
+    "LendingProtocolAddressUpdated(address,address,uint256)"(
+      oldAddress?: PromiseOrValue<string> | null,
+      newAddress?: PromiseOrValue<string> | null,
+      chainId?: PromiseOrValue<BigNumberish> | null
+    ): LendingProtocolAddressUpdatedEventFilter;
+    LendingProtocolAddressUpdated(
+      oldAddress?: PromiseOrValue<string> | null,
+      newAddress?: PromiseOrValue<string> | null,
+      chainId?: PromiseOrValue<BigNumberish> | null
+    ): LendingProtocolAddressUpdatedEventFilter;
 
     "OwnershipTransferred(address,address)"(
       previousOwner?: PromiseOrValue<string> | null,
@@ -807,6 +863,12 @@ export interface DepositContract extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
+    updateLendingProtocolAddress(
+      _newLendingProtocolAddress: PromiseOrValue<string>,
+      _expectedZetaChainId: PromiseOrValue<BigNumberish>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<BigNumber>;
+
     withdrawCrossChain(
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
@@ -901,6 +963,12 @@ export interface DepositContract extends BaseContract {
 
     transferOwnership(
       newOwner: PromiseOrValue<string>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<PopulatedTransaction>;
+
+    updateLendingProtocolAddress(
+      _newLendingProtocolAddress: PromiseOrValue<string>,
+      _expectedZetaChainId: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 

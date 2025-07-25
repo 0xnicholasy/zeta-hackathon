@@ -158,29 +158,6 @@ async function main() {
   console.log("MockPriceOracle:", priceOracle.address);
   console.log("Gateway:", gatewayAddress);
 
-  // Update external chains with the lending protocol address in centralized config
-  console.log("\n=== Updating External Chain Configurations ===");
-
-  try {
-    // Update external chain configs with the lending protocol address
-    // This allows external DepositContracts to know where to send deposits
-
-    for (const chain of allowedChains) {
-      try {
-        const networkConfig = getNetwork(chain.chainId);
-        console.log(`Updating ${networkConfig.name} lending protocol address...`);
-
-        updateLendingProtocolAddress(chain.chainId, universalLendingProtocol.address as Address);
-        console.log(`✅ Updated ${networkConfig.name} config with lending protocol address`);
-
-      } catch (error) {
-        console.log(`⚠️  Warning: Could not update config for chain ${chain.chainId}: ${error}`);
-      }
-    }
-  } catch (error) {
-    console.log("⚠️  Warning: Could not update external chain configs:", error);
-  }
-
   console.log("\n=== Deployment Summary ===");
   printDeploymentSummary(chainId);
 

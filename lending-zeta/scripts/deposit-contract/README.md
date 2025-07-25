@@ -21,8 +21,11 @@ Common utility functions used by the deposit contract scripts for argument parsi
 # Deploy for simple lending protocol (default)
 npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network arbitrum-sepolia
 
-# Deploy for universal lending protocol
-npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts universal --network arbitrum-sepolia
+# Deploy for universal lending protocol (using environment variable)
+PROTOCOL_TYPE=universal npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network arbitrum-sepolia
+
+# Deploy for universal lending protocol (using command line argument)
+npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network arbitrum-sepolia universal
 ```
 
 ### Update Existing DepositContract
@@ -31,8 +34,11 @@ npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts universal -
 # Update to use simple lending protocol
 npx hardhat run scripts/deposit-contract/update-lending-protocol-address.ts --network arbitrum-sepolia
 
-# Update to use universal lending protocol  
-npx hardhat run scripts/deposit-contract/update-lending-protocol-address.ts universal --network arbitrum-sepolia
+# Update to use universal lending protocol (using environment variable)
+PROTOCOL_TYPE=universal npx hardhat run scripts/deposit-contract/update-lending-protocol-address.ts --network arbitrum-sepolia
+
+# Update to use universal lending protocol (using command line argument)
+npx hardhat run scripts/deposit-contract/update-lending-protocol-address.ts --network arbitrum-sepolia universal
 ```
 
 ## Protocol Types
