@@ -3,7 +3,7 @@ import { WagmiProvider } from 'wagmi';
 import { RainbowKitProvider, darkTheme, lightTheme } from '@rainbow-me/rainbowkit';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { config } from '../config/wagmi';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 
 // Import RainbowKit styles
 import '@rainbow-me/rainbowkit/styles.css';
@@ -16,7 +16,7 @@ interface Web3ProvidersProps {
 
 const Web3ProvidersInner: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { theme } = useTheme();
-  
+
   return (
     <RainbowKitProvider
       theme={theme === 'dark' ? darkTheme({
