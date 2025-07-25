@@ -77,7 +77,7 @@ export function RepayDialog({
     const validation = useRepayValidation({
         selectedAsset,
         amount,
-        simpleLendingProtocol: safeEVMAddressOrZeroAddress(zetaLendingProtocol),
+        universalLendingProtocol: safeEVMAddressOrZeroAddress(zetaLendingProtocol),
         userAddress: safeAddress,
     });
 
