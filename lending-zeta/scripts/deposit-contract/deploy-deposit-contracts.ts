@@ -5,20 +5,30 @@ import {
   updateContractAddress,
   Address
 } from "../../utils/contracts";
-
-const ZETA_CHAIN_IDS = {
-  testnet: 7001,
-  mainnet: 7000,
-};
+import {
+  ZETA_CHAIN_IDS,
+  parseProtocolArgs,
+  displayScriptHeader,
+  displayNetworkInfo,
+  getLendingProtocolAddress,
+  displaySummary,
+  displaySuccess
+} from "./script-helpers";
 
 async function main() {
+  // Parse protocol type from command line arguments
+  const protocolConfig = parseProtocolArgs();
+  
+  // Display script header
+  displayScriptHeader("Deploy DepositContract", protocolConfig);
+
   const [deployer] = await ethers.getSigners();
   const network = await ethers.provider.getNetwork();
   const chainId = network.chainId;
+  const balance = await ethers.provider.getBalance(deployer.address);
 
-  console.log("Deploying DepositContract on:", getNetwork(chainId).name);
-  console.log("Deploying with account:", deployer.address);
-  console.log("Account balance:", ethers.utils.formatEther(await deployer.getBalance()));
+  // Display network information
+  await displayNetworkInfo(chainId, deployer.address, balance);
 
   // Get gateway address from centralized config
   let gatewayAddress: string;
@@ -34,18 +44,16 @@ async function main() {
   // Get lending protocol address from ZetaChain network config (where the protocol is deployed)
   // Use testnet by default, change to mainnet for production
   const zetaChainId = ZETA_CHAIN_IDS.testnet;
-  let lendingProtocolAddress: string;
-  
-  try {
-    // Get SimpleLendingProtocol address from ZetaChain (chain ID 7001)
-    lendingProtocolAddress = getContractAddress(zetaChainId, "SimpleLendingProtocol");
-  } catch (error) {
-    throw new Error(`SimpleLendingProtocol address not found on ZetaChain. Deploy to ZetaChain first and update contracts.json.`);
-  }
+  const lendingProtocolAddress = getLendingProtocolAddress(
+    protocolConfig.protocolContractName,
+    zetaChainId
+  );
 
-  console.log("Gateway address:", gatewayAddress);
-  console.log("Lending protocol address:", lendingProtocolAddress);
-  console.log("ZetaChain ID:", zetaChainId);
+  console.log("\n📋 Contract Configuration:");
+  console.log("-".repeat(30));
+  console.log(`Gateway address: ${gatewayAddress}`);
+  console.log(`${protocolConfig.protocolContractName} address: ${lendingProtocolAddress}`);
+  console.log(`ZetaChain ID: ${zetaChainId}`);
 
   // Deploy DepositContract
   const DepositContract = await ethers.getContractFactory("DepositContract");
@@ -113,9 +121,10 @@ async function main() {
   console.log(`ZetaChain ID: ${zetaChainId}`);
   console.log(`Deployer: ${deployer.address}`);
 
-  console.log("\n✅ Deposit contract deployment completed successfully!");
-  console.log("You can now deposit assets from this chain to the ZetaChain lending protocol.");
-  console.log("Run the following command to verify contract on etherscan:");
+  displaySuccess("DepositContract deployment", protocolConfig.protocolType);
+  console.log(`You can now deposit assets from this chain to the ZetaChain ${protocolConfig.protocolType} lending protocol.`);
+  console.log("\n📋 Verification Command:");
+  console.log("-".repeat(30));
   console.log(`npx hardhat verify --network ${networkConfig.name} ${depositContract.address} ${gatewayAddress} ${lendingProtocolAddress} ${zetaChainId} ${deployer.address}`);
 }
 
@@ -125,6 +134,3 @@ main()
     console.error(error);
     process.exit(1);
   });
-
-// Export for potential use in other scripts
-export { ZETA_CHAIN_IDS };

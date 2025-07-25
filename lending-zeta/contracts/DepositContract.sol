@@ -24,7 +24,7 @@ contract DepositContract is ReentrancyGuard, Ownable {
     }
 
     IGatewayEVM public immutable gateway;
-    address public immutable lendingProtocolAddress;
+    address public lendingProtocolAddress;
     uint256 public immutable zetaChainId;
 
     mapping(address => SupportedAsset) public supportedAssets;
@@ -54,11 +54,17 @@ contract DepositContract is ReentrancyGuard, Ownable {
         uint256 indexed destinationChain,
         address recipient
     );
+    event LendingProtocolAddressUpdated(
+        address indexed oldAddress,
+        address indexed newAddress,
+        uint256 indexed chainId
+    );
 
     error UnsupportedAsset(address asset);
     error InvalidAmount();
     error InvalidAddress();
     error DepositFailed();
+    error InvalidChainId(uint256 expected, uint256 provided);
 
     /**
      * @dev Initializes the deposit contract with gateway and lending protocol addresses
@@ -108,6 +114,29 @@ contract DepositContract is ReentrancyGuard, Ownable {
         assetsList.push(asset);
 
         emit AssetAdded(asset, decimals, isNative);
+    }
+
+    /**
+     * @notice Update the lending protocol address on ZetaChain
+     * @dev Only owner can update the address. Includes chain ID validation to prevent accidents
+     * @param _newLendingProtocolAddress The new address of the lending protocol contract on ZetaChain
+     * @param _expectedZetaChainId The expected ZetaChain ID to confirm we're updating for the right chain
+     */
+    function updateLendingProtocolAddress(
+        address _newLendingProtocolAddress,
+        uint256 _expectedZetaChainId
+    ) external onlyOwner {
+        require(_newLendingProtocolAddress != address(0), "Invalid lending protocol address");
+        
+        // Validate chain ID to prevent accidental updates for wrong chains
+        if (_expectedZetaChainId != zetaChainId) {
+            revert InvalidChainId(zetaChainId, _expectedZetaChainId);
+        }
+        
+        address oldAddress = lendingProtocolAddress;
+        lendingProtocolAddress = _newLendingProtocolAddress;
+        
+        emit LendingProtocolAddressUpdated(oldAddress, _newLendingProtocolAddress, zetaChainId);
     }
 
     /**

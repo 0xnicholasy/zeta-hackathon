@@ -44,24 +44,19 @@ async function main() {
 
   console.log("Using gateway address:", gatewayAddress);
 
-  // Deploy UniversalLendingProtocol
-  console.log("\n=== Deploying UniversalLendingProtocol ===");
+  // Deploy Price Oracle
+  console.log("\n=== Deploying Price Oracle ===");
 
-  const UniversalLendingProtocol = await ethers.getContractFactory("UniversalLendingProtocol");
-  const universalLendingProtocol = await UniversalLendingProtocol.deploy(
-    gatewayAddress,
-    "0x0000000000000000000000000000000000000000", // TODO: Replace with actual price oracle address
-    deployer.address
-  );
+  const MockPriceOracle = await ethers.getContractFactory("MockPriceOracle");
+  const priceOracle = await MockPriceOracle.deploy();
+  await priceOracle.deployed();
+  console.log("MockPriceOracle deployed to:", priceOracle.address);
 
-  await universalLendingProtocol.deployed();
-  console.log("UniversalLendingProtocol deployed to:", universalLendingProtocol.address);
+  // Update centralized contract registry with oracle
+  updateContractAddress(chainId, "MockPriceOracle", priceOracle.address as Address);
 
-  // Update centralized contract registry
-  updateContractAddress(chainId, "UniversalLendingProtocol", universalLendingProtocol.address as Address);
-
-  // Add supported ZRC-20 assets from centralized configuration
-  console.log("\n=== Adding Supported Assets ===");
+  // Set prices for supported assets in price oracle
+  console.log("\n=== Setting Asset Prices in Oracle ===");
 
   const assets = [
     { symbol: "ETH.ARBI", chainId: 421614, price: 2000 }, // $2000
@@ -72,17 +67,75 @@ async function main() {
 
   for (const asset of assets) {
     try {
+      const tokenAddress = getTokenAddress(chainId, asset.symbol);
+
+      console.log(`Setting price for ${asset.symbol} (${tokenAddress}): $${asset.price}`);
+
+      // Convert price to 18 decimals for oracle (e.g., $2000 -> 2000 * 1e18)
+      const priceInWei = ethers.utils.parseEther(asset.price.toString());
+      await priceOracle.setPrice(tokenAddress, priceInWei);
+
+      console.log(`✅ Set price for ${asset.symbol}`);
+    } catch (error) {
+      console.log(`⚠️  Warning: Could not set price for ${asset.symbol} - ${error}`);
+    }
+  }
+
+  // Deploy UniversalLendingProtocol
+  console.log("\n=== Deploying UniversalLendingProtocol ===");
+
+  const UniversalLendingProtocol = await ethers.getContractFactory("UniversalLendingProtocol");
+  const universalLendingProtocol = await UniversalLendingProtocol.deploy(
+    gatewayAddress,
+    priceOracle.address, // Use deployed price oracle
+    deployer.address
+  );
+
+  await universalLendingProtocol.deployed();
+  console.log("UniversalLendingProtocol deployed to:", universalLendingProtocol.address);
+
+  // Update centralized contract registry
+  updateContractAddress(chainId, "UniversalLendingProtocol", universalLendingProtocol.address as Address);
+
+  // Add supported ZRC-20 assets from centralized configuration  
+  console.log("\n=== Adding Supported Assets to Universal Protocol ===");
+
+  // Set allowed source chains for cross-chain operations
+  const allowedChains = [
+    { chainId: 421614, name: "Arbitrum Sepolia" },
+    { chainId: 11155111, name: "Ethereum Sepolia" }
+  ];
+
+  console.log("Setting allowed source chains...");
+  for (const chain of allowedChains) {
+    try {
+      await universalLendingProtocol.setAllowedSourceChain(chain.chainId, true);
+      console.log(`✅ Allowed cross-chain operations from ${chain.name} (${chain.chainId})`);
+    } catch (error) {
+      console.log(`⚠️  Warning: Could not set allowed chain ${chain.chainId}: ${error}`);
+    }
+  }
+
+  for (const asset of assets) {
+    try {
       // Get token address from centralized configuration
       const tokenAddress = getTokenAddress(chainId, asset.symbol);
 
-      console.log(`Adding ${asset.symbol} (${tokenAddress}) with price $${asset.price}...`);
+      console.log(`Adding ${asset.symbol} (${tokenAddress})...`);
 
       // Add asset with proper parameters for UniversalLendingProtocol
-      await universalLendingProtocol.addAsset(
+      await universalLendingProtocol["addAsset(address,uint256,uint256,uint256)"](
         tokenAddress,
-        "800000000000000000", // 80% collateral factor (0.8 * 1e18)
-        "850000000000000000", // 85% liquidation threshold (0.85 * 1e18)
-        "50000000000000000"   // 5% liquidation bonus (0.05 * 1e18)
+        ethers.utils.parseEther("0.8"), // 80% collateral factor
+        ethers.utils.parseEther("0.85"), // 85% liquidation threshold  
+        ethers.utils.parseEther("0.05")  // 5% liquidation bonus
+      );
+
+      // Map ZRC-20 asset to its source chain and symbol
+      await universalLendingProtocol.mapZRC20Asset(
+        tokenAddress,
+        asset.chainId,
+        asset.symbol
       );
 
       console.log(`✅ Added ${asset.symbol} as supported lending asset`);
@@ -102,15 +155,11 @@ async function main() {
 
   console.log("\n=== Deployment Configuration Summary ===");
   console.log("UniversalLendingProtocol:", universalLendingProtocol.address);
+  console.log("MockPriceOracle:", priceOracle.address);
   console.log("Gateway:", gatewayAddress);
 
   // Update external chains with the lending protocol address in centralized config
   console.log("\n=== Updating External Chain Configurations ===");
-
-  const allowedChains = [
-    { chainId: 421614, name: "Arbitrum Sepolia" },
-    { chainId: 11155111, name: "Ethereum Sepolia" }
-  ];
 
   try {
     // Update external chain configs with the lending protocol address
@@ -136,12 +185,13 @@ async function main() {
   printDeploymentSummary(chainId);
 
   console.log("\n✅ UniversalLendingProtocol deployment completed successfully!");
-  console.log("\nRun the following command to verify contract on explorer:");
-  console.log(`npx hardhat verify --network ${getNetwork(chainId).name} ${universalLendingProtocol.address} ${gatewayAddress} "0x0000000000000000000000000000000000000000" ${deployer.address}`);
+  console.log("\nRun the following commands to verify contracts on explorer:");
+  console.log(`npx hardhat verify --network ${getNetwork(chainId).name} ${priceOracle.address}`);
+  console.log(`npx hardhat verify --network ${getNetwork(chainId).name} ${universalLendingProtocol.address} ${gatewayAddress} ${priceOracle.address} ${deployer.address}`);
   console.log("\nNext steps:");
   console.log("1. Deploy DepositContracts on external chains using:");
-  console.log("   npx hardhat run scripts/deploy-deposit-contracts.ts --network arbitrum-sepolia");
-  console.log("   npx hardhat run scripts/deploy-deposit-contracts.ts --network ethereum-sepolia");
+  console.log("   npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts universal --network arbitrum-sepolia");
+  console.log("   npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts universal --network ethereum-sepolia");
   console.log("2. Run cross-chain tests:");
   console.log("   npx hardhat run scripts/test-cross-chain-lending.ts --network zeta-testnet");
   console.log("3. Verify deployment:");
