@@ -576,9 +576,26 @@ abstract contract SimpleLendingProtocolBase is
             if (IERC20(asset).balanceOf(address(this)) < approvalAmount) {
                 revert InsufficientBalance();
             }
+            IERC20(asset).approve(address(gateway), approvalAmount);
+        } else {
+            // Different gas token - need to handle gas token from user's account
+            if (IERC20(asset).balanceOf(address(this)) < amount) {
+                revert InsufficientBalance();
+            }
+            IERC20(asset).approve(address(gateway), amount);
+            
+            // Check if user has sufficient gas tokens and transfer them
+            uint256 userGasBalance = IERC20(gasZRC20).balanceOf(user);
+            if (userGasBalance < gasFee) {
+                revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            }
+            
+            // Transfer gas tokens from user to contract for gateway fee
+            if (!IERC20(gasZRC20).transferFrom(user, address(this), gasFee)) {
+                revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            }
+            IERC20(gasZRC20).approve(address(gateway), gasFee);
         }
-
-        IERC20(asset).approve(address(gateway), approvalAmount);
         
         gateway.withdraw(
             abi.encodePacked(recipient),
@@ -621,9 +638,26 @@ abstract contract SimpleLendingProtocolBase is
             if (IERC20(asset).balanceOf(address(this)) < approvalAmount) {
                 revert InsufficientBalance();
             }
+            IERC20(asset).approve(address(gateway), approvalAmount);
+        } else {
+            // Different gas token - need to handle gas token from user's account
+            if (IERC20(asset).balanceOf(address(this)) < amount) {
+                revert InsufficientBalance();
+            }
+            IERC20(asset).approve(address(gateway), amount);
+            
+            // Check if user has sufficient gas tokens and transfer them
+            uint256 userGasBalance = IERC20(gasZRC20).balanceOf(user);
+            if (userGasBalance < gasFee) {
+                revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            }
+            
+            // Transfer gas tokens from user to contract for gateway fee
+            if (!IERC20(gasZRC20).transferFrom(user, address(this), gasFee)) {
+                revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
+            }
+            IERC20(gasZRC20).approve(address(gateway), gasFee);
         }
-
-        IERC20(asset).approve(address(gateway), approvalAmount);
         
         gateway.withdraw(
             abi.encodePacked(recipient),

@@ -36,11 +36,13 @@ const zetaTestnetClient = createPublicClient({
 
 export interface AssetConfig {
   isSupported: boolean;
-  price: bigint;
   collateralFactor: bigint;
   liquidationThreshold: bigint;
-  reserveFactor: bigint;
-  borrowingEnabled: boolean;
+  liquidationBonus: bigint;
+  borrowRate: bigint;
+  supplyRate: bigint;
+  totalSupply: bigint;
+  totalBorrow: bigint;
 }
 
 export interface AssetData {
@@ -54,6 +56,7 @@ export interface AssetData {
   price: string;
   isSupported: boolean;
   decimals: number;
+  config?: AssetConfig | null;
 }
 
 /**
@@ -124,11 +127,20 @@ export async function getAssetConfig(assetAddress: string): Promise<AssetConfig 
     const result = await zetaTestnetClient.readContract({
       address: protocolAddress as Address,
       abi: UniversalLendingProtocol__factory.abi,
-      functionName: 'getAssetConfig',
+      functionName: 'enhancedAssets',
       args: [assetAddress as Address],
     });
 
-    return result as AssetConfig;
+    return {
+      isSupported: result[0],
+      collateralFactor: result[1],
+      liquidationThreshold: result[2],
+      liquidationBonus: result[3],
+      borrowRate: result[4],
+      supplyRate: result[5],
+      totalSupply: result[6],
+      totalBorrow: result[7],
+    };
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(`Error getting asset config for ${assetAddress}:`, error);
@@ -152,6 +164,29 @@ export async function getTokenBalance(tokenAddress: string, holderAddress: strin
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(`Error getting token balance for ${tokenAddress}:`, error);
+    return BigInt(0);
+  }
+}
+
+export async function getAssetPrice(assetAddress: string): Promise<bigint> {
+  try {
+    const protocolAddress = getUniversalLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
+    if (!protocolAddress) {
+      // eslint-disable-next-line no-console
+      console.warn('UniversalLendingProtocol address not found');
+      return BigInt(0);
+    }
+    const result = await zetaTestnetClient.readContract({
+      address: protocolAddress as Address,
+      abi: UniversalLendingProtocol__factory.abi,
+      functionName: 'getAssetConfig',
+      args: [assetAddress as Address],
+    });
+
+    return result.price;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(`Error getting asset price for ${assetAddress}:`, error);
     return BigInt(0);
   }
 }
@@ -249,18 +284,14 @@ export async function getProtocolAssetData(): Promise<AssetData[]> {
       const isSupported = supportedAssets.includes(address);
 
       // Get asset data in parallel
-      const [config, balance, decimals] = await Promise.all([
+      const [config, balance, decimals, price] = await Promise.all([
         getAssetConfig(address),
         getTokenBalance(address, protocolAddress),
         getTokenDecimals(address),
+        getAssetPrice(address),
       ]);
 
       // Calculate values
-      let price = BigInt(0);
-      if (config?.price) {
-        price = config.price;
-      }
-
       // Convert balance to normalized amount (18 decimals)
       let normalizedBalance = balance;
       if (decimals < 18) {
@@ -275,13 +306,7 @@ export async function getProtocolAssetData(): Promise<AssetData[]> {
       // Format balance for display
       const formattedBalance = Number(formatUnits(balance, decimals));
       const priceInUSD = Number(formatUnits(price, 18));
-      
-      // Debug log for price conversion
-      console.log(`Price conversion for ${asset.symbol}:`, {
-        rawPrice: price.toString(),
-        formattedPrice: formatUnits(price, 18),
-        finalPriceInUSD: priceInUSD
-      });
+
 
       assetsData.push({
         address,
@@ -307,6 +332,7 @@ export async function getProtocolAssetData(): Promise<AssetData[]> {
         }),
         isSupported,
         decimals,
+        config,
       });
     }
 
@@ -405,10 +431,7 @@ export async function getBorrowableAssets(): Promise<BorrowableAssetData[]> {
       ]);
 
       // Calculate values
-      let price = BigInt(0);
-      if (config?.price) {
-        price = config.price;
-      }
+      const price = await getAssetPrice(address);
 
       // Format available amount for display
       const formattedMaxAvailable = Number(formatUnits(maxAvailable, decimals));
@@ -431,6 +454,7 @@ export async function getBorrowableAssets(): Promise<BorrowableAssetData[]> {
         }),
         isSupported,
         decimals,
+        config,
         maxAvailableAmount: maxAvailable.toString(),
         formattedMaxAvailable: formattedMaxAvailable.toLocaleString('en-US', {
           minimumFractionDigits: 2,

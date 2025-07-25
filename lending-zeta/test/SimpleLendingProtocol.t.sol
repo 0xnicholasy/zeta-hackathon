@@ -466,7 +466,7 @@ contract SimpleLendingProtocolTest is Test {
         });
 
         vm.prank(address(gateway));
-        vm.expectRevert("Invalid action or message format");
+        vm.expectRevert("Invalid operation or message format");
         lendingProtocol.onCall(context, address(ethToken), 1000, message);
     }
 

@@ -69,4 +69,9 @@ contract MockZRC20 is ERC20, IZRC20 {
     function burn(address from, uint256 amount) external {
         _burn(from, amount);
     }
+    
+    // Add missing function that gateway might expect
+    function GAS_LIMIT() external pure returns (uint256) {
+        return 250000; // Default gas limit
+    }
 }

@@ -198,6 +198,9 @@ contract UniversalLendingProtocol is
         super._supply(asset, amount, onBehalfOf);
         enhancedAssets[asset].totalSupply += amount;
         lastInterestUpdate[onBehalfOf][asset] = block.timestamp;
+        
+        // Update interest rates after supply operation
+        _updateInterestRates(asset);
     }
 
     // Override repay to add interest updates  
@@ -220,6 +223,9 @@ contract UniversalLendingProtocol is
             enhancedAssets[asset].totalSupply += excess;
             emit Supply(onBehalfOf, asset, excess);
         }
+        
+        // Update interest rates after repay operation
+        _updateInterestRates(asset);
     }
 
     // Override core functions to include interest rate updates
@@ -242,6 +248,9 @@ contract UniversalLendingProtocol is
         userSupplies[onBehalfOf][asset] += amount;
         enhancedAssets[asset].totalSupply += amount;
         lastInterestUpdate[onBehalfOf][asset] = block.timestamp;
+
+        // Update interest rates after supply operation
+        _updateInterestRates(asset);
 
         emit Supply(onBehalfOf, asset, amount);
     }
@@ -267,6 +276,9 @@ contract UniversalLendingProtocol is
         lastInterestUpdate[msg.sender][asset] = block.timestamp;
 
         IERC20(asset).safeTransfer(to, amount);
+
+        // Update interest rates after borrow operation
+        _updateInterestRates(asset);
 
         emit Borrow(msg.sender, asset, amount);
     }
@@ -531,6 +543,35 @@ contract UniversalLendingProtocol is
         assetConfig.borrowRate = borrowRate;
         assetConfig.supplyRate = supplyRate;
         lastGlobalInterestUpdate[asset] = block.timestamp;
+    }
+
+    // Update interest rates without applying accrual (for post-transaction rate updates)
+    function _updateInterestRates(address asset) internal {
+        AssetConfig storage assetConfig = enhancedAssets[asset];
+        
+        InterestRateModel.RateParams memory params = InterestRateModel
+            .RateParams({
+                baseRate: 0.02e18, // 2%
+                slope1: 0.04e18, // 4%
+                slope2: 0.75e18, // 75%
+                optimalUtilization: 0.8e18 // 80%
+            });
+
+        uint256 borrowRate = InterestRateModel.calculateBorrowRate(
+            assetConfig.totalSupply,
+            assetConfig.totalBorrow,
+            params
+        );
+
+        uint256 supplyRate = InterestRateModel.calculateSupplyRate(
+            borrowRate,
+            assetConfig.totalSupply,
+            assetConfig.totalBorrow,
+            RESERVE_FACTOR
+        );
+
+        assetConfig.borrowRate = borrowRate;
+        assetConfig.supplyRate = supplyRate;
     }
 
     function _getAvailableBorrow(
