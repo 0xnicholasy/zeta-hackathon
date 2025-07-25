@@ -20,6 +20,8 @@ contract UniversalLendingProtocol is
     using LiquidationLogic for *;
 
     uint256 private constant RESERVE_FACTOR = 0.1e18; // 10%
+    uint256 private constant MAX_PRICE_AGE = 3600; // 1 hour
+    uint256 private constant MIN_VALID_PRICE = 1e6; // Minimum valid price (prevents flash loan attacks)
 
     IPriceOracle public priceOracle;
 
@@ -27,6 +29,7 @@ contract UniversalLendingProtocol is
     mapping(address => AssetConfig) public enhancedAssets;
     mapping(address => mapping(address => uint256)) public lastInterestUpdate;
     mapping(address => uint256) public totalReserves;
+    mapping(address => uint256) public lastGlobalInterestUpdate;
 
     // Cross-chain configuration
     mapping(uint256 => bool) public allowedSourceChains;
@@ -66,9 +69,10 @@ contract UniversalLendingProtocol is
         uint256 liquidationThreshold,
         uint256 liquidationBonus
     ) external onlyOwner {
-        if (enhancedAssets[asset].isSupported) revert AssetNotSupported(asset);
+        if (enhancedAssets[asset].isSupported) revert("Asset already supported");
         if (collateralFactor > PRECISION) revert InvalidAmount();
         if (liquidationThreshold > PRECISION) revert InvalidAmount();
+        if (liquidationBonus > PRECISION) revert InvalidAmount();
 
         // Add to base protocol first - manually set the asset in the base mapping
         assets[asset] = Asset({
@@ -140,6 +144,18 @@ contract UniversalLendingProtocol is
                 keccak256(abi.encodePacked("repay"))
             ) {
                 _handleCrossChainRepay(onBehalfOf, zrc20, amount, context);
+                return;
+            }
+        } else if (message.length == 40) {
+            // Simplified message format: (address user, uint8 operation)
+            (address user, uint8 operation) = abi.decode(
+                message,
+                (address, uint8)
+            );
+            
+            if (operation == 1) {
+                // Operation 1 = repay
+                _handleCrossChainRepay(user, zrc20, amount, context);
                 return;
             }
         } else if (message.length == 160) {
@@ -233,31 +249,25 @@ contract UniversalLendingProtocol is
         address user,
         address zrc20,
         uint256 amount,
-        MessageContext calldata context
+        MessageContext calldata /* context */
     ) internal {
-        _updateInterest(zrc20);
-
+        if (!enhancedAssets[zrc20].isSupported) revert AssetNotSupported(zrc20);
+        if (amount == 0) revert InvalidAmount();
+        
         uint256 userDebt = userBorrows[user][zrc20];
         uint256 amountToRepay = amount > userDebt ? userDebt : amount;
 
-        userBorrows[user][zrc20] -= amountToRepay;
-        enhancedAssets[zrc20].totalBorrow -= amountToRepay;
+        if (amountToRepay > 0) {
+            userBorrows[user][zrc20] -= amountToRepay;
+        }
 
         // If overpaid, convert excess to supply
         if (amount > userDebt) {
             uint256 excess = amount - userDebt;
             userSupplies[user][zrc20] += excess;
-            enhancedAssets[zrc20].totalSupply += excess;
         }
 
         emit Repay(user, zrc20, amountToRepay);
-        emit CrossChainDeposit(
-            user,
-            zrc20,
-            amount,
-            context.chainID,
-            keccak256(context.sender)
-        );
     }
 
     // Override core functions to include interest rate updates
@@ -334,8 +344,8 @@ contract UniversalLendingProtocol is
         _updateInterest(collateralAsset);
         _updateInterest(debtAsset);
 
-        uint256 debtPrice = priceOracle.getPrice(debtAsset);
-        uint256 collateralPrice = priceOracle.getPrice(collateralAsset);
+        uint256 debtPrice = _getValidatedPrice(debtAsset);
+        uint256 collateralPrice = _getValidatedPrice(collateralAsset);
 
         uint256 liquidatedCollateral = LiquidationLogic
             .calculateLiquidationAmount(
@@ -357,6 +367,7 @@ contract UniversalLendingProtocol is
         userBorrows[user][debtAsset] -= repayAmount;
         userSupplies[user][collateralAsset] -= liquidatedCollateral;
         enhancedAssets[debtAsset].totalBorrow -= repayAmount;
+        enhancedAssets[collateralAsset].totalSupply -= liquidatedCollateral;
 
         IERC20(collateralAsset).safeTransfer(msg.sender, liquidatedCollateral);
 
@@ -393,14 +404,12 @@ contract UniversalLendingProtocol is
             uint256 supplyBalance = userSupplies[user][asset];
 
             if (supplyBalance > 0) {
-                uint256 assetPrice = priceOracle.getPrice(asset);
+                uint256 assetPrice = _getValidatedPrice(asset);
                 uint256 collateralValue = (supplyBalance * assetPrice) /
                     PRECISION;
 
-                // Apply both collateral factor and liquidation threshold for health factor calculation
-                uint256 adjustedCollateral = (collateralValue *
-                    enhancedAssets[asset].collateralFactor) / PRECISION;
-                uint256 weightedCollateral = (adjustedCollateral *
+                // Use only liquidation threshold for health factor calculation
+                uint256 weightedCollateral = (collateralValue *
                     enhancedAssets[asset].liquidationThreshold) / PRECISION;
                 totalWeightedCollateral += weightedCollateral;
             }
@@ -420,17 +429,10 @@ contract UniversalLendingProtocol is
         returns (uint256)
     {
         uint256 amount = userBorrows[user][asset];
-        uint256 price = priceOracle.getPrice(asset);
+        uint256 price = _getValidatedPrice(asset);
 
         uint256 decimals = IERC20Metadata(asset).decimals();
-        uint256 normalizedAmount = amount;
-
-        if (decimals < 18) {
-            normalizedAmount = amount * (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            normalizedAmount = amount / (10 ** (decimals - 18));
-        }
-
+        uint256 normalizedAmount = _normalizeToDecimals(amount, decimals);
         return (normalizedAmount * price) / PRECISION;
     }
 
@@ -514,9 +516,44 @@ contract UniversalLendingProtocol is
         }
     }
 
-    // Internal interest rate update function
+    // Internal helper function for validated price retrieval
+    function _getValidatedPrice(address asset) internal view returns (uint256) {
+        uint256 price = priceOracle.getPrice(asset);
+        
+        // Basic validation checks
+        require(price > 0, "Invalid price: zero");
+        require(price >= MIN_VALID_PRICE, "Invalid price: too low");
+        
+        // Additional staleness check would go here if oracle supports timestamps
+        // This is a placeholder for more sophisticated oracle validation
+        
+        return price;
+    }
+
+
+    // Internal interest rate update function with proper accrual
     function _updateInterest(address asset) internal {
         AssetConfig storage assetConfig = enhancedAssets[asset];
+        uint256 lastUpdate = lastGlobalInterestUpdate[asset];
+        
+        if (lastUpdate == 0) {
+            lastGlobalInterestUpdate[asset] = block.timestamp;
+            return;
+        }
+
+        uint256 timeElapsed = block.timestamp - lastUpdate;
+        if (timeElapsed == 0) return;
+
+        // Apply compound interest to total borrowed amounts
+        if (assetConfig.totalBorrow > 0 && assetConfig.borrowRate > 0) {
+            // Simple interest calculation for now (can be enhanced to compound)
+            uint256 interestAccrued = (assetConfig.totalBorrow * assetConfig.borrowRate * timeElapsed) / (365 days * PRECISION);
+            assetConfig.totalBorrow += interestAccrued;
+            
+            // Add to reserves
+            uint256 reserveAmount = (interestAccrued * RESERVE_FACTOR) / PRECISION;
+            totalReserves[asset] += reserveAmount;
+        }
 
         InterestRateModel.RateParams memory params = InterestRateModel
             .RateParams({
@@ -541,6 +578,7 @@ contract UniversalLendingProtocol is
 
         assetConfig.borrowRate = borrowRate;
         assetConfig.supplyRate = supplyRate;
+        lastGlobalInterestUpdate[asset] = block.timestamp;
     }
 
     function _getAvailableBorrow(
@@ -620,7 +658,7 @@ contract UniversalLendingProtocol is
         if (maxBorrowUsdValue == 0) return 0;
 
         // Convert USD value to asset amount using the price oracle
-        uint256 assetPrice = priceOracle.getPrice(asset);
+        uint256 assetPrice = _getValidatedPrice(asset);
         if (assetPrice == 0) return 0;
 
         // Calculate asset amount and denormalize to asset decimals
@@ -628,16 +666,6 @@ contract UniversalLendingProtocol is
             assetPrice;
 
         uint256 decimals = IERC20Metadata(asset).decimals();
-        if (decimals < 18) {
-            maxBorrowAmount =
-                maxBorrowValueNormalized /
-                (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            maxBorrowAmount =
-                maxBorrowValueNormalized *
-                (10 ** (decimals - 18));
-        } else {
-            maxBorrowAmount = maxBorrowValueNormalized;
-        }
+        maxBorrowAmount = _denormalizeFromDecimals(maxBorrowValueNormalized, decimals);
     }
 }

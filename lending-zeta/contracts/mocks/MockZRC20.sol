@@ -9,6 +9,7 @@ contract MockZRC20 is ERC20, IZRC20 {
     uint8 private _decimals;
     uint256 public constant PROTOCOL_FLAT_FEE = 0.00003 ether; // More realistic 0.00003 ETH gas fee
     address public gasToken;
+    uint256 public gasFee;
 
     constructor(
         string memory name,
@@ -19,6 +20,7 @@ contract MockZRC20 is ERC20, IZRC20 {
         _decimals = decimals_;
         _mint(msg.sender, initialSupply);
         gasToken = address(this); // For testing, use self as gas token
+        gasFee = PROTOCOL_FLAT_FEE; // Default gas fee
     }
 
     function decimals() public view override returns (uint8) {
@@ -48,11 +50,16 @@ contract MockZRC20 is ERC20, IZRC20 {
         override
         returns (address, uint256)
     {
-        return (gasToken, PROTOCOL_FLAT_FEE);
+        return (gasToken, gasFee);
     }
     
     function setGasToken(address _gasToken) external {
         gasToken = _gasToken;
+    }
+    
+    function setGasFee(address _gasToken, uint256 _gasFee) external {
+        gasToken = _gasToken;
+        gasFee = _gasFee;
     }
 
     function mint(address to, uint256 amount) external {

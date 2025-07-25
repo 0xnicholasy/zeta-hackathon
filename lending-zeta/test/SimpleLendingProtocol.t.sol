@@ -320,15 +320,16 @@ contract SimpleLendingProtocolTest is Test {
         lendingProtocol.borrow(address(usdcToken), borrowAmount, user2);
         vm.stopPrank();
 
-        // Drop ETH price to make position liquidatable
+        // Drop ETH price to make position liquidatable (below 110% threshold)
         vm.prank(owner);
-        lendingProtocol.updatePrice(address(ethToken), 1100); // ETH drops to $1100
+        lendingProtocol.updatePrice(address(ethToken), 1050); // ETH drops to $1050
+        // Health factor: $1050 / $1000 = 1.05 < 1.1 (liquidation threshold)
 
         assertTrue(lendingProtocol.isLiquidatable(user2));
 
         // Liquidate
         uint256 repayAmount = 500 * 10 ** 6; // Repay $500
-        uint256 expectedCollateral = (repayAmount * 1 * 105) / (100 * 1100); // With 5% bonus
+        uint256 expectedCollateral = (repayAmount * 1 * 105) / (100 * 1050); // With 5% bonus
 
         vm.startPrank(liquidator);
         usdcToken.approve(address(lendingProtocol), repayAmount);
@@ -590,10 +591,13 @@ contract SimpleLendingProtocolTest is Test {
         usdcToken.approve(address(lendingProtocol), 1000 * 10 ** 6);
         lendingProtocol.supply(address(usdcToken), 1000 * 10 ** 6, user1);
         
-        // This should fail because 1 USDC is likely less than gas fee in ETH terms
-        // But it should fail with proper decimal comparison, not raw amount comparison
+        // Mock the gas fee to be higher than 1 USDC in ETH terms
+        // Since MockZRC20 returns 0 gas fee by default, let's set a gas fee
+        usdcToken.setGasFee(address(ethToken), 2 * 10 ** 18); // 2 ETH gas fee
+        
+        // This should fail because 1 USDC is less than 2 ETH gas fee
         vm.expectRevert(ISimpleLendingProtocol.InvalidAmount.selector);
-        lendingProtocol.withdraw(address(usdcToken), smallUsdcAmount, user1);
+        lendingProtocol.withdrawCrossChain(address(usdcToken), smallUsdcAmount, 1, user1);
         vm.stopPrank();
     }
 

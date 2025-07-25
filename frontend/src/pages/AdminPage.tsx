@@ -125,7 +125,7 @@ function AdminPage() {
 
   // Handle transaction hash changes
   useEffect(() => {
-    if (contractHash && !isTransactionPending && !isTransactionSuccess && !isTransactionError) {
+    if (contractHash) {
       setNotification({
         isOpen: true,
         type: 'pending',
@@ -134,7 +134,7 @@ function AdminPage() {
         ...(contractHash && { txHash: contractHash }),
       });
     }
-  }, [contractHash, isTransactionPending, isTransactionSuccess, isTransactionError]);
+  }, [contractHash]);
 
   // Handle transaction success
   useEffect(() => {
@@ -323,7 +323,14 @@ function AdminPage() {
     };
 
     return (
-      <Dialog open={notification.isOpen} onOpenChange={closeNotification}>
+      <Dialog
+        open={notification.isOpen}
+        onOpenChange={(open) => {
+          if (!open && notification.type !== 'pending') {
+            closeNotification();
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">

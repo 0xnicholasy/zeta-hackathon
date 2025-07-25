@@ -36,6 +36,14 @@ interface IUniversalLendingProtocol is ISimpleLendingProtocol {
         address recipient
     );
 
+    event CrossChainRepay(
+        address indexed user,
+        address indexed zrc20,
+        uint256 amount,
+        uint256 indexed sourceChain,
+        bytes32 txHash
+    );
+
     event AllowedChainUpdated(uint256 indexed chainId, bool allowed);
 
     event ZRC20AssetMapped(

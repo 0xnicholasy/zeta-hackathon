@@ -407,6 +407,25 @@ abstract contract SimpleLendingProtocolBase is
     }
 
     /**
+     * @dev Denormalize amount from 18 decimals back to asset decimals
+     * @param normalizedAmount The normalized amount (18 decimals)
+     * @param decimals The target decimal places
+     * @return amount The amount in target decimals
+     */
+    function _denormalizeFromDecimals(
+        uint256 normalizedAmount,
+        uint256 decimals
+    ) internal pure returns (uint256 amount) {
+        if (decimals < 18) {
+            amount = normalizedAmount / (10 ** (18 - decimals));
+        } else if (decimals > 18) {
+            amount = normalizedAmount * (10 ** (decimals - 18));
+        } else {
+            amount = normalizedAmount;
+        }
+    }
+
+    /**
      * @dev Check if withdrawal amount is sufficient to cover gas fees with proper decimal normalization
      * @param asset The asset being withdrawn
      * @param amount The withdrawal amount in asset decimals
