@@ -82,7 +82,7 @@ const TokenNetworkIcon = React.forwardRef<HTMLDivElement, TokenNetworkIconProps>
         )}
 
         {/* Network Indicator */}
-        {(sourceChain || networkSymbol) && (
+        {(sourceChain ?? networkSymbol) && (
           <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center shadow-md">
             {renderNetworkIcon()}
           </div>

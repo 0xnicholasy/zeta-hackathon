@@ -45,6 +45,8 @@ This directory contains the smart contracts for the ZetaChain lending protocol, 
 
 The UniversalLendingProtocol design is inspired by Aave's architecture, particularly in the following aspects:
 
+**License Acknowledgment**: This protocol implements concepts and architectural patterns inspired by [Aave Protocol v3](https://github.com/aave/aave-v3-core), which is licensed under [GPL-3.0](https://github.com/aave/aave-v3-core/blob/master/LICENSE.md). While our implementation is original code written from scratch for ZetaChain's cross-chain lending use case, we acknowledge the conceptual debt to Aave's pioneering work in DeFi lending protocols. This repository maintains compatibility with GPL-3.0 licensing terms for any components that may be considered derivative of Aave's work.
+
 - **Dynamic Interest Rates**: Implements a dynamic interest rate model that adjusts based on asset utilization:
   - Uses a two-slope model with different rates below and above optimal utilization (similar to Aave's rate model)
   - Calculates separate borrow and supply rates

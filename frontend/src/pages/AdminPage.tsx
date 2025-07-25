@@ -1,13 +1,16 @@
-import { useAccount, useChainId, useSwitchChain, useWriteContract } from 'wagmi';
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useState, useEffect } from 'react';
+import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Header } from '../components/dashboard/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '../components/ui/form';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { useContracts, SupportedChain } from '../hooks/useContracts';
 import { isEVMAddress, validateEVMAddress } from '../components/dashboard/types';
 import { SupportedChainId } from '@/contracts/deployments';
@@ -41,6 +44,14 @@ type RemoveSupportedAssetForm = z.infer<typeof removeSupportedAssetSchema>;
 type AddAssetForm = z.infer<typeof addAssetSchema>;
 type UpdatePriceForm = z.infer<typeof updatePriceSchema>;
 
+// Notification dialog state
+interface NotificationState {
+  isOpen: boolean;
+  type: 'success' | 'error' | 'pending';
+  title: string;
+  message: string;
+  txHash?: `0x${string}`;
+}
 
 function AdminPage() {
   const { isConnected } = useAccount();
@@ -54,8 +65,29 @@ function AdminPage() {
   const isOnZetaNetwork = chainId === SupportedChain.ZETA_TESTNET;
   const isOnExternalNetwork = chainId === SupportedChain.ARBITRUM_SEPOLIA || chainId === SupportedChain.ETHEREUM_SEPOLIA;
 
-  // Contract interaction hook
-  const { writeContract, isPending: isContractPending } = useWriteContract();
+  // Contract interaction hooks
+  const { writeContract, data: contractHash, error: contractError } = useWriteContract();
+
+  // Transaction receipt tracking
+  const {
+    isLoading: isTransactionPending,
+    isSuccess: isTransactionSuccess,
+    isError: isTransactionError,
+    error: transactionError
+  } = useWaitForTransactionReceipt({
+    hash: contractHash,
+    query: {
+      enabled: Boolean(contractHash),
+    },
+  });
+
+  // Notification state
+  const [notification, setNotification] = useState<NotificationState>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: '',
+  });
 
   // Forms for DepositContract
   const addSupportedAssetForm = useForm({
@@ -91,6 +123,46 @@ function AdminPage() {
     },
   });
 
+  // Handle transaction hash changes
+  useEffect(() => {
+    if (contractHash && !isTransactionPending && !isTransactionSuccess && !isTransactionError) {
+      setNotification({
+        isOpen: true,
+        type: 'pending',
+        title: 'Transaction Submitted',
+        message: 'Your transaction has been submitted and is being processed...',
+        ...(contractHash && { txHash: contractHash }),
+      });
+    }
+  }, [contractHash, isTransactionPending, isTransactionSuccess, isTransactionError]);
+
+  // Handle transaction success
+  useEffect(() => {
+    if (isTransactionSuccess) {
+      setNotification({
+        isOpen: true,
+        type: 'success',
+        title: 'Transaction Successful',
+        message: 'Your admin operation has been completed successfully!',
+        ...(contractHash && { txHash: contractHash }),
+      });
+    }
+  }, [isTransactionSuccess, contractHash]);
+
+  // Handle transaction error
+  useEffect(() => {
+    if (isTransactionError || contractError) {
+      const errorMessage = (transactionError?.message ?? contractError?.message) ?? 'Transaction failed';
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Transaction Failed',
+        message: errorMessage,
+        ...(contractHash && { txHash: contractHash }),
+      });
+    }
+  }, [isTransactionError, contractError, transactionError, contractHash]);
+
   const handleSwitchToZeta = () => {
     switchChain({ chainId: SupportedChain.ZETA_TESTNET });
   };
@@ -103,10 +175,18 @@ function AdminPage() {
     switchChain({ chainId: SupportedChain.ETHEREUM_SEPOLIA });
   };
 
+  const closeNotification = () => {
+    setNotification(prev => ({ ...prev, isOpen: false }));
+  };
+
   const onAddSupportedAsset = async (data: AddSupportedAssetForm) => {
     if (!contracts?.depositContract) {
-      console.error('DepositContract not found');
-      alert('DepositContract not found');
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Contract Not Found',
+        message: 'DepositContract not found. Please check your network connection.',
+      });
       return;
     }
 
@@ -120,18 +200,24 @@ function AdminPage() {
         functionName: 'addSupportedAsset',
         args: [assetAddress, data.decimals, data.isNative],
       });
-      console.log('Asset added successfully');
-      alert('Asset added successfully');
     } catch (error) {
-      console.error('Error adding supported asset:', error);
-      alert('Failed to add asset');
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Transaction Error',
+        message: `Failed to add supported asset: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
     }
   };
 
   const onRemoveSupportedAsset = async (data: RemoveSupportedAssetForm) => {
     if (!contracts?.depositContract) {
-      console.error('DepositContract not found');
-      alert('DepositContract not found');
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Contract Not Found',
+        message: 'DepositContract not found. Please check your network connection.',
+      });
       return;
     }
 
@@ -145,18 +231,24 @@ function AdminPage() {
         functionName: 'removeSupportedAsset',
         args: [assetAddress],
       });
-      console.log('Asset removed successfully');
-      alert('Asset removed successfully');
     } catch (error) {
-      console.error('Error removing supported asset:', error);
-      alert('Failed to remove asset');
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Transaction Error',
+        message: `Failed to remove supported asset: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
     }
   };
 
   const onAddAsset = async (data: AddAssetForm) => {
     if (!contracts?.simpleLendingProtocol) {
-      console.error('SimpleLendingProtocol not found');
-      alert('SimpleLendingProtocol not found');
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Contract Not Found',
+        message: 'SimpleLendingProtocol not found. Please check your network connection.',
+      });
       return;
     }
 
@@ -172,18 +264,24 @@ function AdminPage() {
         functionName: 'addAsset',
         args: [assetAddress, priceInWei],
       });
-      console.log('Asset added to lending protocol successfully');
-      alert('Asset added to lending protocol successfully');
     } catch (error) {
-      console.error('Error adding asset to lending protocol:', error);
-      alert('Failed to add asset to lending protocol');
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Transaction Error',
+        message: `Failed to add asset to lending protocol: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
     }
   };
 
   const onUpdatePrice = async (data: UpdatePriceForm) => {
     if (!contracts?.simpleLendingProtocol) {
-      console.error('SimpleLendingProtocol not found');
-      alert('SimpleLendingProtocol not found');
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Contract Not Found',
+        message: 'SimpleLendingProtocol not found. Please check your network connection.',
+      });
       return;
     }
 
@@ -199,12 +297,56 @@ function AdminPage() {
         functionName: 'updatePrice',
         args: [assetAddress, priceInWei],
       });
-      console.log('Asset price updated successfully');
-      alert('Asset price updated successfully');
     } catch (error) {
-      console.error('Error updating asset price:', error);
-      alert('Failed to update asset price');
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Transaction Error',
+        message: `Failed to update asset price: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
     }
+  };
+
+  // Notification Dialog Component
+  const NotificationDialog = () => {
+    const getIcon = () => {
+      switch (notification.type) {
+        case 'success':
+          return <CheckCircle className="h-6 w-6 text-green-500" />;
+        case 'error':
+          return <AlertCircle className="h-6 w-6 text-red-500" />;
+        case 'pending':
+          return <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />;
+        default:
+          return null;
+      }
+    };
+
+    return (
+      <Dialog open={notification.isOpen} onOpenChange={closeNotification}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              {getIcon()}
+              {notification.title}
+            </DialogTitle>
+            <DialogDescription className="text-left">
+              {notification.message}
+            </DialogDescription>
+            {notification.txHash && (
+              <div className="text-xs text-muted-foreground mt-2">
+                Transaction Hash: {notification.txHash}
+              </div>
+            )}
+          </DialogHeader>
+          <DialogFooter>
+            {notification.type !== 'pending' && (
+              <Button onClick={closeNotification}>Close</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
   };
 
   if (!isConnected) {
@@ -367,8 +509,8 @@ function AdminPage() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" disabled={!isOnExternalNetwork || isContractPending}>
-                      {isContractPending ? 'Adding...' : 'Add Supported Asset'}
+                    <Button type="submit" disabled={!isOnExternalNetwork || isTransactionPending}>
+                      {isTransactionPending ? 'Adding...' : 'Add Supported Asset'}
                     </Button>
                   </form>
                 </Form>
@@ -406,8 +548,8 @@ function AdminPage() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" variant="destructive" disabled={!isOnExternalNetwork || isContractPending}>
-                      {isContractPending ? 'Removing...' : 'Remove Supported Asset'}
+                    <Button type="submit" variant="destructive" disabled={!isOnExternalNetwork || isTransactionPending}>
+                      {isTransactionPending ? 'Removing...' : 'Remove Supported Asset'}
                     </Button>
                   </form>
                 </Form>
@@ -489,8 +631,8 @@ function AdminPage() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" disabled={!isOnZetaNetwork || isContractPending}>
-                      {isContractPending ? 'Adding...' : 'Add Asset'}
+                    <Button type="submit" disabled={!isOnZetaNetwork || isTransactionPending}>
+                      {isTransactionPending ? 'Adding...' : 'Add Asset'}
                     </Button>
                   </form>
                 </Form>
@@ -551,8 +693,8 @@ function AdminPage() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" disabled={!isOnZetaNetwork || isContractPending}>
-                      {isContractPending ? 'Updating...' : 'Update Price'}
+                    <Button type="submit" disabled={!isOnZetaNetwork || isTransactionPending}>
+                      {isTransactionPending ? 'Updating...' : 'Update Price'}
                     </Button>
                   </form>
                 </Form>
@@ -561,6 +703,7 @@ function AdminPage() {
           </div>
         )}
       </div>
+      <NotificationDialog />
     </div>
   );
 }
