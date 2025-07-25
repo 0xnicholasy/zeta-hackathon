@@ -59,9 +59,9 @@ async function main() {
   console.log("\n=== Setting Asset Prices in Oracle ===");
 
   const assets = [
-    { symbol: "ETH.ARBI", chainId: 421614, price: 2000 }, // $2000
+    { symbol: "ETH.ARBI", chainId: 421614, price: 3000 }, // $3000
     { symbol: "USDC.ARBI", chainId: 421614, price: 1 },   // $1
-    { symbol: "ETH.ETH", chainId: 11155111, price: 2000 }, // $2000
+    { symbol: "ETH.ETH", chainId: 11155111, price: 3000 }, // $3000
     { symbol: "USDC.ETH", chainId: 11155111, price: 1 }    // $1
   ];
 

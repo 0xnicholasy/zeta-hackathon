@@ -12,7 +12,7 @@ import { useRepayTransactionFlow } from '../../hooks/useTransactionFlow';
 import { useRepayValidation } from '../../hooks/useRepayValidation';
 import { SupportedChain } from '../../contracts/deployments';
 import { safeEVMAddressOrZeroAddress, safeEVMAddress, type UserAssetData } from './types';
-import { ERC20__factory, SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
+import { ERC20__factory, UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
 import { getHealthFactorColorClass, formatHealthFactor } from '../../utils/healthFactorUtils';
 
@@ -23,7 +23,7 @@ interface ZetaRepayDialogProps {
 }
 
 // Contract ABIs
-const lendingProtocolAbi = SimpleLendingProtocol__factory.abi;
+const lendingProtocolAbi = UniversalLendingProtocol__factory.abi;
 const erc20Abi = ERC20__factory.abi;
 
 export function ZetaRepayDialog({ isOpen, onClose, selectedAsset }: ZetaRepayDialogProps) {
@@ -34,13 +34,13 @@ export function ZetaRepayDialog({ isOpen, onClose, selectedAsset }: ZetaRepayDia
   const transactionFlow = useRepayTransactionFlow();
   const { address } = useAccount();
   const safeAddress = safeEVMAddressOrZeroAddress(address);
-  const { simpleLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+  const { universalLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
 
   // Validation hook
   const validation = useRepayValidation({
     selectedAsset,
     amount,
-    simpleLendingProtocol: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+    universalLendingProtocol: safeEVMAddressOrZeroAddress(universalLendingProtocol),
     userAddress: safeAddress,
   });
 
@@ -52,25 +52,25 @@ export function ZetaRepayDialog({ isOpen, onClose, selectedAsset }: ZetaRepayDia
 
   // Handle approval for ERC20 token
   const handleApproveToken = useCallback(() => {
-    if (!selectedAsset || !simpleLendingProtocol || !amountBigInt) return;
+    if (!selectedAsset || !universalLendingProtocol || !amountBigInt) return;
 
     txActions.setCurrentStep('approve');
     txActions.writeContract({
       address: selectedAsset.address,
       abi: erc20Abi,
       functionName: 'approve',
-      args: [safeEVMAddressOrZeroAddress(simpleLendingProtocol), amountBigInt],
+      args: [safeEVMAddressOrZeroAddress(universalLendingProtocol), amountBigInt],
     });
-  }, [selectedAsset, simpleLendingProtocol, amountBigInt, txActions]);
+  }, [selectedAsset, universalLendingProtocol, amountBigInt, txActions]);
 
   // Handle repay function
   const handleRepay = useCallback(async () => {
-    if (!address || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
+    if (!address || !selectedAsset || !amountBigInt || !universalLendingProtocol) return;
 
     try {
       txActions.setCurrentStep('repay');
       txActions.writeContract({
-        address: safeEVMAddress(simpleLendingProtocol),
+        address: safeEVMAddress(universalLendingProtocol),
         abi: lendingProtocolAbi,
         functionName: 'repay',
         args: [
@@ -84,11 +84,11 @@ export function ZetaRepayDialog({ isOpen, onClose, selectedAsset }: ZetaRepayDia
       txActions.setIsSubmitting(false);
       txActions.setCurrentStep('input');
     }
-  }, [address, selectedAsset, amountBigInt, simpleLendingProtocol, txActions]);
+  }, [address, selectedAsset, amountBigInt, universalLendingProtocol, txActions]);
 
   // Main submit handler
   const handleSubmit = useCallback(async () => {
-    if (!amount || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
+    if (!amount || !selectedAsset || !amountBigInt || !universalLendingProtocol) return;
 
     txActions.setIsSubmitting(true);
     txActions.resetContract();
@@ -102,7 +102,7 @@ export function ZetaRepayDialog({ isOpen, onClose, selectedAsset }: ZetaRepayDia
       txActions.setIsSubmitting(false);
       txActions.setCurrentStep('input');
     }
-  }, [amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, handleApproveToken]);
+  }, [amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, handleApproveToken]);
 
   // Handle max click
   const handleMaxClick = useCallback(() => {
@@ -165,7 +165,7 @@ export function ZetaRepayDialog({ isOpen, onClose, selectedAsset }: ZetaRepayDia
   }, [contractState.isTransactionError, txState.currentStep, txActions]);
 
   // Early return after all hooks
-  if (!selectedAsset || !simpleLendingProtocol) return null;
+  if (!selectedAsset || !universalLendingProtocol) return null;
 
   return (
     <BaseTransactionDialog

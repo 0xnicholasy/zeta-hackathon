@@ -11,7 +11,7 @@ import { useContracts } from '../../hooks/useContracts';
 import { useTransactionFlow } from '../../hooks/useTransactionFlow';
 import { SupportedChain } from '../../contracts/deployments';
 import { safeEVMAddress, safeEVMAddressOrZeroAddress, type UserAssetData } from './types';
-import { SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
+import { UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
 
 interface ZetaWithdrawDialogProps {
@@ -21,7 +21,7 @@ interface ZetaWithdrawDialogProps {
 }
 
 // Contract ABI
-const lendingProtocolAbi = SimpleLendingProtocol__factory.abi;
+const lendingProtocolAbi = UniversalLendingProtocol__factory.abi;
 
 export function ZetaWithdrawDialog({ isOpen, onClose, selectedAsset }: ZetaWithdrawDialogProps) {
   const [amount, setAmount] = useState('');
@@ -31,7 +31,7 @@ export function ZetaWithdrawDialog({ isOpen, onClose, selectedAsset }: ZetaWithd
   const transactionFlow = useTransactionFlow();
   const { address } = useAccount();
   const safeAddress = safeEVMAddressOrZeroAddress(address);
-  const { simpleLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+  const { universalLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
 
   // Computed values
   const maxAmount = selectedAsset?.formattedSuppliedBalance || '0';
@@ -43,12 +43,12 @@ export function ZetaWithdrawDialog({ isOpen, onClose, selectedAsset }: ZetaWithd
 
   // Handle withdraw function
   const handleWithdraw = useCallback(async () => {
-    if (!address || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
+    if (!address || !selectedAsset || !amountBigInt || !universalLendingProtocol) return;
 
     try {
       txActions.setCurrentStep('withdraw');
       txActions.writeContract({
-        address: safeEVMAddress(simpleLendingProtocol),
+        address: safeEVMAddress(universalLendingProtocol),
         abi: lendingProtocolAbi,
         functionName: 'withdraw',
         args: [
@@ -62,18 +62,18 @@ export function ZetaWithdrawDialog({ isOpen, onClose, selectedAsset }: ZetaWithd
       txActions.setIsSubmitting(false);
       txActions.setCurrentStep('input');
     }
-  }, [address, selectedAsset, amountBigInt, simpleLendingProtocol, txActions]);
+  }, [address, selectedAsset, amountBigInt, universalLendingProtocol, txActions]);
 
   // Main submit handler
   const handleSubmit = useCallback(async () => {
-    if (!amount || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
+    if (!amount || !selectedAsset || !amountBigInt || !universalLendingProtocol) return;
 
     txActions.setIsSubmitting(true);
     txActions.resetContract();
 
     // Proceed directly with withdrawal (no approval needed for withdrawing)
     await handleWithdraw();
-  }, [amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, handleWithdraw]);
+  }, [amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, handleWithdraw]);
 
   // Handle max click
   const handleMaxClick = useCallback(() => {
@@ -126,7 +126,7 @@ export function ZetaWithdrawDialog({ isOpen, onClose, selectedAsset }: ZetaWithd
   }, [contractState.isTransactionError, txState.currentStep, txActions]);
 
   // Early return after all hooks
-  if (!selectedAsset || !simpleLendingProtocol) return null;
+  if (!selectedAsset || !universalLendingProtocol) return null;
 
   return (
     <BaseTransactionDialog

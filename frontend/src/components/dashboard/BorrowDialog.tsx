@@ -14,7 +14,7 @@ import { useGasTokenApproval, getGasTokenApprovalContractCall } from '../../hook
 import { SupportedChain, getNetworkConfig } from '../../contracts/deployments';
 import { getChainDisplayNameFromId } from '../../utils/chainUtils';
 import { safeEVMAddressOrZeroAddress, type UserAssetData } from './types';
-import { SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
+import { UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
 import { getHealthFactorColorClass, formatHealthFactor } from '../../utils/healthFactorUtils';
 
@@ -25,7 +25,7 @@ interface BorrowDialogProps {
 }
 
 // Contract ABI
-const lendingProtocolAbi = SimpleLendingProtocol__factory.abi;
+const lendingProtocolAbi = UniversalLendingProtocol__factory.abi;
 
 export function BorrowDialog({
     isOpen,
@@ -41,7 +41,7 @@ export function BorrowDialog({
     const currentChainId = useChainId();
     const { switchChain } = useSwitchChain();
     const safeAddress = safeEVMAddressOrZeroAddress(address);
-    const { simpleLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+    const { universalLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
 
     // Check if user is on ZetaChain (required for borrowing)
     const isOnZetaChain = currentChainId === SupportedChain.ZETA_TESTNET;
@@ -51,7 +51,7 @@ export function BorrowDialog({
     const validation = useBorrowValidation({
         selectedAsset,
         amountToBorrow: amount,
-        simpleLendingProtocol: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+        universalLendingProtocol: safeEVMAddressOrZeroAddress(universalLendingProtocol),
         userAddress: safeAddress,
     });
 
@@ -62,7 +62,7 @@ export function BorrowDialog({
     const gasApproval = useGasTokenApproval({
         selectedAsset,
         borrowAmount: amountBigInt,
-        simpleLendingProtocol: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+        universalLendingProtocol: safeEVMAddressOrZeroAddress(universalLendingProtocol),
     });
 
     // Destructure transaction flow state
@@ -84,7 +84,7 @@ export function BorrowDialog({
 
     // Main submit handler
     const handleSubmit = useCallback(async () => {
-        if (!amount || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
+        if (!amount || !selectedAsset || !amountBigInt || !universalLendingProtocol) return;
 
         txActions.setIsSubmitting(true);
         txActions.resetContract();
@@ -101,7 +101,7 @@ export function BorrowDialog({
                 txActions.setCurrentStep('approve');
                 const approvalCall = getGasTokenApprovalContractCall(
                     gasApproval.gasTokenAddress,
-                    safeEVMAddressOrZeroAddress(simpleLendingProtocol)
+                    safeEVMAddressOrZeroAddress(universalLendingProtocol)
                 );
                 txActions.writeContract(approvalCall);
                 return; // Exit here, approval success will trigger borrow transaction
@@ -110,7 +110,7 @@ export function BorrowDialog({
             // Proceed with borrow transaction
             txActions.setCurrentStep('borrow');
             txActions.writeContract({
-                address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+                address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
                 abi: lendingProtocolAbi,
                 functionName: 'borrowCrossChain',
                 args: [
@@ -125,7 +125,7 @@ export function BorrowDialog({
             txActions.setIsSubmitting(false);
             txActions.setCurrentStep('input');
         }
-    }, [amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, isOnZetaChain, handleSwitchToZeta, safeAddress, gasApproval]);
+    }, [amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, isOnZetaChain, handleSwitchToZeta, safeAddress, gasApproval]);
 
     // Handle max click
     const handleMaxClick = useCallback(() => {
@@ -212,11 +212,11 @@ export function BorrowDialog({
 
     // Handle approval success - proceed with borrow transaction
     useEffect(() => {
-        if (contractState.isApprovalSuccess && txState.currentStep === 'approving' && amount && selectedAsset && amountBigInt && simpleLendingProtocol) {
+        if (contractState.isApprovalSuccess && txState.currentStep === 'approving' && amount && selectedAsset && amountBigInt && universalLendingProtocol) {
             // Approval successful, proceed with borrow transaction
             txActions.setCurrentStep('borrow');
             txActions.writeContract({
-                address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+                address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
                 abi: lendingProtocolAbi,
                 functionName: 'borrowCrossChain',
                 args: [
@@ -227,7 +227,7 @@ export function BorrowDialog({
                 ],
             });
         }
-    }, [contractState.isApprovalSuccess, txState.currentStep, amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, safeAddress]);
+    }, [contractState.isApprovalSuccess, txState.currentStep, amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, safeAddress]);
 
     // Handle successful network switch to ZetaChain
     useEffect(() => {
@@ -238,20 +238,20 @@ export function BorrowDialog({
 
             // Auto-proceed with the borrow transaction after network switch
             setTimeout(() => {
-                if (amount && selectedAsset && amountBigInt && simpleLendingProtocol) {
+                if (amount && selectedAsset && amountBigInt && universalLendingProtocol) {
                     // Check if approval is needed first
                     if (gasApproval.needsApproval && gasApproval.gasTokenAddress) {
                         txActions.setCurrentStep('approve');
                         const approvalCall = getGasTokenApprovalContractCall(
                             gasApproval.gasTokenAddress,
-                            safeEVMAddressOrZeroAddress(simpleLendingProtocol)
+                            safeEVMAddressOrZeroAddress(universalLendingProtocol)
                         );
                         txActions.writeContract(approvalCall);
                     } else {
                         // No approval needed, proceed with borrow
                         txActions.setCurrentStep('borrow');
                         txActions.writeContract({
-                            address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+                            address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
                             abi: lendingProtocolAbi,
                             functionName: 'borrowCrossChain',
                             args: [
@@ -265,10 +265,10 @@ export function BorrowDialog({
                 }
             }, 500); // Small delay to ensure network switch is complete
         }
-    }, [txState.currentStep, isOnZetaChain, amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, safeAddress, gasApproval]);
+    }, [txState.currentStep, isOnZetaChain, amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, safeAddress, gasApproval]);
 
     // Early return after all hooks
-    if (!selectedAsset || !simpleLendingProtocol) return null;
+    if (!selectedAsset || !universalLendingProtocol) return null;
 
     return (
         <BaseTransactionDialog

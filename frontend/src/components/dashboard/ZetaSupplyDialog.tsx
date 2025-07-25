@@ -12,7 +12,7 @@ import { useTransactionFlow } from '../../hooks/useTransactionFlow';
 import { useZetaChainBalances } from '../../hooks/useMultiChainBalances';
 import { SupportedChain } from '../../contracts/deployments';
 import { safeEVMAddress, safeEVMAddressOrZeroAddress } from './types';
-import { ERC20__factory, SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
+import { ERC20__factory, UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import type { UserAssetData } from './types';
 
 interface ZetaSupplyDialogProps {
@@ -22,7 +22,7 @@ interface ZetaSupplyDialogProps {
 }
 
 // Contract ABIs
-const lendingProtocolAbi = SimpleLendingProtocol__factory.abi;
+const lendingProtocolAbi = UniversalLendingProtocol__factory.abi;
 const erc20Abi = ERC20__factory.abi;
 
 export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset }: ZetaSupplyDialogProps) {
@@ -32,7 +32,7 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset }: ZetaSupplyD
   const crossChain = useCrossChainTracking();
   const transactionFlow = useTransactionFlow();
   const { address } = useAccount();
-  const { simpleLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+  const { universalLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
   const { zetaBalances } = useZetaChainBalances();
 
   // Destructure transaction flow state
@@ -58,25 +58,25 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset }: ZetaSupplyD
 
   // Handle token approval for ERC20 tokens
   const handleApproveToken = useCallback(() => {
-    if (!selectedAsset || !simpleLendingProtocol || !amountBigInt) return;
+    if (!selectedAsset || !universalLendingProtocol || !amountBigInt) return;
 
     txActions.setCurrentStep('approve');
     txActions.writeContract({
       address: selectedAsset.address,
       abi: erc20Abi,
       functionName: 'approve',
-      args: [safeEVMAddressOrZeroAddress(simpleLendingProtocol), amountBigInt],
+      args: [safeEVMAddressOrZeroAddress(universalLendingProtocol), amountBigInt],
     });
-  }, [selectedAsset, simpleLendingProtocol, amountBigInt, txActions]);
+  }, [selectedAsset, universalLendingProtocol, amountBigInt, txActions]);
 
   // Handle supply function
   const handleSupply = useCallback(async () => {
-    if (!address || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
+    if (!address || !selectedAsset || !amountBigInt || !universalLendingProtocol) return;
 
     try {
       txActions.setCurrentStep('deposit');
       txActions.writeContract({
-        address: safeEVMAddress(simpleLendingProtocol),
+        address: safeEVMAddress(universalLendingProtocol),
         abi: lendingProtocolAbi,
         functionName: 'supply',
         args: [
@@ -90,7 +90,7 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset }: ZetaSupplyD
       txActions.setIsSubmitting(false);
       txActions.setCurrentStep('input');
     }
-  }, [address, selectedAsset, amountBigInt, simpleLendingProtocol, txActions]);
+  }, [address, selectedAsset, amountBigInt, universalLendingProtocol, txActions]);
 
   // Handle max click
   const handleMaxClick = useCallback(() => {
@@ -99,7 +99,7 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset }: ZetaSupplyD
 
   // Handle submit
   const handleSubmit = useCallback(async () => {
-    if (!address || !amount || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
+    if (!address || !amount || !selectedAsset || !amountBigInt || !universalLendingProtocol) return;
 
     txActions.setIsSubmitting(true);
     txActions.resetContract();
@@ -114,7 +114,7 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset }: ZetaSupplyD
       txActions.setIsSubmitting(false);
       txActions.setCurrentStep('input');
     }
-  }, [address, amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, handleApproveToken]);
+  }, [address, amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, handleApproveToken]);
 
   // Handle close
   const handleClose = useCallback(() => {
@@ -164,7 +164,7 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset }: ZetaSupplyD
   }, [contractState.isTransactionSuccess, txState.currentStep, txActions]);
 
   // Early return AFTER all hooks have been called
-  if (!selectedAsset || !simpleLendingProtocol) return null;
+  if (!selectedAsset || !universalLendingProtocol) return null;
 
   return (
     <BaseTransactionDialog

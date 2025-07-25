@@ -13,7 +13,7 @@ import { useWithdrawValidation } from '../../hooks/useWithdrawValidation';
 import { SupportedChain } from '../../contracts/deployments';
 import { getChainDisplayName } from '../../utils/chainUtils';
 import { safeEVMAddressOrZeroAddress, type UserAssetData } from './types';
-import { ERC20__factory, SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
+import { ERC20__factory, UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
 
 interface WithdrawDialogProps {
@@ -23,7 +23,7 @@ interface WithdrawDialogProps {
 }
 
 // Contract ABIs
-const lendingProtocolAbi = SimpleLendingProtocol__factory.abi;
+const lendingProtocolAbi = UniversalLendingProtocol__factory.abi;
 const erc20Abi = ERC20__factory.abi;
 
 export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialogProps) {
@@ -34,13 +34,13 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     const transactionFlow = useTransactionFlow();
     const { address } = useAccount();
     const safeAddress = safeEVMAddressOrZeroAddress(address);
-    const { simpleLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+    const { universalLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
 
     // Validation hook
     const validation = useWithdrawValidation({
         selectedAsset,
         amount,
-        simpleLendingProtocol: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+        universalLendingProtocol: safeEVMAddressOrZeroAddress(universalLendingProtocol),
         userAddress: safeAddress,
     });
 
@@ -56,20 +56,20 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
 
     // Handle gas token approval
     const handleApproveGasToken = useCallback(() => {
-        if (!validation.gasTokenInfo.needsApproval || !simpleLendingProtocol) return;
+        if (!validation.gasTokenInfo.needsApproval || !universalLendingProtocol) return;
 
         txActions.setCurrentStep('approving');
         txActions.writeContract({
             address: validation.gasTokenInfo.address,
             abi: erc20Abi,
             functionName: 'approve',
-            args: [safeEVMAddressOrZeroAddress(simpleLendingProtocol), validation.gasTokenInfo.amount],
+            args: [safeEVMAddressOrZeroAddress(universalLendingProtocol), validation.gasTokenInfo.amount],
         });
-    }, [validation.gasTokenInfo, simpleLendingProtocol, txActions]);
+    }, [validation.gasTokenInfo, universalLendingProtocol, txActions]);
 
     // Main submit handler
     const handleSubmit = useCallback(async () => {
-        if (!amount || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
+        if (!amount || !selectedAsset || !amountBigInt || !universalLendingProtocol) return;
 
         txActions.setIsSubmitting(true);
         txActions.resetContract();
@@ -91,7 +91,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
         // Step 2: Proceed with withdrawal
         txActions.setCurrentStep('withdraw');
         txActions.writeContract({
-            address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+            address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
             abi: lendingProtocolAbi,
             functionName: 'withdrawCrossChain',
             args: [
@@ -101,7 +101,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                 safeAddress,
             ],
         });
-    }, [amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, validation, safeAddress]);
+    }, [amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, validation, safeAddress]);
 
     // Handle max click
     const handleMaxClick = useCallback(() => {
@@ -180,7 +180,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     }, [contractState.isTransactionError, txState.currentStep, txActions]);
 
     // Early return after all hooks
-    if (!selectedAsset || !simpleLendingProtocol) return null;
+    if (!selectedAsset || !universalLendingProtocol) return null;
 
     return (
         <BaseTransactionDialog

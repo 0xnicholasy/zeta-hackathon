@@ -701,7 +701,7 @@ export interface SimpleLendingProtocol extends BaseContract {
     ): Promise<[BigNumber] & { maxBorrowUsdValue: BigNumber }>;
 
     onCall(
-      arg0: MessageContextStruct,
+      context: MessageContextStruct,
       zrc20: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       message: PromiseOrValue<BytesLike>,
@@ -709,7 +709,7 @@ export interface SimpleLendingProtocol extends BaseContract {
     ): Promise<ContractTransaction>;
 
     onRevert(
-      arg0: RevertContextStruct,
+      revertContext: RevertContextStruct,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
@@ -910,7 +910,7 @@ export interface SimpleLendingProtocol extends BaseContract {
   ): Promise<BigNumber>;
 
   onCall(
-    arg0: MessageContextStruct,
+    context: MessageContextStruct,
     zrc20: PromiseOrValue<string>,
     amount: PromiseOrValue<BigNumberish>,
     message: PromiseOrValue<BytesLike>,
@@ -918,7 +918,7 @@ export interface SimpleLendingProtocol extends BaseContract {
   ): Promise<ContractTransaction>;
 
   onRevert(
-    arg0: RevertContextStruct,
+    revertContext: RevertContextStruct,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
@@ -1121,7 +1121,7 @@ export interface SimpleLendingProtocol extends BaseContract {
     ): Promise<BigNumber>;
 
     onCall(
-      arg0: MessageContextStruct,
+      context: MessageContextStruct,
       zrc20: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       message: PromiseOrValue<BytesLike>,
@@ -1129,7 +1129,7 @@ export interface SimpleLendingProtocol extends BaseContract {
     ): Promise<void>;
 
     onRevert(
-      arg0: RevertContextStruct,
+      revertContext: RevertContextStruct,
       overrides?: CallOverrides
     ): Promise<void>;
 
@@ -1401,7 +1401,7 @@ export interface SimpleLendingProtocol extends BaseContract {
     ): Promise<BigNumber>;
 
     onCall(
-      arg0: MessageContextStruct,
+      context: MessageContextStruct,
       zrc20: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       message: PromiseOrValue<BytesLike>,
@@ -1409,7 +1409,7 @@ export interface SimpleLendingProtocol extends BaseContract {
     ): Promise<BigNumber>;
 
     onRevert(
-      arg0: RevertContextStruct,
+      revertContext: RevertContextStruct,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
@@ -1613,7 +1613,7 @@ export interface SimpleLendingProtocol extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     onCall(
-      arg0: MessageContextStruct,
+      context: MessageContextStruct,
       zrc20: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       message: PromiseOrValue<BytesLike>,
@@ -1621,7 +1621,7 @@ export interface SimpleLendingProtocol extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     onRevert(
-      arg0: RevertContextStruct,
+      revertContext: RevertContextStruct,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 

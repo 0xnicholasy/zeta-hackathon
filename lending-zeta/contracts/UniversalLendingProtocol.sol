@@ -114,51 +114,40 @@ contract UniversalLendingProtocol is
         return chainAssets[chainId][symbol];
     }
 
-    // Override gateway functions to handle cross-chain logic
+    // Override gateway functions to handle cross-chain logic with source chain validation
     function onCall(
         MessageContext calldata context,
         address zrc20,
         uint256 amount,
         bytes calldata message
     ) external override onlyGateway {
-        // Validate source chain is allowed
+        // Validate source chain is allowed (Universal feature)
         if (!allowedSourceChains[context.chainID]) {
             revert ChainNotAllowed(context.chainID);
         }
 
-        // Use SimpleLendingProtocol's approach for message handling
-        if (message.length == 64) {
+        // Standard message handling - 128 bytes for basic operations
+        if (message.length == 128) {
             (string memory action, address onBehalfOf) = abi.decode(
                 message,
                 (string, address)
             );
-
             if (
                 keccak256(abi.encodePacked(action)) ==
                 keccak256(abi.encodePacked("supply"))
             ) {
-                _handleCrossChainSupply(onBehalfOf, zrc20, amount, context);
+                _supply(zrc20, amount, onBehalfOf);
                 return;
             } else if (
                 keccak256(abi.encodePacked(action)) ==
                 keccak256(abi.encodePacked("repay"))
             ) {
-                _handleCrossChainRepay(onBehalfOf, zrc20, amount, context);
+                _repay(zrc20, amount, onBehalfOf);
                 return;
             }
-        } else if (message.length == 40) {
-            // Simplified message format: (address user, uint8 operation)
-            (address user, uint8 operation) = abi.decode(
-                message,
-                (address, uint8)
-            );
-            
-            if (operation == 1) {
-                // Operation 1 = repay
-                _handleCrossChainRepay(user, zrc20, amount, context);
-                return;
-            }
-        } else if (message.length == 160) {
+        } 
+        // Extended message handling - 224 bytes for cross-chain operations
+        else if (message.length == 224) {
             (
                 string memory action,
                 address user,
@@ -169,7 +158,6 @@ contract UniversalLendingProtocol is
                     message,
                     (string, address, uint256, uint256, address)
                 );
-
             if (
                 keccak256(abi.encodePacked(action)) ==
                 keccak256(abi.encodePacked("borrowCrossChain"))
@@ -200,74 +188,38 @@ contract UniversalLendingProtocol is
         revert("Invalid operation or message format");
     }
 
-    function onRevert(
-        RevertContext calldata revertContext
-    ) external override onlyGateway {
-        // Enhanced revert handling
-        uint256 destinationChain = 0;
-        if (revertContext.revertMessage.length >= 32) {
-            (destinationChain) = abi.decode(
-                revertContext.revertMessage,
-                (uint256)
-            );
-        }
-
-        emit CrossChainWithdrawal(
-            address(0),
-            revertContext.asset,
-            revertContext.amount,
-            destinationChain,
-            address(0)
-        );
+    // Override supply to add interest updates
+    function _supply(
+        address asset,
+        uint256 amount,
+        address onBehalfOf
+    ) internal override {
+        _updateInterest(asset);
+        super._supply(asset, amount, onBehalfOf);
+        enhancedAssets[asset].totalSupply += amount;
+        lastInterestUpdate[onBehalfOf][asset] = block.timestamp;
     }
 
-    // Enhanced cross-chain supply with interest updates
-    function _handleCrossChainSupply(
-        address user,
-        address zrc20,
+    // Override repay to add interest updates  
+    function _repay(
+        address asset,
         uint256 amount,
-        MessageContext calldata context
-    ) internal {
-        _updateInterest(zrc20);
-
-        userSupplies[user][zrc20] += amount;
-        enhancedAssets[zrc20].totalSupply += amount;
-        lastInterestUpdate[user][zrc20] = block.timestamp;
-
-        emit Supply(user, zrc20, amount);
-        emit CrossChainDeposit(
-            user,
-            zrc20,
-            amount,
-            context.chainID,
-            keccak256(context.sender)
-        );
-    }
-
-    // Enhanced cross-chain repayment
-    function _handleCrossChainRepay(
-        address user,
-        address zrc20,
-        uint256 amount,
-        MessageContext calldata /* context */
-    ) internal {
-        if (!enhancedAssets[zrc20].isSupported) revert AssetNotSupported(zrc20);
-        if (amount == 0) revert InvalidAmount();
+        address onBehalfOf
+    ) internal override {
+        _updateInterest(asset);
         
-        uint256 userDebt = userBorrows[user][zrc20];
+        uint256 userDebt = userBorrows[onBehalfOf][asset];
         uint256 amountToRepay = amount > userDebt ? userDebt : amount;
-
-        if (amountToRepay > 0) {
-            userBorrows[user][zrc20] -= amountToRepay;
-        }
-
-        // If overpaid, convert excess to supply
+        
+        super._repay(asset, amountToRepay, onBehalfOf);
+        
+        // If overpaid, convert excess to supply (Universal feature)
         if (amount > userDebt) {
             uint256 excess = amount - userDebt;
-            userSupplies[user][zrc20] += excess;
+            userSupplies[onBehalfOf][asset] += excess;
+            enhancedAssets[asset].totalSupply += excess;
+            emit Supply(onBehalfOf, asset, excess);
         }
-
-        emit Repay(user, zrc20, amountToRepay);
     }
 
     // Override core functions to include interest rate updates

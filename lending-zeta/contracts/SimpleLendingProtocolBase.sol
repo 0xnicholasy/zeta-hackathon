@@ -468,4 +468,176 @@ abstract contract SimpleLendingProtocolBase is
             revert InvalidAmount();
         }
     }
+
+    // Standardized cross-chain gateway functions
+    function onCall(
+        MessageContext calldata context,
+        address zrc20,
+        uint256 amount,
+        bytes calldata message
+    ) external virtual onlyGateway {
+        // Standard message handling - 128 bytes for basic operations
+        if (message.length == 128) {
+            (string memory action, address onBehalfOf) = abi.decode(
+                message,
+                (string, address)
+            );
+            if (
+                keccak256(abi.encodePacked(action)) ==
+                keccak256(abi.encodePacked("supply"))
+            ) {
+                _supply(zrc20, amount, onBehalfOf);
+                return;
+            } else if (
+                keccak256(abi.encodePacked(action)) ==
+                keccak256(abi.encodePacked("repay"))
+            ) {
+                _repay(zrc20, amount, onBehalfOf);
+                return;
+            }
+        } 
+        // Extended message handling - 224 bytes for cross-chain operations
+        else if (message.length == 224) {
+            (
+                string memory action,
+                address user,
+                uint256 operationAmount,
+                uint256 destinationChain,
+                address recipient
+            ) = abi.decode(
+                    message,
+                    (string, address, uint256, uint256, address)
+                );
+            if (
+                keccak256(abi.encodePacked(action)) ==
+                keccak256(abi.encodePacked("borrowCrossChain"))
+            ) {
+                _borrowCrossChainFromCall(
+                    zrc20,
+                    operationAmount,
+                    user,
+                    destinationChain,
+                    recipient
+                );
+                return;
+            } else if (
+                keccak256(abi.encodePacked(action)) ==
+                keccak256(abi.encodePacked("withdrawCrossChain"))
+            ) {
+                _withdrawCrossChainFromCall(
+                    zrc20,
+                    operationAmount,
+                    user,
+                    destinationChain,
+                    recipient
+                );
+                return;
+            }
+        }
+
+        revert("Invalid operation or message format");
+    }
+
+    function onRevert(
+        RevertContext calldata revertContext
+    ) external virtual onlyGateway {
+        // Standard revert handling for all implementations
+        emit Withdraw(
+            address(0),
+            revertContext.asset,
+            revertContext.amount
+        );
+    }
+
+    // Virtual cross-chain functions to be implemented by child contracts if needed
+    function _borrowCrossChainFromCall(
+        address asset,
+        uint256 amount,
+        address user,
+        uint256 destinationChain,
+        address recipient
+    ) internal virtual {
+        if (!assets[asset].isSupported) revert AssetNotSupported(asset);
+        if (amount == 0) revert InvalidAmount();
+        if (IERC20(asset).balanceOf(address(this)) < amount)
+            revert InsufficientBalance();
+        if (!canBorrow(user, asset, amount)) revert InsufficientCollateral();
+        
+        _validateAmountVsGasFee(asset, amount);
+        userBorrows[user][asset] += amount;
+        
+        (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
+        uint256 withdrawalAmount = amount;
+        uint256 approvalAmount = amount;
+        
+        if (asset == gasZRC20) {
+            withdrawalAmount = amount - gasFee;
+            approvalAmount = amount;
+            if (IERC20(asset).balanceOf(address(this)) < approvalAmount) {
+                revert InsufficientBalance();
+            }
+        }
+
+        IERC20(asset).approve(address(gateway), approvalAmount);
+        
+        gateway.withdraw(
+            abi.encodePacked(recipient),
+            withdrawalAmount,
+            asset,
+            RevertOptions({
+                revertAddress: user,
+                callOnRevert: true,
+                abortAddress: user,
+                revertMessage: abi.encode(destinationChain),
+                onRevertGasLimit: 300000
+            })
+        );
+
+        emit Borrow(user, asset, amount);
+    }
+
+    function _withdrawCrossChainFromCall(
+        address asset,
+        uint256 amount,
+        address user,
+        uint256 destinationChain,
+        address recipient
+    ) internal virtual {
+        if (!assets[asset].isSupported) revert AssetNotSupported(asset);
+        if (amount == 0) revert InvalidAmount();
+        if (userSupplies[user][asset] < amount) revert InsufficientBalance();
+        if (!canWithdraw(user, asset, amount)) revert InsufficientCollateral();
+        
+        _validateAmountVsGasFee(asset, amount);
+        userSupplies[user][asset] -= amount;
+        
+        (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
+        uint256 withdrawalAmount = amount;
+        uint256 approvalAmount = amount;
+        
+        if (asset == gasZRC20) {
+            withdrawalAmount = amount - gasFee;
+            approvalAmount = amount;
+            if (IERC20(asset).balanceOf(address(this)) < approvalAmount) {
+                revert InsufficientBalance();
+            }
+        }
+
+        IERC20(asset).approve(address(gateway), approvalAmount);
+        
+        gateway.withdraw(
+            abi.encodePacked(recipient),
+            withdrawalAmount,
+            asset,
+            RevertOptions({
+                revertAddress: user,
+                callOnRevert: true,
+                abortAddress: user,
+                revertMessage: abi.encode(destinationChain),
+                onRevertGasLimit: 300000
+            })
+        );
+
+        emit Withdraw(user, asset, amount);
+    }
 }

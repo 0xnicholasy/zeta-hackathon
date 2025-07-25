@@ -4,7 +4,7 @@ import { formatUnits } from 'viem';
 import { useContracts } from './useContracts';
 import { useMultiChainBalances } from './useMultiChainBalances';
 import { SupportedChain, TOKEN_SYMBOLS, getTokenAddress } from '../contracts/deployments';
-import { SimpleLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/SimpleLendingProtocol__factory';
+import { UniversalLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/UniversalLendingProtocol__factory';
 import type { UserAssetData } from '../components/dashboard/types';
 import { safeEVMAddress, safeEVMAddressOrZeroAddress } from '../components/dashboard/types';
 
@@ -16,7 +16,7 @@ export function useDashboardData() {
     const [healthFactor, setHealthFactor] = useState('∞');
 
     // Use ZetaChain testnet for lending protocol
-    const { simpleLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+    const { universalLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
 
     // Get multi-chain balances for user wallet balances
     const { balances: externalBalances, isLoading: isLoadingExternalBalances } = useMultiChainBalances();
@@ -43,54 +43,54 @@ export function useDashboardData() {
     // Get user supplies and borrows
     const { data: userSupplies } = useReadContracts({
         contracts: assetAddresses.map(asset => ({
-            address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
-            abi: SimpleLendingProtocol__factory.abi,
+            address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
+            abi: UniversalLendingProtocol__factory.abi,
             functionName: 'getSupplyBalance',
             args: [address, asset],
             chainId: SupportedChain.ZETA_TESTNET,
         })),
         query: {
-            enabled: Boolean(simpleLendingProtocol) && Boolean(address) && isConnected,
+            enabled: Boolean(universalLendingProtocol) && Boolean(address) && isConnected,
         },
     });
 
     const { data: userBorrows } = useReadContracts({
         contracts: assetAddresses.map(asset => ({
-            address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
-            abi: SimpleLendingProtocol__factory.abi,
+            address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
+            abi: UniversalLendingProtocol__factory.abi,
             functionName: 'getBorrowBalance',
             args: [address, asset],
             chainId: SupportedChain.ZETA_TESTNET,
         })),
         query: {
-            enabled: Boolean(simpleLendingProtocol) && Boolean(address) && isConnected,
+            enabled: Boolean(universalLendingProtocol) && Boolean(address) && isConnected,
         },
     });
 
     const { data: assetConfigs } = useReadContracts({
         contracts: assetAddresses.map(asset => ({
-            address: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
-            abi: SimpleLendingProtocol__factory.abi,
+            address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
+            abi: UniversalLendingProtocol__factory.abi,
             functionName: 'getAssetConfig',
             args: [asset],
             chainId: SupportedChain.ZETA_TESTNET,
         })),
         query: {
-            enabled: assetAddresses.length > 0 && Boolean(simpleLendingProtocol),
+            enabled: assetAddresses.length > 0 && Boolean(universalLendingProtocol),
         },
     });
 
     // Get user's health factor
     const { data: userHealthFactor } = useReadContracts({
         contracts: [{
-            address: safeEVMAddress(simpleLendingProtocol),
-            abi: SimpleLendingProtocol__factory.abi,
+            address: safeEVMAddress(universalLendingProtocol),
+            abi: UniversalLendingProtocol__factory.abi,
             functionName: 'getHealthFactor',
             args: [safeEVMAddressOrZeroAddress(address)],
             chainId: SupportedChain.ZETA_TESTNET,
         }],
         query: {
-            enabled: Boolean(simpleLendingProtocol) && Boolean(address) && isConnected,
+            enabled: Boolean(universalLendingProtocol) && Boolean(address) && isConnected,
         },
     });
 

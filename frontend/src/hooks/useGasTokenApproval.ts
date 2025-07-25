@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useReadContract, useAccount } from 'wagmi';
 import { maxUint256 } from 'viem';
-import { IERC20__factory, SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
+import { IERC20__factory, UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import type { EVMAddress, UserAssetData } from '../components/dashboard/types';
 import { safeEVMAddressOrZeroAddress } from '../components/dashboard/types';
 
 interface UseGasTokenApprovalParams {
     selectedAsset: UserAssetData | null;
     borrowAmount: bigint;
-    simpleLendingProtocol: EVMAddress;
+    universalLendingProtocol: EVMAddress;
 }
 
 interface GasTokenApprovalState {
@@ -26,7 +26,7 @@ const IERC20_ABI = IERC20__factory.abi;
 export function useGasTokenApproval({
     selectedAsset,
     borrowAmount,
-    simpleLendingProtocol,
+    universalLendingProtocol,
 }: UseGasTokenApprovalParams): GasTokenApprovalState {
     const { address } = useAccount();
     const safeAddress = safeEVMAddressOrZeroAddress(address);
@@ -36,8 +36,8 @@ export function useGasTokenApproval({
 
     // Get withdraw gas fee for the asset
     const { data: gasInfo, error: gasInfoError } = useReadContract({
-        address: simpleLendingProtocol,
-        abi: SimpleLendingProtocol__factory.abi,
+        address: universalLendingProtocol,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'getWithdrawGasFee',
         args: selectedAsset ? [selectedAsset.address] : undefined,
         query: {
@@ -66,9 +66,9 @@ export function useGasTokenApproval({
         address: gasTokenAddress,
         abi: IERC20_ABI,
         functionName: 'allowance',
-        args: safeAddress && simpleLendingProtocol ? [safeAddress, simpleLendingProtocol] as const : undefined,
+        args: safeAddress && universalLendingProtocol ? [safeAddress, universalLendingProtocol] as const : undefined,
         query: {
-            enabled: Boolean(gasTokenAddress && safeAddress && simpleLendingProtocol),
+            enabled: Boolean(gasTokenAddress && safeAddress && universalLendingProtocol),
             refetchInterval: 10000,
         },
     });
@@ -131,11 +131,11 @@ export function useGasTokenApproval({
     };
 }
 
-export function getGasTokenApprovalContractCall(gasTokenAddress: EVMAddress, simpleLendingProtocol: EVMAddress) {
+export function getGasTokenApprovalContractCall(gasTokenAddress: EVMAddress, universalLendingProtocol: EVMAddress) {
     return {
         address: gasTokenAddress,
         abi: IERC20_ABI,
         functionName: 'approve' as const,
-        args: [simpleLendingProtocol, maxUint256] as const,
+        args: [universalLendingProtocol, maxUint256] as const,
     };
 }

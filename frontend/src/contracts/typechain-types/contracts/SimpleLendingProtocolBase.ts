@@ -39,6 +39,20 @@ export type MessageContextStructOutput = [string, string, BigNumber] & {
   chainID: BigNumber;
 };
 
+export type RevertContextStruct = {
+  sender: PromiseOrValue<string>;
+  asset: PromiseOrValue<string>;
+  amount: PromiseOrValue<BigNumberish>;
+  revertMessage: PromiseOrValue<BytesLike>;
+};
+
+export type RevertContextStructOutput = [string, string, BigNumber, string] & {
+  sender: string;
+  asset: string;
+  amount: BigNumber;
+  revertMessage: string;
+};
+
 export declare namespace ISimpleLendingProtocol {
   export type AssetStruct = {
     isSupported: PromiseOrValue<boolean>;
@@ -78,6 +92,7 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
     "maxAvailableBorrows(address,address)": FunctionFragment;
     "maxAvailableBorrowsInUsd(address)": FunctionFragment;
     "onCall((bytes,address,uint256),address,uint256,bytes)": FunctionFragment;
+    "onRevert((address,address,uint256,bytes))": FunctionFragment;
     "owner()": FunctionFragment;
     "renounceOwnership()": FunctionFragment;
     "repay(address,uint256,address)": FunctionFragment;
@@ -118,6 +133,7 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
       | "maxAvailableBorrows"
       | "maxAvailableBorrowsInUsd"
       | "onCall"
+      | "onRevert"
       | "owner"
       | "renounceOwnership"
       | "repay"
@@ -254,6 +270,10 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
       PromiseOrValue<BigNumberish>,
       PromiseOrValue<BytesLike>
     ]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "onRevert",
+    values: [RevertContextStruct]
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
@@ -393,6 +413,7 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "onCall", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "onRevert", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "renounceOwnership",
@@ -687,6 +708,11 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
+    onRevert(
+      revertContext: RevertContextStruct,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<ContractTransaction>;
+
     owner(overrides?: CallOverrides): Promise<[string]>;
 
     renounceOwnership(
@@ -888,6 +914,11 @@ export interface SimpleLendingProtocolBase extends BaseContract {
     zrc20: PromiseOrValue<string>,
     amount: PromiseOrValue<BigNumberish>,
     message: PromiseOrValue<BytesLike>,
+    overrides?: Overrides & { from?: PromiseOrValue<string> }
+  ): Promise<ContractTransaction>;
+
+  onRevert(
+    revertContext: RevertContextStruct,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
@@ -1094,6 +1125,11 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       zrc20: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       message: PromiseOrValue<BytesLike>,
+      overrides?: CallOverrides
+    ): Promise<void>;
+
+    onRevert(
+      revertContext: RevertContextStruct,
       overrides?: CallOverrides
     ): Promise<void>;
 
@@ -1372,6 +1408,11 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
+    onRevert(
+      revertContext: RevertContextStruct,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<BigNumber>;
+
     owner(overrides?: CallOverrides): Promise<BigNumber>;
 
     renounceOwnership(
@@ -1576,6 +1617,11 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       zrc20: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       message: PromiseOrValue<BytesLike>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<PopulatedTransaction>;
+
+    onRevert(
+      revertContext: RevertContextStruct,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 

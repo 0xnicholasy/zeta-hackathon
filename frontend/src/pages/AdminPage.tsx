@@ -15,7 +15,7 @@ import { useContracts, SupportedChain } from '../hooks/useContracts';
 import { isEVMAddress, validateEVMAddress } from '../components/dashboard/types';
 import { SupportedChainId } from '@/contracts/deployments';
 import { DepositContract__factory } from '../contracts/typechain-types/factories/contracts/DepositContract__factory';
-import { SimpleLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/SimpleLendingProtocol__factory';
+import { UniversalLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/UniversalLendingProtocol__factory';
 import { parseUnits } from 'viem';
 
 // Form schemas
@@ -242,7 +242,7 @@ function AdminPage() {
   };
 
   const onAddAsset = async (data: AddAssetForm) => {
-    if (!contracts?.simpleLendingProtocol) {
+    if (!contracts?.universalLendingProtocol) {
       setNotification({
         isOpen: true,
         type: 'error',
@@ -255,12 +255,12 @@ function AdminPage() {
     try {
       // Convert price to wei (assuming price is in USD with 18 decimals)
       const priceInWei = parseUnits(data.priceInUSD.toString(), 18);
-      const contractAddress = validateEVMAddress(contracts.simpleLendingProtocol);
+      const contractAddress = validateEVMAddress(contracts.universalLendingProtocol);
       const assetAddress = validateEVMAddress(data.asset);
 
       writeContract({
         address: contractAddress,
-        abi: SimpleLendingProtocol__factory.abi,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'addAsset',
         args: [assetAddress, priceInWei],
       });
@@ -275,7 +275,7 @@ function AdminPage() {
   };
 
   const onUpdatePrice = async (data: UpdatePriceForm) => {
-    if (!contracts?.simpleLendingProtocol) {
+    if (!contracts?.universalLendingProtocol) {
       setNotification({
         isOpen: true,
         type: 'error',
@@ -288,12 +288,12 @@ function AdminPage() {
     try {
       // Convert price to wei (assuming price is in USD with 18 decimals)
       const priceInWei = parseUnits(data.priceInUSD.toString(), 18);
-      const contractAddress = validateEVMAddress(contracts.simpleLendingProtocol);
+      const contractAddress = validateEVMAddress(contracts.universalLendingProtocol);
       const assetAddress = validateEVMAddress(data.asset);
 
       writeContract({
         address: contractAddress,
-        abi: SimpleLendingProtocol__factory.abi,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'updatePrice',
         args: [assetAddress, priceInWei],
       });
@@ -573,7 +573,7 @@ function AdminPage() {
                 <span className="bg-gradient-to-r from-zeta-500 to-zeta-600 bg-clip-text text-transparent font-bold">SimpleLendingProtocol</span> Admin Functions
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Contract Address: {contracts?.simpleLendingProtocol ?? 'Not deployed'}
+                Contract Address: {contracts?.universalLendingProtocol ?? 'Not deployed'}
               </p>
               {!isOnZetaNetwork && (
                 <div className="mt-2 p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">

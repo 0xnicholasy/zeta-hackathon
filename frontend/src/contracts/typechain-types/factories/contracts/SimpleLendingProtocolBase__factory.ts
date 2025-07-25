@@ -95,6 +95,17 @@ const _abi = [
     type: "error",
   },
   {
+    inputs: [
+      {
+        internalType: "address",
+        name: "token",
+        type: "address",
+      },
+    ],
+    name: "SafeERC20FailedOperation",
+    type: "error",
+  },
+  {
     inputs: [],
     name: "Unauthorized",
     type: "error",
@@ -834,6 +845,41 @@ const _abi = [
       },
     ],
     name: "onCall",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        components: [
+          {
+            internalType: "address",
+            name: "sender",
+            type: "address",
+          },
+          {
+            internalType: "address",
+            name: "asset",
+            type: "address",
+          },
+          {
+            internalType: "uint256",
+            name: "amount",
+            type: "uint256",
+          },
+          {
+            internalType: "bytes",
+            name: "revertMessage",
+            type: "bytes",
+          },
+        ],
+        internalType: "struct RevertContext",
+        name: "revertContext",
+        type: "tuple",
+      },
+    ],
+    name: "onRevert",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",

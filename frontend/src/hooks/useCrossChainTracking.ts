@@ -145,7 +145,7 @@ export function useCrossChainTracking(): CrossChainTrackingResult {
             setStatus('success');
             isTrackingRef.current = false;
             return;
-          } else if (cctxStatus.status === 'Aborted' || cctxStatus.status === 'Reverted') {
+          } else if (cctxStatus.status === 'Aborted' || cctxStatus.status === 'Reverted' || cctxStatus.status === 'PendingRevert') {
             setStatus('failed');
             isTrackingRef.current = false;
             return;

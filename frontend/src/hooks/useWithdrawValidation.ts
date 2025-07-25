@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useReadContract } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
-import { SimpleLendingProtocol__factory, ERC20__factory } from '@/contracts/typechain-types';
+import { UniversalLendingProtocol__factory, ERC20__factory } from '@/contracts/typechain-types';
 import type { UserAssetData, EVMAddress } from '../components/dashboard/types';
 import {
     safeEVMAddress,
@@ -55,7 +55,7 @@ export interface WithdrawValidationResult {
 export interface UseWithdrawValidationProps {
     selectedAsset: UserAssetData | null;
     amount: string;
-    simpleLendingProtocol: string | undefined;
+    universalLendingProtocol: string | undefined;
     userAddress: EVMAddress;
 }
 
@@ -69,7 +69,7 @@ export function useWithdrawValidation(props: UseWithdrawValidationProps): Withdr
     // Create safe defaults to avoid null/undefined handling throughout the hook
     const selectedAsset = props.selectedAsset ?? EMPTY_ASSET;
     const amount = props.amount ?? '';
-    const simpleLendingProtocol = props.simpleLendingProtocol ?? '';
+    const universalLendingProtocol = props.universalLendingProtocol ?? '';
     const userAddress = props.userAddress;
 
     // State with safe defaults
@@ -83,12 +83,12 @@ export function useWithdrawValidation(props: UseWithdrawValidationProps): Withdr
     const gasTokenDecimals = getGasTokenDecimals(selectedAsset.sourceChain);
 
     // SimpleLendingProtocol ABI
-    const lendingProtocolAbi = SimpleLendingProtocol__factory.abi;
+    const lendingProtocolAbi = UniversalLendingProtocol__factory.abi;
     const erc20Abi = ERC20__factory.abi;
 
     // Check if user can withdraw this amount (health factor validation)
     const { data: canWithdraw } = useReadContract({
-        address: safeEVMAddress(simpleLendingProtocol),
+        address: safeEVMAddress(universalLendingProtocol),
         abi: lendingProtocolAbi,
         functionName: 'canWithdraw',
         args: !isZeroAddress(selectedAsset.address) && amountBigInt > 0 ? [
@@ -97,18 +97,18 @@ export function useWithdrawValidation(props: UseWithdrawValidationProps): Withdr
             amountBigInt,
         ] : undefined,
         query: {
-            enabled: Boolean(!isZeroAddress(selectedAsset.address) && amountBigInt > 0 && simpleLendingProtocol),
+            enabled: Boolean(!isZeroAddress(selectedAsset.address) && amountBigInt > 0 && universalLendingProtocol),
         },
     });
 
     // Get gas fee requirements
     const { data: gasFeeData } = useReadContract({
-        address: safeEVMAddress(simpleLendingProtocol),
+        address: safeEVMAddress(universalLendingProtocol),
         abi: lendingProtocolAbi,
         functionName: 'getWithdrawGasFee',
         args: !isZeroAddress(selectedAsset.address) ? [selectedAsset.address] : undefined,
         query: {
-            enabled: Boolean(!isZeroAddress(selectedAsset.address) && simpleLendingProtocol),
+            enabled: Boolean(!isZeroAddress(selectedAsset.address) && universalLendingProtocol),
         },
     });
 
@@ -145,9 +145,9 @@ export function useWithdrawValidation(props: UseWithdrawValidationProps): Withdr
         address: gasTokenAddress,
         abi: erc20Abi,
         functionName: 'allowance',
-        args: [userAddress, safeEVMAddressOrZeroAddress(simpleLendingProtocol)],
+        args: [userAddress, safeEVMAddressOrZeroAddress(universalLendingProtocol)],
         query: {
-            enabled: Boolean(!isZeroAddress(gasTokenAddress) && simpleLendingProtocol && !isGasToken),
+            enabled: Boolean(!isZeroAddress(gasTokenAddress) && universalLendingProtocol && !isGasToken),
         },
     });
 
@@ -174,7 +174,7 @@ export function useWithdrawValidation(props: UseWithdrawValidationProps): Withdr
     // Validation logic
     const validateWithdrawal = useCallback((): WithdrawValidationResult => {
         // Early validation checks
-        if (isZeroAddress(selectedAsset.address) || !amountBigInt || !simpleLendingProtocol) {
+        if (isZeroAddress(selectedAsset.address) || !amountBigInt || !universalLendingProtocol) {
             const error = 'Missing required data';
             // setValidationError(error);
             return createErrorResult(error);
@@ -241,7 +241,7 @@ export function useWithdrawValidation(props: UseWithdrawValidationProps): Withdr
         setGasTokenInfo(EMPTY_GAS_TOKEN_INFO);
         return createSuccessResult();
     }, [
-        selectedAsset, amountBigInt, simpleLendingProtocol, canWithdraw, gasFeeData,
+        selectedAsset, amountBigInt, universalLendingProtocol, canWithdraw, gasFeeData,
         gasTokenAddress, gasFeeAmount, gasTokenBalance, gasTokenAllowance, gasTokenSymbol,
         gasTokenDecimals, isGasToken, receiveAmount, maxAmount, amount, createErrorResult, createSuccessResult
     ]);

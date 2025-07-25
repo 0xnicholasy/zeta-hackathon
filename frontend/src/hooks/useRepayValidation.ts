@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useReadContract, useBalance, useAccount } from 'wagmi';
-import { SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
+import { UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import { SupportedChain, getTokenAddress } from '../contracts/deployments';
 import { safeEVMAddressOrZeroAddress, ZERO_ADDRESS, type EVMAddress, type UserAssetData } from '../components/dashboard/types';
 
 interface UseRepayValidationParams {
     selectedAsset: UserAssetData | null;
     amount: string;
-    simpleLendingProtocol: EVMAddress | null;
+    universalLendingProtocol: EVMAddress | null;
     userAddress: EVMAddress | null;
 }
 
@@ -154,7 +154,7 @@ function createValidationResult(
 export function useRepayValidation({
     selectedAsset,
     amount,
-    simpleLendingProtocol,
+    universalLendingProtocol,
     userAddress,
 }: UseRepayValidationParams): RepayValidationResult {
     const { address } = useAccount();
@@ -173,48 +173,48 @@ export function useRepayValidation({
 
     // Get user's current debt for this asset
     const { data: borrowBalance } = useReadContract({
-        address: simpleLendingProtocol ?? undefined,
-        abi: SimpleLendingProtocol__factory.abi,
+        address: universalLendingProtocol ?? undefined,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'getBorrowBalance',
         args: userAddress && selectedAsset ? [userAddress, selectedAsset.address] : undefined,
         query: {
-            enabled: Boolean(simpleLendingProtocol && userAddress && selectedAsset),
+            enabled: Boolean(universalLendingProtocol && userAddress && selectedAsset),
             refetchInterval: 10000,
         },
     });
 
     // Get user's health factor
     const { data: healthFactor } = useReadContract({
-        address: simpleLendingProtocol ?? undefined,
-        abi: SimpleLendingProtocol__factory.abi,
+        address: universalLendingProtocol ?? undefined,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'getHealthFactor',
         args: userAddress ? [userAddress] : undefined,
         query: {
-            enabled: Boolean(simpleLendingProtocol && userAddress),
+            enabled: Boolean(universalLendingProtocol && userAddress),
             refetchInterval: 10000,
         },
     });
 
     // Get user's total collateral value
     const { data: totalCollateralValue } = useReadContract({
-        address: simpleLendingProtocol ?? undefined,
-        abi: SimpleLendingProtocol__factory.abi,
+        address: universalLendingProtocol ?? undefined,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'getTotalCollateralValue',
         args: userAddress ? [userAddress] : undefined,
         query: {
-            enabled: Boolean(simpleLendingProtocol && userAddress),
+            enabled: Boolean(universalLendingProtocol && userAddress),
             refetchInterval: 10000,
         },
     });
 
     // Get user's total debt value
     const { data: totalDebtValue } = useReadContract({
-        address: simpleLendingProtocol ?? undefined,
-        abi: SimpleLendingProtocol__factory.abi,
+        address: universalLendingProtocol ?? undefined,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'getTotalDebtValue',
         args: userAddress ? [userAddress] : undefined,
         query: {
-            enabled: Boolean(simpleLendingProtocol && userAddress),
+            enabled: Boolean(universalLendingProtocol && userAddress),
             refetchInterval: 10000,
         },
     });
@@ -249,7 +249,7 @@ export function useRepayValidation({
     // Refactored validate repay function
     const validateRepay = useCallback(() => {
         // Early validation: check required parameters
-        if (!selectedAsset || !userAddress || !simpleLendingProtocol) {
+        if (!selectedAsset || !userAddress || !universalLendingProtocol) {
             setValidationResult(createValidationResult(
                 false,
                 'Missing required parameters',
@@ -351,7 +351,7 @@ export function useRepayValidation({
             newHealthFactor,
             isFullRepayment
         ));
-    }, [selectedAsset, userAddress, simpleLendingProtocol, amount, borrowBalance, tokenBalance, healthFactor, totalCollateralValue, totalDebtValue]);
+    }, [selectedAsset, userAddress, universalLendingProtocol, amount, borrowBalance, tokenBalance, healthFactor, totalCollateralValue, totalDebtValue]);
 
     // Run validation when dependencies change
     useEffect(() => {

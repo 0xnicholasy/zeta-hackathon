@@ -12,7 +12,7 @@ import { useBorrowTransactionFlow } from '../../hooks/useTransactionFlow';
 import { useBorrowValidation } from '../../hooks/useBorrowValidation';
 import { SupportedChain } from '../../contracts/deployments';
 import { safeEVMAddressOrZeroAddress, safeEVMAddress, type UserAssetData } from './types';
-import { SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
+import { UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
 import { getHealthFactorColorClass, formatHealthFactor } from '../../utils/healthFactorUtils';
 
@@ -23,7 +23,7 @@ interface ZetaBorrowDialogProps {
 }
 
 // Contract ABI
-const lendingProtocolAbi = SimpleLendingProtocol__factory.abi;
+const lendingProtocolAbi = UniversalLendingProtocol__factory.abi;
 
 export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset }: ZetaBorrowDialogProps) {
   const [amount, setAmount] = useState('');
@@ -33,13 +33,13 @@ export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset }: ZetaBorrowD
   const transactionFlow = useBorrowTransactionFlow();
   const { address } = useAccount();
   const safeAddress = safeEVMAddressOrZeroAddress(address);
-  const { simpleLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+  const { universalLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
 
   // Validation hook
   const validation = useBorrowValidation({
     selectedAsset,
     amountToBorrow: amount,
-    simpleLendingProtocol: safeEVMAddressOrZeroAddress(simpleLendingProtocol),
+    universalLendingProtocol: safeEVMAddressOrZeroAddress(universalLendingProtocol),
     userAddress: safeAddress,
   });
 
@@ -52,12 +52,12 @@ export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset }: ZetaBorrowD
 
   // Handle borrow function
   const handleBorrow = useCallback(async () => {
-    if (!address || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
+    if (!address || !selectedAsset || !amountBigInt || !universalLendingProtocol) return;
 
     try {
       txActions.setCurrentStep('borrow');
       txActions.writeContract({
-        address: safeEVMAddress(simpleLendingProtocol),
+        address: safeEVMAddress(universalLendingProtocol),
         abi: lendingProtocolAbi,
         functionName: 'borrow',
         args: [
@@ -71,11 +71,11 @@ export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset }: ZetaBorrowD
       txActions.setIsSubmitting(false);
       txActions.setCurrentStep('input');
     }
-  }, [address, selectedAsset, amountBigInt, simpleLendingProtocol, txActions]);
+  }, [address, selectedAsset, amountBigInt, universalLendingProtocol, txActions]);
 
   // Main submit handler
   const handleSubmit = useCallback(async () => {
-    if (!amount || !selectedAsset || !amountBigInt || !simpleLendingProtocol) return;
+    if (!amount || !selectedAsset || !amountBigInt || !universalLendingProtocol) return;
 
     txActions.setIsSubmitting(true);
     txActions.resetContract();
@@ -88,7 +88,7 @@ export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset }: ZetaBorrowD
       txActions.setIsSubmitting(false);
       txActions.setCurrentStep('input');
     }
-  }, [amount, selectedAsset, amountBigInt, simpleLendingProtocol, txActions, handleBorrow]);
+  }, [amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, handleBorrow]);
 
   // Handle max click
   const handleMaxClick = useCallback(() => {
@@ -161,7 +161,7 @@ export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset }: ZetaBorrowD
 
 
   // Early return after all hooks
-  if (!selectedAsset || !simpleLendingProtocol) return null;
+  if (!selectedAsset || !universalLendingProtocol) return null;
 
   return (
     <BaseTransactionDialog

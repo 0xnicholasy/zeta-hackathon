@@ -28,21 +28,12 @@ export function Header({ useWalletConnector = true }: HeaderProps) {
                         ZetaLend
                     </span>
                 </div>
-
-                {/* Theme toggle - stays on first row */}
-                <div className="md:hidden">
-                    <ThemeToggle />
-                </div>
-
                 {/* Desktop: Theme toggle + Connect button together */}
-                <div className="hidden md:flex items-center space-x-4">
-                    <ThemeToggle />
-                    {useWalletConnector && <ConnectButton />}
-                </div>
-
-                {/* Mobile: Connect button on new row, full width and centered */}
-                <div className="w-full flex justify-end md:hidden">
-                    <ConnectButton />
+                <div className="flex items-center space-x-4">
+                    <div className='hidden md:block'>
+                        <ThemeToggle />
+                    </div>
+                    {useWalletConnector && <ConnectButton accountStatus={{ "smallScreen": 'avatar', largeScreen: "full" }} />}
                 </div>
             </div>
         </header>

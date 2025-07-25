@@ -30,7 +30,7 @@ contract DepositContract is ReentrancyGuard, Ownable {
     mapping(address => SupportedAsset) public supportedAssets;
     address[] public assetsList;
 
-    uint256 private constant GAS_LIMIT = 2000000;
+    uint256 private constant GAS_LIMIT = 5000000;
 
     event AssetAdded(address indexed asset, uint8 decimals, bool isNative);
     event AssetRemoved(address indexed asset);
@@ -175,7 +175,11 @@ contract DepositContract is ReentrancyGuard, Ownable {
 
         // Encode message for SimpleLendingProtocol.onCall()
         // Format: (string action, address onBehalfOf) where action = "supply"
-        bytes memory message = abi.encode("supply", onBehalfOf);
+        // Pad to exactly 128 bytes to match contract expectation
+        bytes memory message = abi.encodePacked(
+            abi.encode("supply", onBehalfOf),
+            new bytes(128 - abi.encode("supply", onBehalfOf).length)
+        );
 
         try
             gateway.depositAndCall{value: msg.value}(
@@ -221,7 +225,11 @@ contract DepositContract is ReentrancyGuard, Ownable {
 
         // Encode message for SimpleLendingProtocol.onCall()
         // Format: (string action, address onBehalfOf) where action = "supply"
-        bytes memory message = abi.encode("supply", onBehalfOf);
+        // Pad to exactly 128 bytes to match contract expectation
+        bytes memory message = abi.encodePacked(
+            abi.encode("supply", onBehalfOf),
+            new bytes(128 - abi.encode("supply", onBehalfOf).length)
+        );
 
         try
             gateway.depositAndCall(
@@ -270,7 +278,11 @@ contract DepositContract is ReentrancyGuard, Ownable {
 
         // Encode message for SimpleLendingProtocol.onCall()
         // Format: (string action, address onBehalfOf) where action = "repay"
-        bytes memory message = abi.encode("repay", onBehalfOf);
+        // Pad to exactly 128 bytes to match contract expectation
+        bytes memory message = abi.encodePacked(
+            abi.encode("repay", onBehalfOf),
+            new bytes(128 - abi.encode("repay", onBehalfOf).length)
+        );
 
         try
             gateway.depositAndCall(
@@ -309,7 +321,11 @@ contract DepositContract is ReentrancyGuard, Ownable {
 
         // Encode message for SimpleLendingProtocol.onCall()
         // Format: (string action, address onBehalfOf) where action = "repay"
-        bytes memory message = abi.encode("repay", onBehalfOf);
+        // Pad to exactly 128 bytes to match contract expectation
+        bytes memory message = abi.encodePacked(
+            abi.encode("repay", onBehalfOf),
+            new bytes(128 - abi.encode("repay", onBehalfOf).length)
+        );
 
         try
             gateway.depositAndCall{value: msg.value}(

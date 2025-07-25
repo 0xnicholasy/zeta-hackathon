@@ -1,6 +1,6 @@
 import { createPublicClient, http, formatUnits, type Address } from 'viem';
-import { SupportedChain, getSimpleLendingProtocolAddress, getTokenAddress, TOKEN_SYMBOLS } from '../contracts/deployments';
-import { SimpleLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/SimpleLendingProtocol__factory';
+import { SupportedChain, getUniversalLendingProtocolAddress, getTokenAddress, TOKEN_SYMBOLS } from '../contracts/deployments';
+import { UniversalLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/UniversalLendingProtocol__factory';
 import { ERC20__factory } from '../contracts/typechain-types';
 
 const ALCHEMY_API_KEY = import.meta.env['VITE_ALCHEMY_API_KEY'] ?? '';
@@ -61,16 +61,16 @@ export interface AssetData {
  */
 export async function getSupportedAssetsCount(): Promise<number> {
   try {
-    const protocolAddress = getSimpleLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
+    const protocolAddress = getUniversalLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
     if (!protocolAddress) {
       // eslint-disable-next-line no-console
-      console.warn('SimpleLendingProtocol address not found');
+      console.warn('UniversalLendingProtocol address not found');
       return 0;
     }
 
     const result = await zetaTestnetClient.readContract({
       address: protocolAddress as Address,
-      abi: SimpleLendingProtocol__factory.abi,
+      abi: UniversalLendingProtocol__factory.abi,
       functionName: 'getSupportedAssetsCount',
     });
 
@@ -87,16 +87,16 @@ export async function getSupportedAssetsCount(): Promise<number> {
  */
 export async function getSupportedAsset(index: number): Promise<string | null> {
   try {
-    const protocolAddress = getSimpleLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
+    const protocolAddress = getUniversalLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
     if (!protocolAddress) {
       // eslint-disable-next-line no-console
-      console.warn('SimpleLendingProtocol address not found');
+      console.warn('UniversalLendingProtocol address not found');
       return null;
     }
 
     const result = await zetaTestnetClient.readContract({
       address: protocolAddress as Address,
-      abi: SimpleLendingProtocol__factory.abi,
+      abi: UniversalLendingProtocol__factory.abi,
       functionName: 'getSupportedAsset',
       args: [BigInt(index)],
     });
@@ -114,16 +114,16 @@ export async function getSupportedAsset(index: number): Promise<string | null> {
  */
 export async function getAssetConfig(assetAddress: string): Promise<AssetConfig | null> {
   try {
-    const protocolAddress = getSimpleLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
+    const protocolAddress = getUniversalLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
     if (!protocolAddress) {
       // eslint-disable-next-line no-console
-      console.warn('SimpleLendingProtocol address not found');
+      console.warn('UniversalLendingProtocol address not found');
       return null;
     }
 
     const result = await zetaTestnetClient.readContract({
       address: protocolAddress as Address,
-      abi: SimpleLendingProtocol__factory.abi,
+      abi: UniversalLendingProtocol__factory.abi,
       functionName: 'getAssetConfig',
       args: [assetAddress as Address],
     });
@@ -222,10 +222,10 @@ export async function getAllSupportedAssets(): Promise<string[]> {
  */
 export async function getProtocolAssetData(): Promise<AssetData[]> {
   try {
-    const protocolAddress = getSimpleLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
+    const protocolAddress = getUniversalLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
     if (!protocolAddress) {
       // eslint-disable-next-line no-console
-      console.warn('SimpleLendingProtocol address not found');
+      console.warn('UniversalLendingProtocol address not found');
       return [];
     }
 
@@ -275,6 +275,13 @@ export async function getProtocolAssetData(): Promise<AssetData[]> {
       // Format balance for display
       const formattedBalance = Number(formatUnits(balance, decimals));
       const priceInUSD = Number(formatUnits(price, 18));
+      
+      // Debug log for price conversion
+      console.log(`Price conversion for ${asset.symbol}:`, {
+        rawPrice: price.toString(),
+        formattedPrice: formatUnits(price, 18),
+        finalPriceInUSD: priceInUSD
+      });
 
       assetsData.push({
         address,
@@ -329,16 +336,16 @@ export function calculateTVL(assets: AssetData[]): number {
  */
 export async function getMaxAvailableAmount(assetAddress: string): Promise<bigint> {
   try {
-    const protocolAddress = getSimpleLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
+    const protocolAddress = getUniversalLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
     if (!protocolAddress) {
       // eslint-disable-next-line no-console
-      console.warn('SimpleLendingProtocol address not found');
+      console.warn('UniversalLendingProtocol address not found');
       return BigInt(0);
     }
 
     const result = await zetaTestnetClient.readContract({
       address: protocolAddress as Address,
-      abi: SimpleLendingProtocol__factory.abi,
+      abi: UniversalLendingProtocol__factory.abi,
       functionName: 'maxAvailableAmount',
       args: [assetAddress as Address],
     });
@@ -363,10 +370,10 @@ export interface BorrowableAssetData extends AssetData {
  */
 export async function getBorrowableAssets(): Promise<BorrowableAssetData[]> {
   try {
-    const protocolAddress = getSimpleLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
+    const protocolAddress = getUniversalLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
     if (!protocolAddress) {
       // eslint-disable-next-line no-console
-      console.warn('SimpleLendingProtocol address not found');
+      console.warn('UniversalLendingProtocol address not found');
       return [];
     }
 

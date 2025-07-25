@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useReadContract } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
-import { SimpleLendingProtocol__factory } from '@/contracts/typechain-types';
+import { UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import type { EVMAddress, UserAssetData } from '../components/dashboard/types';
 
 interface UseBorrowValidationParams {
     selectedAsset: UserAssetData | null;
     amountToBorrow: string;
-    simpleLendingProtocol: EVMAddress;
+    universalLendingProtocol: EVMAddress;
     userAddress: EVMAddress;
 }
 
@@ -24,7 +24,7 @@ interface BorrowValidationResult {
 export function useBorrowValidation({
     selectedAsset,
     amountToBorrow,
-    simpleLendingProtocol,
+    universalLendingProtocol,
     userAddress,
 }: UseBorrowValidationParams): BorrowValidationResult {
     const [validationResult, setValidationResult] = useState<BorrowValidationResult>({
@@ -39,8 +39,8 @@ export function useBorrowValidation({
 
     // Get total collateral value
     const { data: totalCollateralValue } = useReadContract({
-        address: simpleLendingProtocol,
-        abi: SimpleLendingProtocol__factory.abi,
+        address: universalLendingProtocol,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'getTotalCollateralValue',
         args: [userAddress],
         query: {
@@ -50,8 +50,8 @@ export function useBorrowValidation({
 
     // Get total debt value
     const { data: totalDebtValue } = useReadContract({
-        address: simpleLendingProtocol,
-        abi: SimpleLendingProtocol__factory.abi,
+        address: universalLendingProtocol,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'getTotalDebtValue',
         args: [userAddress],
         query: {
@@ -61,8 +61,8 @@ export function useBorrowValidation({
 
     // Get health factor
     const { data: healthFactor } = useReadContract({
-        address: simpleLendingProtocol,
-        abi: SimpleLendingProtocol__factory.abi,
+        address: universalLendingProtocol,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'getHealthFactor',
         args: [userAddress],
         query: {
@@ -72,8 +72,8 @@ export function useBorrowValidation({
 
     // Get max available borrows in USD
     const { data: maxAvailableBorrowsInUsd } = useReadContract({
-        address: simpleLendingProtocol,
-        abi: SimpleLendingProtocol__factory.abi,
+        address: universalLendingProtocol,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'maxAvailableBorrowsInUsd',
         args: [userAddress],
         query: {
@@ -83,8 +83,8 @@ export function useBorrowValidation({
 
     // Get max available borrows for specific asset (considers protocol's available balance)
     const { data: maxAvailableBorrowsForAsset } = useReadContract({
-        address: simpleLendingProtocol,
-        abi: SimpleLendingProtocol__factory.abi,
+        address: universalLendingProtocol,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'maxAvailableBorrows',
         args: selectedAsset ? [userAddress, selectedAsset.address] : undefined,
         query: {
@@ -97,8 +97,8 @@ export function useBorrowValidation({
     const amountBigInt = amountToBorrow && selectedAsset ? parseUnits(amountToBorrow, selectedAsset.decimals) : BigInt(0);
 
     const { data: canBorrowResult } = useReadContract({
-        address: simpleLendingProtocol,
-        abi: SimpleLendingProtocol__factory.abi,
+        address: universalLendingProtocol,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'canBorrow',
         args: amountBigInt > 0 && selectedAsset
             ? [userAddress, selectedAsset.address, amountBigInt]
