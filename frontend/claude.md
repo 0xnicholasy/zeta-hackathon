@@ -102,7 +102,8 @@ frontend/
 
 8. **Typescript Practices**
    - Avoid using type `<some type> | null` or `<some type> | undefined` or <some type> | "" where possible
-   - reference @frontend/src/components/dashboard/types.ts for better type handling types for EVM addresses and hashes
+   - Don't use ```as `0x${string}``` in code, reference @frontend/src/components/dashboard/types.ts for better type handling types for EVM addresses and hashes
+   
 
 ## Development Workflow
 

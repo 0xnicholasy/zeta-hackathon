@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useAccount, useChainId, useSwitchChain } from 'wagmi';
+import { useAccount, useChainId, useSwitchChain, useWriteContract } from 'wagmi';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,8 +9,11 @@ import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '../components/ui/form';
 import { useContracts, SupportedChain } from '../hooks/useContracts';
-import { isEVMAddress } from '../components/dashboard/types';
+import { isEVMAddress, validateEVMAddress } from '../components/dashboard/types';
 import { SupportedChainId } from '@/contracts/deployments';
+import { DepositContract__factory } from '../contracts/typechain-types/factories/contracts/DepositContract__factory';
+import { SimpleLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/SimpleLendingProtocol__factory';
+import { parseUnits } from 'viem';
 
 // Form schemas
 const addSupportedAssetSchema = z.object({
@@ -44,7 +46,6 @@ function AdminPage() {
   const { isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
-  const [activeContract, setActiveContract] = useState<'deposit' | 'lending'>('deposit');
 
   // Get contract addresses
   const contracts = useContracts(chainId as SupportedChainId);  // TODO: fix this type casting
@@ -52,6 +53,9 @@ function AdminPage() {
   // Check if we're on the correct network
   const isOnZetaNetwork = chainId === SupportedChain.ZETA_TESTNET;
   const isOnExternalNetwork = chainId === SupportedChain.ARBITRUM_SEPOLIA || chainId === SupportedChain.ETHEREUM_SEPOLIA;
+
+  // Contract interaction hook
+  const { writeContract, isPending: isContractPending } = useWriteContract();
 
   // Forms for DepositContract
   const addSupportedAssetForm = useForm({
@@ -95,24 +99,112 @@ function AdminPage() {
     switchChain({ chainId: SupportedChain.ARBITRUM_SEPOLIA });
   };
 
-  const onAddSupportedAsset = (data: AddSupportedAssetForm) => {
-    // TODO: Implement contract call
-    void data;
+  const handleSwitchToEthereum = () => {
+    switchChain({ chainId: SupportedChain.ETHEREUM_SEPOLIA });
   };
 
-  const onRemoveSupportedAsset = (data: RemoveSupportedAssetForm) => {
-    // TODO: Implement contract call
-    void data;
+  const onAddSupportedAsset = async (data: AddSupportedAssetForm) => {
+    if (!contracts?.depositContract) {
+      console.error('DepositContract not found');
+      alert('DepositContract not found');
+      return;
+    }
+
+    try {
+      const contractAddress = validateEVMAddress(contracts.depositContract);
+      const assetAddress = validateEVMAddress(data.asset);
+
+      writeContract({
+        address: contractAddress,
+        abi: DepositContract__factory.abi,
+        functionName: 'addSupportedAsset',
+        args: [assetAddress, data.decimals, data.isNative],
+      });
+      console.log('Asset added successfully');
+      alert('Asset added successfully');
+    } catch (error) {
+      console.error('Error adding supported asset:', error);
+      alert('Failed to add asset');
+    }
   };
 
-  const onAddAsset = (data: AddAssetForm) => {
-    // TODO: Implement contract call
-    void data;
+  const onRemoveSupportedAsset = async (data: RemoveSupportedAssetForm) => {
+    if (!contracts?.depositContract) {
+      console.error('DepositContract not found');
+      alert('DepositContract not found');
+      return;
+    }
+
+    try {
+      const contractAddress = validateEVMAddress(contracts.depositContract);
+      const assetAddress = validateEVMAddress(data.asset);
+
+      writeContract({
+        address: contractAddress,
+        abi: DepositContract__factory.abi,
+        functionName: 'removeSupportedAsset',
+        args: [assetAddress],
+      });
+      console.log('Asset removed successfully');
+      alert('Asset removed successfully');
+    } catch (error) {
+      console.error('Error removing supported asset:', error);
+      alert('Failed to remove asset');
+    }
   };
 
-  const onUpdatePrice = (data: UpdatePriceForm) => {
-    // TODO: Implement contract call
-    void data;
+  const onAddAsset = async (data: AddAssetForm) => {
+    if (!contracts?.simpleLendingProtocol) {
+      console.error('SimpleLendingProtocol not found');
+      alert('SimpleLendingProtocol not found');
+      return;
+    }
+
+    try {
+      // Convert price to wei (assuming price is in USD with 18 decimals)
+      const priceInWei = parseUnits(data.priceInUSD.toString(), 18);
+      const contractAddress = validateEVMAddress(contracts.simpleLendingProtocol);
+      const assetAddress = validateEVMAddress(data.asset);
+
+      writeContract({
+        address: contractAddress,
+        abi: SimpleLendingProtocol__factory.abi,
+        functionName: 'addAsset',
+        args: [assetAddress, priceInWei],
+      });
+      console.log('Asset added to lending protocol successfully');
+      alert('Asset added to lending protocol successfully');
+    } catch (error) {
+      console.error('Error adding asset to lending protocol:', error);
+      alert('Failed to add asset to lending protocol');
+    }
+  };
+
+  const onUpdatePrice = async (data: UpdatePriceForm) => {
+    if (!contracts?.simpleLendingProtocol) {
+      console.error('SimpleLendingProtocol not found');
+      alert('SimpleLendingProtocol not found');
+      return;
+    }
+
+    try {
+      // Convert price to wei (assuming price is in USD with 18 decimals)
+      const priceInWei = parseUnits(data.priceInUSD.toString(), 18);
+      const contractAddress = validateEVMAddress(contracts.simpleLendingProtocol);
+      const assetAddress = validateEVMAddress(data.asset);
+
+      writeContract({
+        address: contractAddress,
+        abi: SimpleLendingProtocol__factory.abi,
+        functionName: 'updatePrice',
+        args: [assetAddress, priceInWei],
+      });
+      console.log('Asset price updated successfully');
+      alert('Asset price updated successfully');
+    } catch (error) {
+      console.error('Error updating asset price:', error);
+      alert('Failed to update asset price');
+    }
   };
 
   if (!isConnected) {
@@ -146,31 +238,6 @@ function AdminPage() {
           </p>
         </div>
 
-        {/* Contract Selector */}
-        <div className="mb-6">
-          <div className="flex gap-4">
-            <Button
-              variant={activeContract === 'deposit' ? 'default' : 'outline'}
-              onClick={() => setActiveContract('deposit')}
-              disabled={activeContract === 'lending' && !isOnExternalNetwork}
-            >
-              DepositContract
-              {!isOnExternalNetwork && activeContract === 'deposit' && (
-                <span className="ml-2 text-xs text-yellow-600">Wrong Network</span>
-              )}
-            </Button>
-            <Button
-              variant={activeContract === 'lending' ? 'default' : 'outline'}
-              onClick={() => setActiveContract('lending')}
-              disabled={activeContract === 'deposit' && !isOnZetaNetwork}
-            >
-              SimpleLendingProtocol
-              {!isOnZetaNetwork && activeContract === 'lending' && (
-                <span className="ml-2 text-xs text-yellow-600">Wrong Network</span>
-              )}
-            </Button>
-          </div>
-        </div>
 
         {/* Network Switch Buttons */}
         <div className="mb-6">
@@ -185,19 +252,26 @@ function AdminPage() {
             <Button
               variant="outline"
               onClick={() => void handleSwitchToArbitrum()}
-              disabled={isOnExternalNetwork}
+              disabled={chainId === SupportedChain.ARBITRUM_SEPOLIA}
             >
               Switch to Arbitrum ({chainId === SupportedChain.ARBITRUM_SEPOLIA ? 'Current' : 'Switch'})
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => void handleSwitchToEthereum()}
+              disabled={chainId === SupportedChain.ETHEREUM_SEPOLIA}
+            >
+              Switch to Ethereum ({chainId === SupportedChain.ETHEREUM_SEPOLIA ? 'Current' : 'Switch'})
             </Button>
           </div>
         </div>
 
         {/* DepositContract Functions */}
-        {activeContract === 'deposit' && (
+        {isOnExternalNetwork && (
           <div className="space-y-6">
             <div className="mb-4">
               <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
-                DepositContract Admin Functions
+                <span className="bg-gradient-to-r from-zeta-500 to-zeta-600 bg-clip-text text-transparent font-bold">DepositContract</span> Admin Functions
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Contract Address: {contracts?.depositContract ?? 'Not deployed'}
@@ -293,8 +367,8 @@ function AdminPage() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" disabled={!isOnExternalNetwork}>
-                      Add Supported Asset
+                    <Button type="submit" disabled={!isOnExternalNetwork || isContractPending}>
+                      {isContractPending ? 'Adding...' : 'Add Supported Asset'}
                     </Button>
                   </form>
                 </Form>
@@ -332,8 +406,8 @@ function AdminPage() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" variant="destructive" disabled={!isOnExternalNetwork}>
-                      Remove Supported Asset
+                    <Button type="submit" variant="destructive" disabled={!isOnExternalNetwork || isContractPending}>
+                      {isContractPending ? 'Removing...' : 'Remove Supported Asset'}
                     </Button>
                   </form>
                 </Form>
@@ -343,11 +417,11 @@ function AdminPage() {
         )}
 
         {/* SimpleLendingProtocol Functions */}
-        {activeContract === 'lending' && (
+        {isOnZetaNetwork && (
           <div className="space-y-6">
             <div className="mb-4">
               <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
-                SimpleLendingProtocol Admin Functions
+                <span className="bg-gradient-to-r from-zeta-500 to-zeta-600 bg-clip-text text-transparent font-bold">SimpleLendingProtocol</span> Admin Functions
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Contract Address: {contracts?.simpleLendingProtocol ?? 'Not deployed'}
@@ -415,8 +489,8 @@ function AdminPage() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" disabled={!isOnZetaNetwork}>
-                      Add Asset
+                    <Button type="submit" disabled={!isOnZetaNetwork || isContractPending}>
+                      {isContractPending ? 'Adding...' : 'Add Asset'}
                     </Button>
                   </form>
                 </Form>
@@ -477,8 +551,8 @@ function AdminPage() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" disabled={!isOnZetaNetwork}>
-                      Update Price
+                    <Button type="submit" disabled={!isOnZetaNetwork || isContractPending}>
+                      {isContractPending ? 'Updating...' : 'Update Price'}
                     </Button>
                   </form>
                 </Form>

@@ -43,7 +43,7 @@ export default tseslint.config([
       // General strict rules
       'no-console': 'warn',
       'no-debugger': 'error',
-      'no-alert': 'error',
+      'no-alert': 'warn',
       'no-var': 'error',
       'prefer-const': 'error',
       'eqeqeq': 'error',

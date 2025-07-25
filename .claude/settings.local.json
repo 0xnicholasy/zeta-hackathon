@@ -39,7 +39,8 @@
       "WebFetch(domain:zetachain-athens.blockpi.network)",
       "WebFetch(domain:athens.explorer.zetachain.com)",
       "Bash(npm run type-check:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }

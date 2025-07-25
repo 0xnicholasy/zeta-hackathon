@@ -344,8 +344,6 @@ describe("CrossChainLendingProtocol", () => {
 
 ### Deployment Configuration Management
 
-#### Deployment Configuration Management
-
 The project now uses `contracts.json` which is automatically updated during deployment. The structure looks like this:
 
 ```json
@@ -481,3 +479,6 @@ export const SUPPORTED_ASSETS = {
 6. **ZRC-20 Asset Management**: Each asset-chain combination is a separate market
 
 Remember: This is a **lending protocol**, not a generic DApp. Every design decision should prioritize security, accurate collateralization, and seamless cross-chain lending experience. 
+
+# Avoid using `0x${string}`
+- use type.ts defined EVMAddress or EVMHash and other helper functions instead
