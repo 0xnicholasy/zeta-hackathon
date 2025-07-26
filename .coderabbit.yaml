@@ -1,0 +1,92 @@
+# CodeRabbit configuration for ZetaChain Cross-Chain Lending Protocol
+# https://docs.coderabbit.ai/guides/initial-configuration
+
+# Path filters to exclude generated typechain files from code reviews
+path_filters:
+  # Exclude all typechain-types directories (generated code)
+  - "!**/typechain-types/**"
+  # Exclude other generated/build artifacts
+  - "!**/node_modules/**"
+  - "!**/dist/**"
+  - "!**/build/**"
+  - "!**/*.d.ts"
+  - "!**/coverage/**"
+  - "!**/.next/**"
+
+# Configure reviews
+reviews:
+  # Use assertive profile for security-critical lending protocol
+  profile: "assertive"
+  
+  # Enable incremental reviews for ongoing development
+  auto_review:
+    enabled: true
+    
+  # Tools configuration
+  tools:
+    # Enable security-focused tools for DeFi protocol
+    solhint:
+      enabled: true
+    eslint:
+      enabled: true
+    prettier:
+      enabled: true
+
+# Path-specific instructions for the lending protocol
+path_instructions:
+  - path: "lending-zeta/contracts/**/*.sol"
+    instructions: |
+      This is a cross-chain lending protocol on ZetaChain. Focus on:
+      - Security vulnerabilities (reentrancy, overflow, access control)
+      - Health factor calculations and liquidation logic
+      - ZRC-20 token handling and cross-chain operations
+      - Gas optimization for cross-chain transactions
+      - Oracle price validation and staleness checks
+      
+  - path: "frontend/src/**/*.{ts,tsx}"
+    instructions: |
+      This is the React frontend for the lending protocol. Review for:
+      - Proper error handling for cross-chain operations
+      - Type safety with TypeScript
+      - User experience for multi-chain operations
+      - Security best practices for DeFi frontends
+      
+  - path: "lending-zeta/test/**/*.sol"
+    instructions: |
+      These are Solidity test files. Ensure:
+      - Comprehensive test coverage for lending scenarios
+      - Edge cases including liquidation and cross-chain failures
+      - Security test cases for common DeFi vulnerabilities
+      
+# Review behavior
+reviews:
+  # Include detailed analysis for this security-critical protocol
+  request_changes_workflow: false
+  auto_review:
+    enabled: true
+    base_branches:
+      - "main"
+      - "develop"
+      - "universal-integration"
+  
+  # Review settings optimized for DeFi development
+  collapse_walkthrough: false
+  changed_files_summary: true
+  sequence_diagrams: true
+  assess_linked_issues: true
+  related_issues: true
+  related_pull_requests: true
+  suggested_labels: true
+  suggested_reviewers: true
+  poem: false  # Keep it professional for financial protocol
+
+# Learnings scope - organization level for protocol consistency
+learnings: "organization"
+
+# Data retention (recommended for private DeFi repos)
+knowledge_base:
+  opt_out: false
+
+# Enable caching for faster reviews
+cache:
+  enabled: true 
