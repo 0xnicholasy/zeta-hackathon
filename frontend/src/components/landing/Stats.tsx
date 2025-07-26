@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { TokenIcon, NetworkIcon } from '@web3icons/react';
+import { TokenIcon } from '@web3icons/react';
 import { getProtocolAssetData, getAllSupportedAssets, calculateTVL, type AssetData } from '../../utils/directContractCalls';
+import { ChainIcon } from '../ui/ChainIcon';
 
 // AssetData interface is now imported from directContractCalls
 
@@ -31,21 +32,17 @@ function AssetDetailsModal({ asset, isOpen, onClose }: AssetDetailsModalProps) {
                   <TokenIcon symbol={asset.unit} className="w-10 h-10 text-zeta-700" />
                 ) : (
                   <div className="w-10 h-10 bg-gradient-to-br from-zeta-400 to-zeta-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">{asset.unit}</span>
+                    <span className="text-white font-bold text-sm">?</span>
                   </div>
                 )}
               </div>
               {asset.sourceChain && (
                 <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-md">
-                  {asset.sourceChain.slice(0, 3).toUpperCase() === 'ARB' ? (
-                    <NetworkIcon name="arbitrum-one" className='size-5 text-zeta-700' />
-                  ) : asset.sourceChain === 'ETH' ? (
-                    <NetworkIcon name="ethereum" className='size-5 text-zeta-700' />
-                  ) : (
-                    <div className="w-4 h-4 bg-gradient-to-br from-zeta-400 to-zeta-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-xs">{asset.sourceChain.charAt(0)}</span>
-                    </div>
-                  )}
+                  <ChainIcon
+                    chain={asset.sourceChain}
+                    className="size-5 text-zeta-700"
+                    fallbackClassName="w-4 h-4"
+                  />
                 </div>
               )}
             </div>
@@ -136,13 +133,19 @@ function AssetDetailsModal({ asset, isOpen, onClose }: AssetDetailsModalProps) {
                 <div className="flex justify-between items-center p-3 bg-surface-light dark:bg-surface-dark rounded-lg border border-border-light dark:border-border-dark">
                   <span className="text-text-secondary-light dark:text-text-secondary-dark">Total Supplied</span>
                   <span className="text-text-success-light dark:text-text-success-dark font-bold">
-                    {Number(asset.config.totalSupply) / 10 ** asset.decimals} {asset.unit}
+                    {asset.decimals && asset.decimals > 0
+                      ? (Number(asset.config.totalSupply) / 10 ** asset.decimals).toFixed(6)
+                      : Number(asset.config.totalSupply).toString()
+                    } {asset.unit}
                   </span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-surface-light dark:bg-surface-dark rounded-lg border border-border-light dark:border-border-dark">
                   <span className="text-text-secondary-light dark:text-text-secondary-dark">Total Borrowed</span>
                   <span className="text-text-error-light dark:text-text-error-dark font-bold">
-                    {Number(asset.config.totalBorrow) / 10 ** asset.decimals} {asset.unit}
+                    {asset.decimals && asset.decimals > 0
+                      ? (Number(asset.config.totalBorrow) / 10 ** asset.decimals).toFixed(6)
+                      : Number(asset.config.totalBorrow).toString()
+                    } {asset.unit}
                   </span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-surface-light dark:bg-surface-dark rounded-lg border border-border-light dark:border-border-dark">
@@ -354,17 +357,11 @@ export default function Stats() {
                         {/* Chain Indicator */}
                         {asset.sourceChain && (
                           <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-md">
-                            {asset.sourceChain.slice(0, 3).toUpperCase() === 'ARB' ? (
-                              <NetworkIcon name="arbitrum-one" className='size-4 text-zeta-700' />
-                            ) : asset.sourceChain === 'ETH' ? (
-                              <NetworkIcon name="ethereum" className='size-4 text-zeta-700' />
-                            ) : (
-                              <div className="w-3 h-3 bg-gradient-to-br from-zeta-400 to-zeta-600 rounded-full flex items-center justify-center">
-                                <span className="text-white font-bold text-sm">
-                                  {asset.sourceChain.charAt(0)}
-                                </span>
-                              </div>
-                            )}
+                            <ChainIcon
+                              chain={asset.sourceChain}
+                              className="size-4 text-zeta-700"
+                              fallbackClassName="w-3 h-3"
+                            />
                           </div>
                         )}
                       </div>

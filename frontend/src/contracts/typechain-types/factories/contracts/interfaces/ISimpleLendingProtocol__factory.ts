@@ -476,6 +476,93 @@ const _abi = [
         name: "asset",
         type: "address",
       },
+      {
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
+    ],
+    name: "getHealthFactorAfterBorrow",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "newHealthFactor",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "user",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "asset",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
+    ],
+    name: "getHealthFactorAfterRepay",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "newHealthFactor",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "user",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "asset",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
+    ],
+    name: "getHealthFactorAfterWithdraw",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "newHealthFactor",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "user",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "asset",
+        type: "address",
+      },
     ],
     name: "getSupplyBalance",
     outputs: [
@@ -553,6 +640,75 @@ const _abi = [
         internalType: "uint256",
         name: "",
         type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "user",
+        type: "address",
+      },
+    ],
+    name: "getUserPositionData",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "totalCollateralValue",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "totalDebtValue",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "healthFactor",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "maxBorrowUsdValue",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "liquidationThreshold",
+        type: "uint256",
+      },
+      {
+        internalType: "address[]",
+        name: "suppliedAssets",
+        type: "address[]",
+      },
+      {
+        internalType: "uint256[]",
+        name: "suppliedAmounts",
+        type: "uint256[]",
+      },
+      {
+        internalType: "uint256[]",
+        name: "suppliedValues",
+        type: "uint256[]",
+      },
+      {
+        internalType: "address[]",
+        name: "borrowedAssets",
+        type: "address[]",
+      },
+      {
+        internalType: "uint256[]",
+        name: "borrowedAmounts",
+        type: "uint256[]",
+      },
+      {
+        internalType: "uint256[]",
+        name: "borrowedValues",
+        type: "uint256[]",
       },
     ],
     stateMutability: "view",

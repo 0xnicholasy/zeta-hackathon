@@ -52,6 +52,7 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
         return {
             zrc20Symbol,
             zetaBalance: zetaBalance?.formattedBalance ?? '0',
+            zetaUsdValue: zetaBalance?.usdValue ?? '0',
             hasBalance: zetaBalance && Number(zetaBalance.formattedBalance) > 0
         };
     };
@@ -126,7 +127,9 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                                             />
                                             <div>
                                                 <div className="font-medium text-sm">{asset.unit}</div>
-                                                <div className="text-xs text-muted-foreground">{asset.suppliedUsdValue}</div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {asset.suppliedUsdValue}
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="text-right">
@@ -178,7 +181,7 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                         <h3 className="text-base font-semibold mb-3 text-muted-foreground">Supply On ZetaChain</h3>
                         <div className="space-y-2">
                             {suppliedAssets.map((asset) => {
-                                const { zrc20Symbol, zetaBalance } = getZetaTokenInfo(asset);
+                                const { zrc20Symbol, zetaBalance, } = getZetaTokenInfo(asset);
                                 if (Number(zetaBalance) === 0) {
                                     return null;
                                 }
@@ -198,6 +201,12 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                                         </div>
                                         <div className="text-right">
                                             <div className="text-sm font-medium">{Number(zetaBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {(() => {
+                                                    const { zetaUsdValue } = getZetaTokenInfo(asset);
+                                                    return zetaUsdValue !== '0' ? `$${Number(zetaUsdValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00';
+                                                })()}
+                                            </div>
                                             <Button
                                                 variant="zeta"
                                                 size="sm"
@@ -243,6 +252,12 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                                             </div>
                                             <div className="text-right">
                                                 <div className="text-sm font-medium">{Number(formattedBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {balance.usdValue !== undefined && balance.usdValue !== '0' ?
+                                                        `$${Number(balance.usdValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` :
+                                                        '$0.00'
+                                                    }
+                                                </div>
                                                 <Button
                                                     variant="zeta"
                                                     size="sm"

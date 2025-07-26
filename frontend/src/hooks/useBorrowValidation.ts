@@ -93,6 +93,18 @@ export function useBorrowValidation({
         },
     });
 
+    // Get asset price from the lending protocol (replaces deprecated selectedAsset.price)
+    const { data: assetPrice } = useReadContract({
+        address: universalLendingProtocol,
+        abi: UniversalLendingProtocol__factory.abi,
+        functionName: 'getAssetPrice',
+        args: selectedAsset ? [selectedAsset.address] : undefined,
+        query: {
+            enabled: Boolean(selectedAsset),
+            refetchInterval: 10000,
+        },
+    });
+
     // Check if user can borrow the specific amount
     const amountBigInt = amountToBorrow && selectedAsset ? parseUnits(amountToBorrow, selectedAsset.decimals) : BigInt(0);
 
@@ -127,12 +139,13 @@ export function useBorrowValidation({
         // We still need to calculate max borrow even if no amount is entered
         // Only skip if no amount for validation, but continue for max borrow calculation
 
-        if (totalCollateralValue === undefined || totalDebtValue === undefined || healthFactor === undefined || maxAvailableBorrowsInUsd === undefined || maxAvailableBorrowsForAsset === undefined) {
+        if (totalCollateralValue === undefined || totalDebtValue === undefined || healthFactor === undefined || maxAvailableBorrowsInUsd === undefined || maxAvailableBorrowsForAsset === undefined || assetPrice === undefined) {
             // console.log("🚀 ~ validateBorrow ~ totalCollateralValue:", totalCollateralValue)
             // console.log("🚀 ~ validateBorrow ~ totalDebtValue:", totalDebtValue)
             // console.log("🚀 ~ validateBorrow ~ healthFactor:", healthFactor)
             // console.log("🚀 ~ validateBorrow ~ maxAvailableBorrowsInUsd:", maxAvailableBorrowsInUsd)
             // console.log("🚀 ~ validateBorrow ~ maxAvailableBorrowsForAsset:", maxAvailableBorrowsForAsset)
+            // console.log("🚀 ~ validateBorrow ~ assetPrice:", assetPrice)
             setValidationResult({
                 isValid: false,
                 error: 'Loading user data...',
@@ -145,9 +158,8 @@ export function useBorrowValidation({
             return;
         }
 
-        // Parse price by removing currency symbol and parsing
-        const priceString = selectedAsset.price.replace(/[$,]/g, '');
-        const assetPriceUsd = parseFloat(priceString);
+        // Convert asset price from the contract (18 decimals) to USD
+        const assetPriceUsd = Number(assetPrice) / 1e18;
 
         if (isNaN(assetPriceUsd) || assetPriceUsd <= 0) {
             setValidationResult({
@@ -165,6 +177,11 @@ export function useBorrowValidation({
         // Get values from contract (already in USD, normalized to 18 decimals)
         const totalDebtValueFormatted = Number(totalDebtValue) / 1e18;
         const totalCollateralValueFormatted = Number(totalCollateralValue) / 1e18;
+        
+        // console.log("🚀 ~ validateBorrow ~ totalCollateralValue raw:", totalCollateralValue)
+        // console.log("🚀 ~ validateBorrow ~ totalCollateralValueFormatted:", totalCollateralValueFormatted)
+        // console.log("🚀 ~ validateBorrow ~ maxAvailableBorrowsForAsset raw:", maxAvailableBorrowsForAsset)
+        // console.log("🚀 ~ validateBorrow ~ maxBorrowAmount:", formatUnits(maxAvailableBorrowsForAsset, selectedAsset.decimals))
 
         // Handle health factor - contract returns type(uint256).max when debt is 0
         let currentHealthFactorFormatted;
@@ -234,7 +251,7 @@ export function useBorrowValidation({
             estimatedHealthFactor,
             borrowValueUsd,
         });
-    }, [selectedAsset, amountToBorrow, totalCollateralValue, totalDebtValue, healthFactor, maxAvailableBorrowsInUsd, maxAvailableBorrowsForAsset, canBorrowResult]);
+    }, [selectedAsset, amountToBorrow, totalCollateralValue, totalDebtValue, healthFactor, maxAvailableBorrowsInUsd, maxAvailableBorrowsForAsset, assetPrice, canBorrowResult]);
 
     // Run validation when dependencies change
     useEffect(() => {

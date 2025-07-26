@@ -170,20 +170,23 @@ export async function getTokenBalance(tokenAddress: string, holderAddress: strin
 
 export async function getAssetPrice(assetAddress: string): Promise<bigint> {
   try {
+    // Use the contract's public getAssetPrice function which includes validation
     const protocolAddress = getUniversalLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
     if (!protocolAddress) {
       // eslint-disable-next-line no-console
       console.warn('UniversalLendingProtocol address not found');
       return BigInt(0);
     }
-    const result = await zetaTestnetClient.readContract({
+
+    // Call the contract's getAssetPrice function (uses _getValidatedPrice internally) 
+    const price = await zetaTestnetClient.readContract({
       address: protocolAddress as Address,
       abi: UniversalLendingProtocol__factory.abi,
-      functionName: 'getAssetConfig',
+      functionName: 'getAssetPrice',
       args: [assetAddress as Address],
     });
 
-    return result.price;
+    return price;
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(`Error getting asset price for ${assetAddress}:`, error);

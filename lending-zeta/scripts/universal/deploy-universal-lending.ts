@@ -9,6 +9,13 @@ import {
 } from "../../utils/contracts";
 import { DeploymentManager } from "../utils/deployment-utils";
 
+const assets = [
+  { symbol: "ETH.ARBI", chainId: 421614, price: 3000 }, // $3000
+  { symbol: "USDC.ARBI", chainId: 421614, price: 1 },   // $1
+  { symbol: "ETH.ETH", chainId: 11155111, price: 3000 }, // $3000
+  { symbol: "USDC.ETH", chainId: 11155111, price: 1 }    // $1
+];
+
 async function main() {
   console.log("Starting UniversalLendingProtocol deployment...");
 
@@ -44,41 +51,56 @@ async function main() {
 
   console.log("Using gateway address:", gatewayAddress);
 
-  // Deploy Price Oracle
+  // Deploy or get existing Price Oracle
   console.log("\n=== Deploying Price Oracle ===");
 
-  const MockPriceOracle = await ethers.getContractFactory("MockPriceOracle");
-  const priceOracle = await MockPriceOracle.deploy();
-  await priceOracle.deployed();
-  console.log("MockPriceOracle deployed to:", priceOracle.address);
+  let priceOracle;
 
-  // Update centralized contract registry with oracle
-  updateContractAddress(chainId, "MockPriceOracle", priceOracle.address as Address);
+  try {
+    // Try to get existing price oracle from deployment
+    priceOracle = await deploymentManager.getContractInstance("MockPriceOracle");
+    console.log("Using existing MockPriceOracle at:", priceOracle.address);
+  } catch (error) {
+    // Deploy new price oracle if not found
+    console.log("MockPriceOracle not found, deploying new one...");
+    const MockPriceOracle = await ethers.getContractFactory("MockPriceOracle");
+    priceOracle = await MockPriceOracle.deploy();
+    await priceOracle.deployed();
+    console.log("MockPriceOracle deployed to:", priceOracle.address);
 
-  // Set prices for supported assets in price oracle
-  console.log("\n=== Setting Asset Prices in Oracle ===");
+    // Update centralized contract registry with oracle
+    updateContractAddress(chainId, "MockPriceOracle", priceOracle.address as Address);
 
-  const assets = [
-    { symbol: "ETH.ARBI", chainId: 421614, price: 3000 }, // $3000
-    { symbol: "USDC.ARBI", chainId: 421614, price: 1 },   // $1
-    { symbol: "ETH.ETH", chainId: 11155111, price: 3000 }, // $3000
-    { symbol: "USDC.ETH", chainId: 11155111, price: 1 }    // $1
-  ];
+    // Set prices for supported assets in price oracle
+    console.log("\n=== Setting Asset Prices in Oracle ===");
 
-  for (const asset of assets) {
-    try {
-      const tokenAddress = getTokenAddress(chainId, asset.symbol);
+    // Always update prices, even if using existing oracle
+    console.log("Updating asset prices in oracle...");
+    for (const asset of assets) {
+      try {
+        const tokenAddress = getTokenAddress(chainId, asset.symbol);
 
-      console.log(`Setting price for ${asset.symbol} (${tokenAddress}): $${asset.price}`);
+        console.log(`Setting price for ${asset.symbol} (${tokenAddress}): $${asset.price}`);
 
-      // Convert price to 18 decimals for oracle (e.g., $2000 -> 2000 * 1e18)
-      const priceInWei = ethers.utils.parseEther(asset.price.toString());
-      await priceOracle.setPrice(tokenAddress, priceInWei);
+        // Convert price to 18 decimals for oracle (e.g., $3000 -> 3000 * 1e18)
+        const priceInWei = ethers.utils.parseEther(asset.price.toString());
+        await priceOracle.setPrice(tokenAddress, priceInWei);
 
-      console.log(`✅ Set price for ${asset.symbol}`);
-    } catch (error) {
-      console.log(`⚠️  Warning: Could not set price for ${asset.symbol} - ${error}`);
+        // Verify the price was set correctly
+        const storedPrice = await priceOracle.getPrice(tokenAddress);
+        const storedPriceFormatted = ethers.utils.formatEther(storedPrice);
+        console.log(`✅ Set price for ${asset.symbol}: $${storedPriceFormatted}`);
+      } catch (error) {
+        console.log(`⚠️  Warning: Could not set price for ${asset.symbol} - ${error}`);
+      }
     }
+
+    // Update contracts.json with new oracle address
+    await deploymentManager.updateContractsJson(
+      "MockPriceOracle",
+      priceOracle.address,
+      deployer.address
+    );
   }
 
   // Deploy UniversalLendingProtocol

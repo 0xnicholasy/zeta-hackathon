@@ -88,15 +88,8 @@ library LiquidationLogic {
         uint256 price = oracle.getPrice(asset);
         uint8 decimals = IERC20Metadata(asset).decimals();
         
-        
         // Normalize amount to 18 decimals
-        uint256 normalizedAmount = amount;
-        if (decimals < 18) {
-            normalizedAmount = amount * (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            normalizedAmount = amount / (10 ** (decimals - 18));
-        } else {
-        }
+        uint256 normalizedAmount = _normalizeToDecimals(amount, decimals);
         
         uint256 result = (normalizedAmount * price * collateralFactor) / (PRECISION * PRECISION);
         return result;
@@ -120,15 +113,8 @@ library LiquidationLogic {
         uint256 price = oracle.getPrice(asset);
         uint8 decimals = IERC20Metadata(asset).decimals();
         
-        
         // Normalize amount to 18 decimals
-        uint256 normalizedAmount = amount;
-        if (decimals < 18) {
-            normalizedAmount = amount * (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            normalizedAmount = amount / (10 ** (decimals - 18));
-        } else {
-        }
+        uint256 normalizedAmount = _normalizeToDecimals(amount, decimals);
         
         uint256 result = (normalizedAmount * price) / PRECISION;
         return result;
@@ -194,5 +180,24 @@ library LiquidationLogic {
         return
             newHealthFactor > oldHealthFactor &&
             newHealthFactor >= MINIMUM_HEALTH_FACTOR;
+    }
+
+    /**
+     * @dev Normalize amount to 18 decimals for comparison purposes
+     * @param amount The amount to normalize
+     * @param decimals The current decimal places of the amount
+     * @return normalizedAmount The amount normalized to 18 decimals
+     */
+    function _normalizeToDecimals(
+        uint256 amount,
+        uint256 decimals
+    ) internal pure returns (uint256 normalizedAmount) {
+        if (decimals < 18) {
+            normalizedAmount = amount * (10 ** (18 - decimals));
+        } else if (decimals > 18) {
+            normalizedAmount = amount / (10 ** (decimals - 18));
+        } else {
+            normalizedAmount = amount;
+        }
     }
 }

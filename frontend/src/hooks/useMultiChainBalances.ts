@@ -13,6 +13,7 @@ import {
   getNetworkConfig
 } from '../contracts/deployments';
 import { ERC20__factory } from '@/contracts/typechain-types';
+import { getAssetPrice } from '../utils/directContractCalls';
 
 export interface TokenBalance {
   chainId: number;
@@ -23,6 +24,8 @@ export interface TokenBalance {
   formattedBalance: string;
   decimals: number;
   isNative: boolean;
+  price?: string;
+  usdValue?: string;
 }
 
 export type MultiChainBalances = Record<number, Record<string, TokenBalance>>;
@@ -86,6 +89,53 @@ export function useMultiChainBalances() {
     return clients;
   }, [supportedChains]);
 
+  // Helper function to fetch asset price and calculate USD value
+  const fetchAssetPriceAndValue = useCallback(async (
+    tokenSymbol: string,
+    chainId: number,
+    balance: string,
+    decimals: number
+  ): Promise<{ price: string; usdValue: string }> => {
+    try {
+      // Map external chain tokens to their ZRC-20 counterparts
+      let zetaTokenSymbol = '';
+      
+      if (chainId === SupportedChain.ARBITRUM_SEPOLIA) {
+        if (tokenSymbol === 'ETH') zetaTokenSymbol = TOKEN_SYMBOLS.ETH_ARBI;
+        if (tokenSymbol === 'USDC') zetaTokenSymbol = TOKEN_SYMBOLS.USDC_ARBI;
+      } else if (chainId === SupportedChain.ETHEREUM_SEPOLIA) {
+        if (tokenSymbol === 'ETH') zetaTokenSymbol = TOKEN_SYMBOLS.ETH_ETH;
+        if (tokenSymbol === 'USDC') zetaTokenSymbol = TOKEN_SYMBOLS.USDC_ETH;
+      } else if (chainId === SupportedChain.ZETA_TESTNET) {
+        // For ZetaChain, use the token symbol directly
+        zetaTokenSymbol = tokenSymbol;
+      }
+
+      if (!zetaTokenSymbol) {
+        return { price: '0', usdValue: '0' };
+      }
+
+      // Get ZRC-20 token address for price lookup
+      const zetaTokenAddress = getTokenAddress(zetaTokenSymbol, SupportedChain.ZETA_TESTNET);
+      if (!zetaTokenAddress || isZeroAddress(zetaTokenAddress)) {
+        return { price: '0', usdValue: '0' };
+      }
+
+      const priceInWei = await getAssetPrice(zetaTokenAddress);
+      const priceInUSD = Number(formatUnits(priceInWei, 18));
+      const balanceNum = Number(formatUnits(BigInt(balance), decimals));
+      const usdValue = (balanceNum * priceInUSD);
+
+      return {
+        price: priceInUSD.toFixed(2),
+        usdValue: usdValue.toFixed(2)
+      };
+    } catch (error) {
+      console.error('Error fetching asset price:', error);
+      return { price: '0', usdValue: '0' };
+    }
+  }, []);
+
   // Fetch balances for external chains (Arbitrum, Ethereum)
   const fetchExternalChainBalances = useCallback(async (): Promise<MultiChainBalances> => {
     if (!address || !isConnected) return {};
@@ -140,6 +190,9 @@ export function useMultiChainBalances() {
             decimals = tokenDecimals;
           }
 
+          // Fetch price and USD value
+          const priceData = await fetchAssetPriceAndValue(tokenSymbol, chainId, balance, decimals);
+
           newBalances[chainId][tokenSymbol] = {
             chainId,
             chainName: config.name,
@@ -149,6 +202,8 @@ export function useMultiChainBalances() {
             formattedBalance: formatUnits(BigInt(balance), decimals),
             decimals,
             isNative: isNativeETH,
+            price: priceData.price,
+            usdValue: priceData.usdValue,
           };
         } catch (err) {
           console.error('Error fetching balance for token', tokenSymbol, 'on chain', chainId, err);
@@ -162,13 +217,15 @@ export function useMultiChainBalances() {
             formattedBalance: '0',
             decimals: 18,
             isNative: isNativeETH,
+            price: '0',
+            usdValue: '0',
           };
         }
       }
     }
 
     return newBalances;
-  }, [address, isConnected, publicClients, supportedChains]);
+  }, [address, isConnected, publicClients, supportedChains, fetchAssetPriceAndValue]);
 
   // Fetch balances periodically
   useEffect(() => {
@@ -228,6 +285,35 @@ export function useMultiChainBalances() {
     return formatUnits(total, decimals);
   };
 
+  // Helper function to get total USD value across all chains
+  const getTotalUSDValue = (): number => {
+    let total = 0;
+
+    Object.values(balances).forEach(chainBalances => {
+      Object.values(chainBalances).forEach(tokenBalance => {
+        if (tokenBalance.usdValue) {
+          total += parseFloat(tokenBalance.usdValue);
+        }
+      });
+    });
+
+    return total;
+  };
+
+  // Helper function to get total USD value for a specific token across all chains
+  const getTokenTotalUSDValue = (tokenSymbol: string): number => {
+    let total = 0;
+
+    Object.values(balances).forEach(chainBalances => {
+      const tokenBalance = chainBalances[tokenSymbol];
+      if (tokenBalance?.usdValue) {
+        total += parseFloat(tokenBalance.usdValue);
+      }
+    });
+
+    return total;
+  };
+
   return {
     balances,
     isLoading,
@@ -235,6 +321,8 @@ export function useMultiChainBalances() {
     getBalance,
     getChainBalances,
     getTotalBalance,
+    getTotalUSDValue,
+    getTokenTotalUSDValue,
     supportedChains: supportedChains.map(chain => ({
       chainId: chain.chainId,
       name: chain.config?.name ?? '',
@@ -318,14 +406,49 @@ export function useZetaChainBalances() {
         formattedBalance: formatUnits(BigInt(balance), decimals),
         decimals,
         isNative: false,
+        price: '0', // Will be updated by separate price fetching
+        usdValue: '0', // Will be updated by separate price fetching
       };
     });
 
     return balances;
   }, [zetaBalances, zetaDecimals, zetaTokens]);
 
+  // Fetch prices for ZetaChain tokens
+  const [zetaBalancesWithPrices, setZetaBalancesWithPrices] = useState<ChainTokenBalance>(processedZetaBalances);
+
+  useEffect(() => {
+    const updatePrices = async () => {
+      if (!processedZetaBalances || Object.keys(processedZetaBalances).length === 0) return;
+
+      const updatedBalances = { ...processedZetaBalances };
+
+      for (const [tokenSymbol, tokenBalance] of Object.entries(processedZetaBalances)) {
+        try {
+          const priceInWei = await getAssetPrice(tokenBalance.tokenAddress);
+          const priceInUSD = Number(formatUnits(priceInWei, 18));
+          const balanceNum = Number(tokenBalance.formattedBalance);
+          const usdValue = (balanceNum * priceInUSD);
+
+          updatedBalances[tokenSymbol] = {
+            ...tokenBalance,
+            price: priceInUSD.toFixed(2),
+            usdValue: usdValue.toFixed(2),
+          };
+        } catch (error) {
+          console.error(`Error fetching price for ${tokenSymbol}:`, error);
+          // Keep existing values if price fetch fails
+        }
+      }
+
+      setZetaBalancesWithPrices(updatedBalances);
+    };
+
+    void updatePrices();
+  }, [processedZetaBalances]);
+
   return {
-    zetaBalances: processedZetaBalances,
+    zetaBalances: zetaBalancesWithPrices,
     zetaTokens,
     isLoading: !zetaBalances || !zetaDecimals,
   };

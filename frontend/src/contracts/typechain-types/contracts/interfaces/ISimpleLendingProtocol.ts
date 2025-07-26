@@ -51,11 +51,15 @@ export interface ISimpleLendingProtocolInterface extends utils.Interface {
     "getCollateralValue(address,address)": FunctionFragment;
     "getDebtValue(address,address)": FunctionFragment;
     "getHealthFactor(address)": FunctionFragment;
+    "getHealthFactorAfterBorrow(address,address,uint256)": FunctionFragment;
+    "getHealthFactorAfterRepay(address,address,uint256)": FunctionFragment;
+    "getHealthFactorAfterWithdraw(address,address,uint256)": FunctionFragment;
     "getSupplyBalance(address,address)": FunctionFragment;
     "getSupportedAsset(uint256)": FunctionFragment;
     "getSupportedAssetsCount()": FunctionFragment;
     "getTotalCollateralValue(address)": FunctionFragment;
     "getTotalDebtValue(address)": FunctionFragment;
+    "getUserPositionData(address)": FunctionFragment;
     "getWithdrawGasFee(address)": FunctionFragment;
     "isLiquidatable(address)": FunctionFragment;
     "liquidate(address,address,address,uint256)": FunctionFragment;
@@ -81,11 +85,15 @@ export interface ISimpleLendingProtocolInterface extends utils.Interface {
       | "getCollateralValue"
       | "getDebtValue"
       | "getHealthFactor"
+      | "getHealthFactorAfterBorrow"
+      | "getHealthFactorAfterRepay"
+      | "getHealthFactorAfterWithdraw"
       | "getSupplyBalance"
       | "getSupportedAsset"
       | "getSupportedAssetsCount"
       | "getTotalCollateralValue"
       | "getTotalDebtValue"
+      | "getUserPositionData"
       | "getWithdrawGasFee"
       | "isLiquidatable"
       | "liquidate"
@@ -157,6 +165,30 @@ export interface ISimpleLendingProtocolInterface extends utils.Interface {
     values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
+    functionFragment: "getHealthFactorAfterBorrow",
+    values: [
+      PromiseOrValue<string>,
+      PromiseOrValue<string>,
+      PromiseOrValue<BigNumberish>
+    ]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getHealthFactorAfterRepay",
+    values: [
+      PromiseOrValue<string>,
+      PromiseOrValue<string>,
+      PromiseOrValue<BigNumberish>
+    ]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getHealthFactorAfterWithdraw",
+    values: [
+      PromiseOrValue<string>,
+      PromiseOrValue<string>,
+      PromiseOrValue<BigNumberish>
+    ]
+  ): string;
+  encodeFunctionData(
     functionFragment: "getSupplyBalance",
     values: [PromiseOrValue<string>, PromiseOrValue<string>]
   ): string;
@@ -174,6 +206,10 @@ export interface ISimpleLendingProtocolInterface extends utils.Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "getTotalDebtValue",
+    values: [PromiseOrValue<string>]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getUserPositionData",
     values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
@@ -275,6 +311,18 @@ export interface ISimpleLendingProtocolInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "getHealthFactorAfterBorrow",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getHealthFactorAfterRepay",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getHealthFactorAfterWithdraw",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "getSupplyBalance",
     data: BytesLike
   ): Result;
@@ -292,6 +340,10 @@ export interface ISimpleLendingProtocolInterface extends utils.Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "getTotalDebtValue",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getUserPositionData",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -495,6 +547,27 @@ export interface ISimpleLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<[BigNumber]>;
 
+    getHealthFactorAfterBorrow(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber] & { newHealthFactor: BigNumber }>;
+
+    getHealthFactorAfterRepay(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber] & { newHealthFactor: BigNumber }>;
+
+    getHealthFactorAfterWithdraw(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber] & { newHealthFactor: BigNumber }>;
+
     getSupplyBalance(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -517,6 +590,37 @@ export interface ISimpleLendingProtocol extends BaseContract {
       user: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<[BigNumber]>;
+
+    getUserPositionData(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<
+      [
+        BigNumber,
+        BigNumber,
+        BigNumber,
+        BigNumber,
+        BigNumber,
+        string[],
+        BigNumber[],
+        BigNumber[],
+        string[],
+        BigNumber[],
+        BigNumber[]
+      ] & {
+        totalCollateralValue: BigNumber;
+        totalDebtValue: BigNumber;
+        healthFactor: BigNumber;
+        maxBorrowUsdValue: BigNumber;
+        liquidationThreshold: BigNumber;
+        suppliedAssets: string[];
+        suppliedAmounts: BigNumber[];
+        suppliedValues: BigNumber[];
+        borrowedAssets: string[];
+        borrowedAmounts: BigNumber[];
+        borrowedValues: BigNumber[];
+      }
+    >;
 
     getWithdrawGasFee(
       asset: PromiseOrValue<string>,
@@ -651,6 +755,27 @@ export interface ISimpleLendingProtocol extends BaseContract {
     overrides?: CallOverrides
   ): Promise<BigNumber>;
 
+  getHealthFactorAfterBorrow(
+    user: PromiseOrValue<string>,
+    asset: PromiseOrValue<string>,
+    amount: PromiseOrValue<BigNumberish>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
+
+  getHealthFactorAfterRepay(
+    user: PromiseOrValue<string>,
+    asset: PromiseOrValue<string>,
+    amount: PromiseOrValue<BigNumberish>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
+
+  getHealthFactorAfterWithdraw(
+    user: PromiseOrValue<string>,
+    asset: PromiseOrValue<string>,
+    amount: PromiseOrValue<BigNumberish>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
+
   getSupplyBalance(
     user: PromiseOrValue<string>,
     asset: PromiseOrValue<string>,
@@ -673,6 +798,37 @@ export interface ISimpleLendingProtocol extends BaseContract {
     user: PromiseOrValue<string>,
     overrides?: CallOverrides
   ): Promise<BigNumber>;
+
+  getUserPositionData(
+    user: PromiseOrValue<string>,
+    overrides?: CallOverrides
+  ): Promise<
+    [
+      BigNumber,
+      BigNumber,
+      BigNumber,
+      BigNumber,
+      BigNumber,
+      string[],
+      BigNumber[],
+      BigNumber[],
+      string[],
+      BigNumber[],
+      BigNumber[]
+    ] & {
+      totalCollateralValue: BigNumber;
+      totalDebtValue: BigNumber;
+      healthFactor: BigNumber;
+      maxBorrowUsdValue: BigNumber;
+      liquidationThreshold: BigNumber;
+      suppliedAssets: string[];
+      suppliedAmounts: BigNumber[];
+      suppliedValues: BigNumber[];
+      borrowedAssets: string[];
+      borrowedAmounts: BigNumber[];
+      borrowedValues: BigNumber[];
+    }
+  >;
 
   getWithdrawGasFee(
     asset: PromiseOrValue<string>,
@@ -807,6 +963,27 @@ export interface ISimpleLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
+    getHealthFactorAfterBorrow(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    getHealthFactorAfterRepay(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    getHealthFactorAfterWithdraw(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
     getSupplyBalance(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -829,6 +1006,37 @@ export interface ISimpleLendingProtocol extends BaseContract {
       user: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
+
+    getUserPositionData(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<
+      [
+        BigNumber,
+        BigNumber,
+        BigNumber,
+        BigNumber,
+        BigNumber,
+        string[],
+        BigNumber[],
+        BigNumber[],
+        string[],
+        BigNumber[],
+        BigNumber[]
+      ] & {
+        totalCollateralValue: BigNumber;
+        totalDebtValue: BigNumber;
+        healthFactor: BigNumber;
+        maxBorrowUsdValue: BigNumber;
+        liquidationThreshold: BigNumber;
+        suppliedAssets: string[];
+        suppliedAmounts: BigNumber[];
+        suppliedValues: BigNumber[];
+        borrowedAssets: string[];
+        borrowedAmounts: BigNumber[];
+        borrowedValues: BigNumber[];
+      }
+    >;
 
     getWithdrawGasFee(
       asset: PromiseOrValue<string>,
@@ -1027,6 +1235,27 @@ export interface ISimpleLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
+    getHealthFactorAfterBorrow(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    getHealthFactorAfterRepay(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    getHealthFactorAfterWithdraw(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
     getSupplyBalance(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -1046,6 +1275,11 @@ export interface ISimpleLendingProtocol extends BaseContract {
     ): Promise<BigNumber>;
 
     getTotalDebtValue(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    getUserPositionData(
       user: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
@@ -1184,6 +1418,27 @@ export interface ISimpleLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
+    getHealthFactorAfterBorrow(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    getHealthFactorAfterRepay(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    getHealthFactorAfterWithdraw(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
     getSupplyBalance(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -1205,6 +1460,11 @@ export interface ISimpleLendingProtocol extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     getTotalDebtValue(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    getUserPositionData(
       user: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;

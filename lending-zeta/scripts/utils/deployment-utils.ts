@@ -1,5 +1,6 @@
 import { ethers } from "hardhat";
 import * as fs from "fs";
+import { Contract } from "ethers";
 
 export interface DeploymentInfo {
   network: {
@@ -36,14 +37,14 @@ export class DeploymentManager {
       const data = fs.readFileSync(this.contractsJsonFile, 'utf8');
       const contractsData = JSON.parse(data);
       const chainIdString = this.chainId.toString();
-      
+
       if (!contractsData.networks || !contractsData.networks[chainIdString]) {
         console.log(`Network ${chainIdString} not found in contracts.json`);
         return null;
       }
 
       const networkData = contractsData.networks[chainIdString];
-      
+
       // Convert contracts.json format to DeploymentInfo format
       return {
         network: {
@@ -114,7 +115,7 @@ export class DeploymentManager {
     }
   }
 
-  async getContractInstance(contractName: string) {
+  async getContractInstance(contractName: string): Promise<Contract> {
     const deployment = await this.loadDeployment();
 
     if (!deployment) {
@@ -221,9 +222,9 @@ export class DeploymentManager {
 
   async updateContractsJson(contractName: string, contractAddress: string, deployerAddress: string): Promise<void> {
     console.log("\n=== Updating contracts.json ===");
-    
+
     let contractsData: any;
-    
+
     try {
       if (fs.existsSync(this.contractsJsonFile)) {
         contractsData = JSON.parse(fs.readFileSync(this.contractsJsonFile, 'utf8'));
@@ -242,9 +243,9 @@ export class DeploymentManager {
       if (!contractsData.networks[chainIdString].contracts) {
         contractsData.networks[chainIdString].contracts = {};
       }
-      
+
       contractsData.networks[chainIdString].contracts[contractName] = contractAddress;
-      
+
       // Update deployment metadata
       if (!contractsData.deployments) {
         contractsData.deployments = {};

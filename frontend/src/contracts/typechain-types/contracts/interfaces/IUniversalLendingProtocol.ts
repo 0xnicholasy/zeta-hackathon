@@ -52,12 +52,16 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
     "getCollateralValue(address,address)": FunctionFragment;
     "getDebtValue(address,address)": FunctionFragment;
     "getHealthFactor(address)": FunctionFragment;
+    "getHealthFactorAfterBorrow(address,address,uint256)": FunctionFragment;
+    "getHealthFactorAfterRepay(address,address,uint256)": FunctionFragment;
+    "getHealthFactorAfterWithdraw(address,address,uint256)": FunctionFragment;
     "getSupplyBalance(address,address)": FunctionFragment;
     "getSupportedAsset(uint256)": FunctionFragment;
     "getSupportedAssetsCount()": FunctionFragment;
     "getTotalCollateralValue(address)": FunctionFragment;
     "getTotalDebtValue(address)": FunctionFragment;
     "getUserAccountData(address)": FunctionFragment;
+    "getUserPositionData(address)": FunctionFragment;
     "getWithdrawGasFee(address)": FunctionFragment;
     "getZRC20ByChainAndSymbol(uint256,string)": FunctionFragment;
     "isChainAllowed(uint256)": FunctionFragment;
@@ -89,12 +93,16 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
       | "getCollateralValue"
       | "getDebtValue"
       | "getHealthFactor"
+      | "getHealthFactorAfterBorrow"
+      | "getHealthFactorAfterRepay"
+      | "getHealthFactorAfterWithdraw"
       | "getSupplyBalance"
       | "getSupportedAsset"
       | "getSupportedAssetsCount"
       | "getTotalCollateralValue"
       | "getTotalDebtValue"
       | "getUserAccountData"
+      | "getUserPositionData"
       | "getWithdrawGasFee"
       | "getZRC20ByChainAndSymbol"
       | "isChainAllowed"
@@ -180,6 +188,30 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
     values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
+    functionFragment: "getHealthFactorAfterBorrow",
+    values: [
+      PromiseOrValue<string>,
+      PromiseOrValue<string>,
+      PromiseOrValue<BigNumberish>
+    ]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getHealthFactorAfterRepay",
+    values: [
+      PromiseOrValue<string>,
+      PromiseOrValue<string>,
+      PromiseOrValue<BigNumberish>
+    ]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getHealthFactorAfterWithdraw",
+    values: [
+      PromiseOrValue<string>,
+      PromiseOrValue<string>,
+      PromiseOrValue<BigNumberish>
+    ]
+  ): string;
+  encodeFunctionData(
     functionFragment: "getSupplyBalance",
     values: [PromiseOrValue<string>, PromiseOrValue<string>]
   ): string;
@@ -201,6 +233,10 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "getUserAccountData",
+    values: [PromiseOrValue<string>]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getUserPositionData",
     values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
@@ -333,6 +369,18 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "getHealthFactorAfterBorrow",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getHealthFactorAfterRepay",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getHealthFactorAfterWithdraw",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "getSupplyBalance",
     data: BytesLike
   ): Result;
@@ -354,6 +402,10 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "getUserAccountData",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getUserPositionData",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -664,6 +716,27 @@ export interface IUniversalLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<[BigNumber]>;
 
+    getHealthFactorAfterBorrow(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber] & { newHealthFactor: BigNumber }>;
+
+    getHealthFactorAfterRepay(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber] & { newHealthFactor: BigNumber }>;
+
+    getHealthFactorAfterWithdraw(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber] & { newHealthFactor: BigNumber }>;
+
     getSupplyBalance(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -697,6 +770,37 @@ export interface IUniversalLendingProtocol extends BaseContract {
         availableBorrows: BigNumber;
         currentLiquidationThreshold: BigNumber;
         healthFactor: BigNumber;
+      }
+    >;
+
+    getUserPositionData(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<
+      [
+        BigNumber,
+        BigNumber,
+        BigNumber,
+        BigNumber,
+        BigNumber,
+        string[],
+        BigNumber[],
+        BigNumber[],
+        string[],
+        BigNumber[],
+        BigNumber[]
+      ] & {
+        totalCollateralValue: BigNumber;
+        totalDebtValue: BigNumber;
+        healthFactor: BigNumber;
+        maxBorrowUsdValue: BigNumber;
+        liquidationThreshold: BigNumber;
+        suppliedAssets: string[];
+        suppliedAmounts: BigNumber[];
+        suppliedValues: BigNumber[];
+        borrowedAssets: string[];
+        borrowedAmounts: BigNumber[];
+        borrowedValues: BigNumber[];
       }
     >;
 
@@ -870,6 +974,27 @@ export interface IUniversalLendingProtocol extends BaseContract {
     overrides?: CallOverrides
   ): Promise<BigNumber>;
 
+  getHealthFactorAfterBorrow(
+    user: PromiseOrValue<string>,
+    asset: PromiseOrValue<string>,
+    amount: PromiseOrValue<BigNumberish>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
+
+  getHealthFactorAfterRepay(
+    user: PromiseOrValue<string>,
+    asset: PromiseOrValue<string>,
+    amount: PromiseOrValue<BigNumberish>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
+
+  getHealthFactorAfterWithdraw(
+    user: PromiseOrValue<string>,
+    asset: PromiseOrValue<string>,
+    amount: PromiseOrValue<BigNumberish>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
+
   getSupplyBalance(
     user: PromiseOrValue<string>,
     asset: PromiseOrValue<string>,
@@ -903,6 +1028,37 @@ export interface IUniversalLendingProtocol extends BaseContract {
       availableBorrows: BigNumber;
       currentLiquidationThreshold: BigNumber;
       healthFactor: BigNumber;
+    }
+  >;
+
+  getUserPositionData(
+    user: PromiseOrValue<string>,
+    overrides?: CallOverrides
+  ): Promise<
+    [
+      BigNumber,
+      BigNumber,
+      BigNumber,
+      BigNumber,
+      BigNumber,
+      string[],
+      BigNumber[],
+      BigNumber[],
+      string[],
+      BigNumber[],
+      BigNumber[]
+    ] & {
+      totalCollateralValue: BigNumber;
+      totalDebtValue: BigNumber;
+      healthFactor: BigNumber;
+      maxBorrowUsdValue: BigNumber;
+      liquidationThreshold: BigNumber;
+      suppliedAssets: string[];
+      suppliedAmounts: BigNumber[];
+      suppliedValues: BigNumber[];
+      borrowedAssets: string[];
+      borrowedAmounts: BigNumber[];
+      borrowedValues: BigNumber[];
     }
   >;
 
@@ -1076,6 +1232,27 @@ export interface IUniversalLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
+    getHealthFactorAfterBorrow(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    getHealthFactorAfterRepay(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    getHealthFactorAfterWithdraw(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
     getSupplyBalance(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -1109,6 +1286,37 @@ export interface IUniversalLendingProtocol extends BaseContract {
         availableBorrows: BigNumber;
         currentLiquidationThreshold: BigNumber;
         healthFactor: BigNumber;
+      }
+    >;
+
+    getUserPositionData(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<
+      [
+        BigNumber,
+        BigNumber,
+        BigNumber,
+        BigNumber,
+        BigNumber,
+        string[],
+        BigNumber[],
+        BigNumber[],
+        string[],
+        BigNumber[],
+        BigNumber[]
+      ] & {
+        totalCollateralValue: BigNumber;
+        totalDebtValue: BigNumber;
+        healthFactor: BigNumber;
+        maxBorrowUsdValue: BigNumber;
+        liquidationThreshold: BigNumber;
+        suppliedAssets: string[];
+        suppliedAmounts: BigNumber[];
+        suppliedValues: BigNumber[];
+        borrowedAssets: string[];
+        borrowedAmounts: BigNumber[];
+        borrowedValues: BigNumber[];
       }
     >;
 
@@ -1411,6 +1619,27 @@ export interface IUniversalLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
+    getHealthFactorAfterBorrow(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    getHealthFactorAfterRepay(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    getHealthFactorAfterWithdraw(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
     getSupplyBalance(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -1435,6 +1664,11 @@ export interface IUniversalLendingProtocol extends BaseContract {
     ): Promise<BigNumber>;
 
     getUserAccountData(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    getUserPositionData(
       user: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
@@ -1610,6 +1844,27 @@ export interface IUniversalLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
+    getHealthFactorAfterBorrow(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    getHealthFactorAfterRepay(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    getHealthFactorAfterWithdraw(
+      user: PromiseOrValue<string>,
+      asset: PromiseOrValue<string>,
+      amount: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
     getSupplyBalance(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
@@ -1636,6 +1891,11 @@ export interface IUniversalLendingProtocol extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     getUserAccountData(
+      user: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    getUserPositionData(
       user: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;

@@ -21,7 +21,7 @@ async function main() {
   // Get UniversalLendingProtocol contract address from contracts.json
   const contractsJson = require("../../contracts.json");
   const universalLendingAddress = contractsJson.networks[chainId.toString()].contracts.UniversalLendingProtocol;
-  
+
   if (!universalLendingAddress || universalLendingAddress === "0x0000000000000000000000000000000000000000") {
     throw new Error("UniversalLendingProtocol not deployed on this network");
   }
@@ -33,43 +33,72 @@ async function main() {
   const universalLendingProtocol = UniversalLendingProtocol.attach(universalLendingAddress);
 
   // Get all ZRC-20 token addresses from centralized config
+  // Get all ZRC-20 token addresses from centralized config
   const ethArbiAddress = getTokenAddress(chainId, "ETH.ARBI");
   const usdcArbiAddress = getTokenAddress(chainId, "USDC.ARBI");
   const ethEthAddress = getTokenAddress(chainId, "ETH.ETH");
   const usdcEthAddress = getTokenAddress(chainId, "USDC.ETH");
 
+  // Validate token addresses
+  const tokenAddresses = {
+    "ETH.ARBI": ethArbiAddress,
+    "USDC.ARBI": usdcArbiAddress,
+    "ETH.ETH": ethEthAddress,
+    "USDC.ETH": usdcEthAddress
+  };
+
+  for (const [symbol, address] of Object.entries(tokenAddresses)) {
+    if (!address || address === ethers.constants.AddressZero) {
+      console.warn(`Warning: ${symbol} not available on this network`);
+    }
+  }
   console.log("\n=== Token Addresses ===");
   console.log("ETH.ARBI address:", ethArbiAddress);
   console.log("USDC.ARBI address:", usdcArbiAddress);
   console.log("ETH.ETH address:", ethEthAddress);
   console.log("USDC.ETH address:", usdcEthAddress);
 
+
+  // Define chain constants
+  const ARBITRUM_SEPOLIA_CHAIN_ID = 421614;
+  const ETHEREUM_SEPOLIA_CHAIN_ID = 11155111;
+
   // Define supported assets with their destination chains
   const assets = [
-    { 
-      symbol: "ETH.ARBI", 
-      address: ethArbiAddress, 
-      destinationChain: 421614 // Arbitrum Sepolia
+    {
+      symbol: "ETH.ARBI",
+      address: ethArbiAddress,
+      destinationChain: ARBITRUM_SEPOLIA_CHAIN_ID,
+      decimals: 18
     },
-    { 
-      symbol: "USDC.ARBI", 
-      address: usdcArbiAddress, 
-      destinationChain: 421614 // Arbitrum Sepolia
+    {
+      symbol: "USDC.ARBI",
+      address: usdcArbiAddress,
+      destinationChain: ARBITRUM_SEPOLIA_CHAIN_ID,
+      decimals: 6
     },
-    { 
-      symbol: "ETH.ETH", 
-      address: ethEthAddress, 
-      destinationChain: 11155111 // Ethereum Sepolia
+    {
+      symbol: "ETH.ETH",
+      address: ethEthAddress,
+      destinationChain: ETHEREUM_SEPOLIA_CHAIN_ID,
+      decimals: 18
     },
-    { 
-      symbol: "USDC.ETH", 
-      address: usdcEthAddress, 
-      destinationChain: 11155111 // Ethereum Sepolia
+    {
+      symbol: "USDC.ETH",
+      address: usdcEthAddress,
+      destinationChain: ETHEREUM_SEPOLIA_CHAIN_ID,
+      decimals: 6
     }
-  ];
+  ].filter(asset => asset.address && asset.address !== ethers.constants.AddressZero);
+
+  if (assets.length === 0) {
+    console.log("No valid assets found on this network");
+    return;
+  }
+
 
   console.log("\n=== Checking User Supply Balances ===");
-  
+
   let totalWithdrawals = 0;
   const withdrawalPromises = [];
 
@@ -77,50 +106,50 @@ async function main() {
     try {
       // Get user's supply balance for this asset
       const supplyBalance = await universalLendingProtocol.getSupplyBalance(user.address, asset.address);
-      
+
       if (supplyBalance.gt(0)) {
-        console.log(`${asset.symbol}: ${utils.formatUnits(supplyBalance, asset.symbol.includes("USDC") ? 6 : 18)}`);
-        
+        console.log(`${asset.symbol}: ${utils.formatUnits(supplyBalance, asset.decimals)}`);
+
         // Check if user can withdraw (health factor check)
         const canWithdraw = await universalLendingProtocol.canWithdraw(user.address, asset.address, supplyBalance);
-        
+
         if (canWithdraw) {
           console.log(`=> Can withdraw ${asset.symbol} - checking gas fee requirements`);
-          
+
           try {
             // Get gas fee information using the contract's helper function
             const [gasZRC20Address, gasFeeAmount] = await universalLendingProtocol.getWithdrawGasFee(asset.address);
-            
+
             console.log(`  Gas token: ${gasZRC20Address}`);
             console.log(`  Gas fee: ${utils.formatEther(gasFeeAmount)} ETH`);
-            
+
             if (asset.address === gasZRC20Address) {
               // Asset and gas token are the same - contract has enough balance already
               console.log(`=> Same token for asset and gas - proceeding with withdrawal`);
             } else {
               // Asset and gas token are different - user needs to provide gas tokens
               console.log(`=> Different gas token required - checking user balance and approval`);
-              
+
               const IERC20_ABI = [
                 "function balanceOf(address account) external view returns (uint256)",
                 "function approve(address spender, uint256 amount) external returns (bool)",
                 "function allowance(address owner, address spender) external view returns (uint256)"
               ];
-              
+
               const gasToken = new ethers.Contract(gasZRC20Address, IERC20_ABI, user);
               const userGasBalance = await gasToken.balanceOf(user.address);
               console.log(`  User gas token balance: ${utils.formatEther(userGasBalance)}`);
-              
+
               if (userGasBalance.lt(gasFeeAmount)) {
                 console.log(`=> BLOCKED: User needs ${utils.formatEther(gasFeeAmount)} gas tokens but has ${utils.formatEther(userGasBalance)}`);
                 console.log(`   Solution: User needs more ${gasZRC20Address} tokens`);
                 continue;
               }
-              
+
               // Check current allowance
               const currentAllowance = await gasToken.allowance(user.address, universalLendingAddress);
               console.log(`  Current gas token allowance: ${utils.formatEther(currentAllowance)}`);
-              
+
               // Approve gas tokens if needed
               if (currentAllowance.lt(gasFeeAmount)) {
                 console.log(`  => Approving gas tokens...`);
@@ -129,9 +158,9 @@ async function main() {
                 console.log(`  => Gas tokens approved`);
               }
             }
-            
+
             console.log(`=> Proceeding with cross-chain withdrawal to chain ${asset.destinationChain}`);
-            
+
             // Perform cross-chain withdrawal - contract will handle gas token validation internally
             const withdrawalPromise = universalLendingProtocol.withdrawCrossChain(
               asset.address,
@@ -140,13 +169,13 @@ async function main() {
               user.address,
               { gasLimit: 800000 }
             );
-            
+
             withdrawalPromises.push({
               promise: withdrawalPromise,
               asset: asset.symbol,
               amount: supplyBalance
             });
-            
+
             totalWithdrawals++;
           } catch (error: any) {
             console.log(`=> Error checking gas requirements for ${asset.symbol}:`, error.message);
@@ -166,7 +195,7 @@ async function main() {
     console.log("\n=== No withdrawals to process ===");
     console.log("Reasons could be:");
     console.log("1. No supply balances");
-    console.log("2. Would break collateral requirements"); 
+    console.log("2. Would break collateral requirements");
     console.log("3. Insufficient gas tokens in lending contract");
     return;
   }
@@ -180,10 +209,10 @@ async function main() {
       console.log(`Withdrawing ${withdrawal.asset}...`);
       const tx = await withdrawal.promise;
       console.log(`Transaction hash: ${tx.hash}`);
-      
+
       const receipt = await tx.wait();
       console.log(`=> ${withdrawal.asset} withdrawal confirmed in block ${receipt.blockNumber}`);
-      
+
       results.push({
         asset: withdrawal.asset,
         amount: withdrawal.amount,
@@ -204,7 +233,8 @@ async function main() {
   console.log("\n=== Withdrawal Results Summary ===");
   for (const result of results) {
     if (result.status === "success") {
-      const decimals = result.asset.includes("USDC") ? 6 : 18;
+      const asset = assets.find(a => a.symbol === result.asset);
+      const decimals = asset?.decimals || 18;
       console.log(`=> ${result.asset}: ${utils.formatUnits(result.amount, decimals)} - TX: ${result.txHash}`);
     } else {
       console.log(`=> ${result.asset}: Failed - ${result.error}`);
@@ -217,7 +247,7 @@ async function main() {
     const totalCollateralValue = await universalLendingProtocol.getTotalCollateralValue(user.address);
     const totalDebtValue = await universalLendingProtocol.getTotalDebtValue(user.address);
     const healthFactor = await universalLendingProtocol.getHealthFactor(user.address);
-    
+
     console.log("Total Collateral Value:", utils.formatEther(totalCollateralValue), "USD");
     console.log("Total Debt Value:", utils.formatEther(totalDebtValue), "USD");
     console.log("Health Factor:", healthFactor.eq(ethers.constants.MaxUint256) ? "∞" : utils.formatEther(healthFactor));

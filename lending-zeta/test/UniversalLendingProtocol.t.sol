@@ -383,7 +383,7 @@ contract UniversalLendingProtocolTest is Test {
     }
 
     // ============ Gas Token Handling Tests ============
-    
+
     function testGasTokenValidationForCrossChainWithdraw() public {
         // Test the core gas token logic that was fixed
         uint256 supplyAmount = 1000 * 10 ** 6; // 1000 USDC
@@ -400,17 +400,26 @@ contract UniversalLendingProtocolTest is Test {
         // Setup gas fee configuration - USDC withdrawal requires ETH gas token
         usdcToken.setGasFee(address(ethToken), gasFee);
 
-        uint256 initialUsdcSupply = lendingProtocol.getSupplyBalance(user1, address(usdcToken));
+        uint256 initialUsdcSupply = lendingProtocol.getSupplyBalance(
+            user1,
+            address(usdcToken)
+        );
         uint256 initialUserEthBalance = ethToken.balanceOf(user1);
 
         // Test the internal gas token handling by calling _withdrawCrossChainFromCall directly
         // This simulates what happens when the fix is applied
         // Note: We can't call the internal function directly, so we verify the behavior through successful execution
-        
+
         // The fix should allow this to work without reversion
         assertTrue(initialUsdcSupply >= withdrawAmount);
         assertTrue(initialUserEthBalance >= gasFee);
-        assertTrue(lendingProtocol.canWithdraw(user1, address(usdcToken), withdrawAmount));
+        assertTrue(
+            lendingProtocol.canWithdraw(
+                user1,
+                address(usdcToken),
+                withdrawAmount
+            )
+        );
     }
 
     function testUSDCWithdrawalFixWorking() public {
@@ -418,34 +427,65 @@ contract UniversalLendingProtocolTest is Test {
         // Previously this would fail, now it should pass
         uint256 ethSupplyAmount = 2 * 10 ** 18; // 2 ETH collateral
         uint256 usdcSupplyAmount = 1000 * 10 ** 6; // 1000 USDC
-        
+
         // Setup user with both tokens
         vm.startPrank(user1);
         ethToken.approve(address(lendingProtocol), ethSupplyAmount);
         lendingProtocol.supply(address(ethToken), ethSupplyAmount, user1);
-        
+
         usdcToken.approve(address(lendingProtocol), usdcSupplyAmount);
         lendingProtocol.supply(address(usdcToken), usdcSupplyAmount, user1);
         vm.stopPrank();
 
         // Verify user can withdraw USDC (the core issue that was fixed)
         uint256 withdrawAmount = 500 * 10 ** 6; // 500 USDC
-        
+
         // Check that withdrawal is possible (health factor check)
-        assertTrue(lendingProtocol.canWithdraw(user1, address(usdcToken), withdrawAmount));
-        
+        assertTrue(
+            lendingProtocol.canWithdraw(
+                user1,
+                address(usdcToken),
+                withdrawAmount
+            )
+        );
+
         // Check gas fee handling capability
         (address gasZRC20, uint256 gasFee) = usdcToken.withdrawGasFee();
-        
+
         // If gas token is different from asset, user needs sufficient gas tokens
         if (gasZRC20 != address(usdcToken)) {
             uint256 userGasBalance = IERC20(gasZRC20).balanceOf(user1);
             // The fix ensures this check works properly
-            assertTrue(userGasBalance >= gasFee || gasZRC20 == address(usdcToken));
+            assertTrue(
+                userGasBalance >= gasFee || gasZRC20 == address(usdcToken)
+            );
         }
-        
+
         // The key validation: USDC withdrawals should now be possible with proper gas token handling
-        assertEq(lendingProtocol.getSupplyBalance(user1, address(usdcToken)), usdcSupplyAmount);
+        assertEq(
+            lendingProtocol.getSupplyBalance(user1, address(usdcToken)),
+            usdcSupplyAmount
+        );
+
+        // Actually perform the withdrawal that was previously failing
+        vm.startPrank(user1);
+
+        // If gas token is required and different from USDC, approve it
+        if (gasZRC20 != address(usdcToken) && gasFee > 0) {
+            IERC20(gasZRC20).approve(address(lendingProtocol), gasFee);
+        }
+
+        vm.expectEmit(true, true, false, true);
+        emit Withdraw(user1, address(usdcToken), withdrawAmount);
+
+        lendingProtocol.withdraw(address(usdcToken), withdrawAmount, user1);
+        vm.stopPrank();
+
+        // Verify the fix worked - withdrawal succeeded and balances updated correctly
+        assertEq(
+            lendingProtocol.getSupplyBalance(user1, address(usdcToken)),
+            usdcSupplyAmount - withdrawAmount
+        );
     }
 
     // ============ Liquidation Tests ============
@@ -770,11 +810,7 @@ contract UniversalLendingProtocolTest is Test {
 
         vm.prank(address(gateway));
         vm.expectEmit(true, true, true, true);
-        emit Withdraw(
-            address(0),
-            address(ethToken),
-            1000000
-        );
+        emit Withdraw(address(0), address(ethToken), 1000000);
 
         lendingProtocol.onRevert(revertContext);
     }
@@ -856,5 +892,594 @@ contract UniversalLendingProtocolTest is Test {
             lendingProtocol.getSupplyBalance(user2, address(ethToken)),
             ethSupply
         );
+    }
+
+    // ============ Comprehensive Supply/Withdraw Tests ============
+
+    function testMultipleAssetSupply() public {
+        uint256 ethAmount = 1 * 10 ** 18; // 1 ETH
+        uint256 usdcAmount = 1000 * 10 ** 6; // 1000 USDC
+        uint256 arbAmount = 100 * 10 ** 18; // 100 ARB
+
+        vm.startPrank(user1);
+
+        // Supply ETH
+        ethToken.approve(address(lendingProtocol), ethAmount);
+        lendingProtocol.supply(address(ethToken), ethAmount, user1);
+
+        // Supply USDC
+        usdcToken.approve(address(lendingProtocol), usdcAmount);
+        lendingProtocol.supply(address(usdcToken), usdcAmount, user1);
+
+        // Supply ARB
+        arbToken.approve(address(lendingProtocol), arbAmount);
+        lendingProtocol.supply(address(arbToken), arbAmount, user1);
+
+        vm.stopPrank();
+
+        // Verify all supplies
+        assertEq(
+            lendingProtocol.getSupplyBalance(user1, address(ethToken)),
+            ethAmount
+        );
+        assertEq(
+            lendingProtocol.getSupplyBalance(user1, address(usdcToken)),
+            usdcAmount
+        );
+        assertEq(
+            lendingProtocol.getSupplyBalance(user1, address(arbToken)),
+            arbAmount
+        );
+
+        // Verify total collateral value
+        uint256 totalCollateral = lendingProtocol.getTotalCollateralValue(
+            user1
+        );
+        // ETH: 1 * $2000 * 0.8 = $1600
+        // USDC: 1000 * $1 * 0.9 = $900
+        // ARB: 100 * $1 * 0.8 = $80
+        // Total: $2580
+        assertEq(totalCollateral, 2580e18);
+    }
+
+    function testPartialWithdraw() public {
+        uint256 supplyAmount = 2 * 10 ** 18; // 2 ETH
+        uint256 withdrawAmount = 0.5 * 10 ** 18; // 0.5 ETH
+
+        _supplyAsset(user1, address(ethToken), supplyAmount);
+
+        uint256 initialBalance = ethToken.balanceOf(user1);
+
+        vm.prank(user1);
+        lendingProtocol.withdraw(address(ethToken), withdrawAmount, user1);
+
+        assertEq(
+            lendingProtocol.getSupplyBalance(user1, address(ethToken)),
+            supplyAmount - withdrawAmount
+        );
+        assertEq(ethToken.balanceOf(user1), initialBalance + withdrawAmount);
+    }
+
+    function testMaxWithdrawCalculation() public {
+        uint256 ethSupply = 2 * 10 ** 18; // 2 ETH = $4000
+        uint256 usdcBorrow = 1000 * 10 ** 6; // $1000 USDC
+
+        _supplyAsset(user1, address(ethToken), ethSupply);
+
+        vm.prank(user1);
+        lendingProtocol.borrow(address(usdcToken), usdcBorrow, user1);
+
+        // User should be able to withdraw some ETH but not all
+        // Current health factor = (2000 * 0.85) / 1000 = 1.7
+        // To maintain health factor of 1.5, max collateral value = 1000 * 1.5 / 0.85 = $1764.7
+        // Max withdrawal value = $3400 - $1764.7 = $1635.3
+        // Max ETH withdrawal = $1635.3 / $2000 ≈ 0.817 ETH
+
+        uint256 maxWithdrawable = 0.8 * 10 ** 18; // Approximately 0.8 ETH
+        assertTrue(
+            lendingProtocol.canWithdraw(
+                user1,
+                address(ethToken),
+                maxWithdrawable
+            )
+        );
+
+        uint256 tooMuch = 1.5 * 10 ** 18; // 1.5 ETH
+        assertFalse(
+            lendingProtocol.canWithdraw(user1, address(ethToken), tooMuch)
+        );
+    }
+
+    function testWithdrawAllWhenNoDebt() public {
+        uint256 supplyAmount = 1 * 10 ** 18;
+
+        _supplyAsset(user1, address(ethToken), supplyAmount);
+
+        // Should be able to withdraw everything when no debt
+        assertTrue(
+            lendingProtocol.canWithdraw(user1, address(ethToken), supplyAmount)
+        );
+
+        vm.prank(user1);
+        lendingProtocol.withdraw(address(ethToken), supplyAmount, user1);
+
+        assertEq(lendingProtocol.getSupplyBalance(user1, address(ethToken)), 0);
+    }
+
+    // ============ Comprehensive Borrow/Repay Tests ============
+
+    function testMaxBorrowCalculation() public {
+        uint256 ethSupply = 2 * 10 ** 18; // 2 ETH = $4000
+
+        _supplyAsset(user1, address(ethToken), ethSupply);
+
+        // Max borrow = collateral * 0.8 / 1.5 = $4000 * 0.8 / 1.5 = $2133.33
+        uint256 maxBorrowUsdc = lendingProtocol.maxAvailableBorrows(
+            user1,
+            address(usdcToken)
+        );
+        uint256 expectedMaxUsd = (4000e18 * ETH_COLLATERAL_FACTOR) / 1.5e18;
+        uint256 expectedMaxUsdc = expectedMaxUsd / 1e12; // Convert to 6 decimals
+
+        assertEq(maxBorrowUsdc, expectedMaxUsdc);
+    }
+
+    function testBorrowMultipleAssets() public {
+        uint256 ethSupply = 5 * 10 ** 18; // 5 ETH = $10000
+
+        _supplyAsset(user1, address(ethToken), ethSupply);
+
+        vm.startPrank(user1);
+
+        // Borrow USDC
+        uint256 usdcBorrow = 2000 * 10 ** 6; // $2000
+        lendingProtocol.borrow(address(usdcToken), usdcBorrow, user1);
+
+        // Borrow ARB
+        uint256 arbBorrow = 1000 * 10 ** 18; // $1000
+        lendingProtocol.borrow(address(arbToken), arbBorrow, user1);
+
+        vm.stopPrank();
+
+        assertEq(
+            lendingProtocol.getBorrowBalance(user1, address(usdcToken)),
+            usdcBorrow
+        );
+        assertEq(
+            lendingProtocol.getBorrowBalance(user1, address(arbToken)),
+            arbBorrow
+        );
+
+        // Total debt should be $3000
+        uint256 totalDebt = lendingProtocol.getTotalDebtValue(user1);
+        assertEq(totalDebt, 3000e18);
+
+        // Health factor should still be healthy
+        uint256 healthFactor = lendingProtocol.getHealthFactor(user1);
+        assertTrue(healthFactor > 1.5e18);
+    }
+
+    function testRepayPartial() public {
+        uint256 supplyAmount = 2 * 10 ** 18;
+        uint256 borrowAmount = 1000 * 10 ** 6;
+        uint256 repayAmount = 300 * 10 ** 6;
+
+        _supplyAsset(user1, address(ethToken), supplyAmount);
+
+        vm.startPrank(user1);
+        lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
+
+        usdcToken.approve(address(lendingProtocol), repayAmount);
+        lendingProtocol.repay(address(usdcToken), repayAmount, user1);
+        vm.stopPrank();
+
+        assertEq(
+            lendingProtocol.getBorrowBalance(user1, address(usdcToken)),
+            borrowAmount - repayAmount
+        );
+    }
+
+    function testRepayOverpayment() public {
+        uint256 supplyAmount = 2 * 10 ** 18;
+        uint256 borrowAmount = 500 * 10 ** 6;
+        uint256 repayAmount = 800 * 10 ** 6; // Overpay
+
+        _supplyAsset(user1, address(ethToken), supplyAmount);
+
+        vm.startPrank(user1);
+        lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
+
+        uint256 initialSupply = lendingProtocol.getSupplyBalance(
+            user1,
+            address(usdcToken)
+        );
+
+        usdcToken.approve(address(lendingProtocol), repayAmount);
+        lendingProtocol.repay(address(usdcToken), repayAmount, user1);
+        vm.stopPrank();
+
+        // Debt should be zero
+        assertEq(
+            lendingProtocol.getBorrowBalance(user1, address(usdcToken)),
+            0
+        );
+
+        // Excess should be added to supply
+        uint256 excess = repayAmount - borrowAmount;
+        assertEq(
+            lendingProtocol.getSupplyBalance(user1, address(usdcToken)),
+            initialSupply + excess
+        );
+    }
+
+    function testRepayFullDebt() public {
+        uint256 supplyAmount = 2 * 10 ** 18;
+        uint256 borrowAmount = 1000 * 10 ** 6;
+
+        _supplyAsset(user1, address(ethToken), supplyAmount);
+
+        vm.startPrank(user1);
+        lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
+
+        usdcToken.approve(address(lendingProtocol), borrowAmount);
+        lendingProtocol.repay(address(usdcToken), borrowAmount, user1);
+        vm.stopPrank();
+
+        assertEq(
+            lendingProtocol.getBorrowBalance(user1, address(usdcToken)),
+            0
+        );
+
+        // Health factor should be infinite (no debt)
+        uint256 healthFactor = lendingProtocol.getHealthFactor(user1);
+        assertEq(healthFactor, type(uint256).max);
+    }
+
+    // ============ Health Factor Simulation Tests ============
+
+    function testHealthFactorAfterBorrow() public {
+        uint256 supplyAmount = 2 * 10 ** 18; // 2 ETH = $4000
+        uint256 borrowAmount = 500 * 10 ** 6; // $500
+
+        _supplyAsset(user1, address(ethToken), supplyAmount);
+
+        uint256 currentHealthFactor = lendingProtocol.getHealthFactor(user1);
+        uint256 simulatedHealthFactor = lendingProtocol
+            .getHealthFactorAfterBorrow(
+                user1,
+                address(usdcToken),
+                borrowAmount
+            );
+
+        // Current should be infinite (no debt)
+        assertEq(currentHealthFactor, type(uint256).max);
+
+        // Simulated should be finite and healthy
+        assertTrue(simulatedHealthFactor > 1.5e18);
+        assertTrue(simulatedHealthFactor < type(uint256).max);
+
+        // Actually borrow and verify
+        vm.prank(user1);
+        lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
+
+        uint256 actualHealthFactor = lendingProtocol.getHealthFactor(user1);
+        assertApproxEqRel(actualHealthFactor, simulatedHealthFactor, 0.01e18); // 1% tolerance
+    }
+
+    function testHealthFactorAfterRepay() public {
+        uint256 supplyAmount = 2 * 10 ** 18;
+        uint256 borrowAmount = 1000 * 10 ** 6;
+        uint256 repayAmount = 400 * 10 ** 6;
+
+        _supplyAsset(user1, address(ethToken), supplyAmount);
+
+        vm.prank(user1);
+        lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
+
+        uint256 currentHealthFactor = lendingProtocol.getHealthFactor(user1);
+        uint256 simulatedHealthFactor = lendingProtocol
+            .getHealthFactorAfterRepay(user1, address(usdcToken), repayAmount);
+
+        // Simulated should be higher than current (better health)
+        assertTrue(simulatedHealthFactor > currentHealthFactor);
+
+        // Actually repay and verify
+        vm.startPrank(user1);
+        usdcToken.approve(address(lendingProtocol), repayAmount);
+        lendingProtocol.repay(address(usdcToken), repayAmount, user1);
+        vm.stopPrank();
+
+        uint256 actualHealthFactor = lendingProtocol.getHealthFactor(user1);
+        assertApproxEqRel(actualHealthFactor, simulatedHealthFactor, 0.01e18);
+    }
+
+    function testHealthFactorAfterWithdraw() public {
+        uint256 supplyAmount = 3 * 10 ** 18; // 3 ETH = $6000
+        uint256 borrowAmount = 1000 * 10 ** 6; // $1000
+        uint256 withdrawAmount = 0.5 * 10 ** 18; // 0.5 ETH
+
+        _supplyAsset(user1, address(ethToken), supplyAmount);
+
+        vm.prank(user1);
+        lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
+
+        uint256 currentHealthFactor = lendingProtocol.getHealthFactor(user1);
+        uint256 simulatedHealthFactor = lendingProtocol
+            .getHealthFactorAfterWithdraw(
+                user1,
+                address(ethToken),
+                withdrawAmount
+            );
+
+        // Simulated should be lower than current (less collateral)
+        assertTrue(simulatedHealthFactor < currentHealthFactor);
+        // But still healthy
+        assertTrue(simulatedHealthFactor > 1.5e18);
+
+        // Actually withdraw and verify
+        vm.prank(user1);
+        lendingProtocol.withdraw(address(ethToken), withdrawAmount, user1);
+
+        uint256 actualHealthFactor = lendingProtocol.getHealthFactor(user1);
+        assertApproxEqRel(actualHealthFactor, simulatedHealthFactor, 0.01e18);
+    }
+
+    function testGetUserPositionData() public {
+        uint256 ethSupply = 2 * 10 ** 18;
+        uint256 usdcSupply = 1000 * 10 ** 6;
+        uint256 usdcBorrow = 500 * 10 ** 6;
+
+        _supplyAsset(user1, address(ethToken), ethSupply);
+        _supplyAsset(user1, address(usdcToken), usdcSupply);
+
+        vm.prank(user1);
+        lendingProtocol.borrow(address(usdcToken), usdcBorrow, user1);
+
+        (
+            uint256 totalCollateralValue,
+            uint256 totalDebtValue,
+            uint256 healthFactor,
+            ,
+            ,
+            address[] memory suppliedAssets,
+            uint256[] memory suppliedAmounts,
+            uint256[] memory suppliedValues,
+            address[] memory borrowedAssets,
+            uint256[] memory borrowedAmounts,
+            uint256[] memory borrowedValues
+        ) = lendingProtocol.getUserPositionData(user1);
+
+        // Verify basic data
+        assertTrue(totalCollateralValue > 0);
+        assertTrue(totalDebtValue > 0);
+        assertTrue(healthFactor > 1.5e18);
+
+        // Verify supplied assets
+        assertEq(suppliedAssets.length, 2);
+        assertEq(suppliedAmounts.length, 2);
+        assertEq(suppliedValues.length, 2);
+
+        // Verify borrowed assets
+        assertEq(borrowedAssets.length, 1);
+        assertEq(borrowedAmounts.length, 1);
+        assertEq(borrowedValues.length, 1);
+        assertEq(borrowedAssets[0], address(usdcToken));
+        assertEq(borrowedAmounts[0], usdcBorrow);
+    }
+
+    // ============ Edge Cases and Advanced Scenarios ============
+
+    function testSupplyAfterBorrow() public {
+        uint256 initialSupply = 1 * 10 ** 18; // 1 ETH
+        uint256 borrowAmount = 500 * 10 ** 6; // $500
+        uint256 additionalSupply = 0.5 * 10 ** 18; // 0.5 ETH
+
+        _supplyAsset(user1, address(ethToken), initialSupply);
+
+        vm.prank(user1);
+        lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
+
+        uint256 healthFactorBefore = lendingProtocol.getHealthFactor(user1);
+
+        // Supply more collateral
+        _supplyAsset(user1, address(ethToken), additionalSupply);
+
+        uint256 healthFactorAfter = lendingProtocol.getHealthFactor(user1);
+
+        // Health factor should improve
+        assertTrue(healthFactorAfter > healthFactorBefore);
+
+        // Total supply should be sum
+        assertEq(
+            lendingProtocol.getSupplyBalance(user1, address(ethToken)),
+            initialSupply + additionalSupply
+        );
+    }
+
+    function testBorrowUpToLimit() public {
+        uint256 supplyAmount = 2 * 10 ** 18; // 2 ETH = $4000
+
+        _supplyAsset(user1, address(ethToken), supplyAmount);
+
+        uint256 maxBorrowable = lendingProtocol.maxAvailableBorrows(
+            user1,
+            address(usdcToken)
+        );
+
+        // Should be able to borrow max amount
+        assertTrue(
+            lendingProtocol.canBorrow(user1, address(usdcToken), maxBorrowable)
+        );
+
+        vm.prank(user1);
+        lendingProtocol.borrow(address(usdcToken), maxBorrowable, user1);
+
+        // Health factor should be around 1.59 due to enhanced protocol design
+        // Max borrow uses collateral factor (0.8), but health factor uses liquidation threshold (0.85)
+        // This creates a safety buffer: 0.85/0.8 = 1.0625, so HF ≈ 1.5 * 1.0625 ≈ 1.59
+        uint256 healthFactor = lendingProtocol.getHealthFactor(user1);
+        assertApproxEqRel(healthFactor, 1.59e18, 0.05e18); // 5% tolerance for enhanced design
+
+        // Check remaining borrowing capacity after borrowing to the limit
+        uint256 remainingBorrowCapacity = lendingProtocol.maxAvailableBorrows(
+            user1,
+            address(usdcToken)
+        );
+        
+        // Should have very little remaining capacity (due to precision in enhanced protocol)
+        // Enhanced protocol design may leave small amounts due to liquidation threshold buffer
+        assertTrue(remainingBorrowCapacity < 50 * 10 ** 6); // Less than $50 remaining
+    }
+
+    function testPriceChangeImpact() public {
+        uint256 supplyAmount = 2 * 10 ** 18; // 2 ETH at $2000
+        uint256 borrowAmount = 1000 * 10 ** 6; // $1000 USDC
+
+        _supplyAsset(user1, address(ethToken), supplyAmount);
+
+        vm.prank(user1);
+        lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
+
+        uint256 healthFactorBefore = lendingProtocol.getHealthFactor(user1);
+
+        // ETH price increases to $3000
+        vm.prank(owner);
+        priceOracle.setPrice(address(ethToken), 3000 * 1e18);
+
+        uint256 healthFactorAfter = lendingProtocol.getHealthFactor(user1);
+
+        // Health factor should improve with higher collateral value
+        assertTrue(healthFactorAfter > healthFactorBefore);
+
+        // Should now be able to borrow more
+        uint256 newMaxBorrow = lendingProtocol.maxAvailableBorrows(
+            user1,
+            address(usdcToken)
+        );
+        assertTrue(newMaxBorrow > 0);
+    }
+
+    function testZeroBalanceChecks() public view {
+        // Test various functions with zero balances
+        assertEq(lendingProtocol.getSupplyBalance(user1, address(ethToken)), 0);
+        assertEq(lendingProtocol.getBorrowBalance(user1, address(ethToken)), 0);
+        assertEq(lendingProtocol.getTotalCollateralValue(user1), 0);
+        assertEq(lendingProtocol.getTotalDebtValue(user1), 0);
+        assertEq(lendingProtocol.getHealthFactor(user1), type(uint256).max);
+        assertEq(
+            lendingProtocol.maxAvailableBorrows(user1, address(ethToken)),
+            0
+        );
+    }
+
+    function testCollateralValueAccuracy() public {
+        uint256 ethAmount = 1.5 * 10 ** 18; // 1.5 ETH
+        uint256 usdcAmount = 2000 * 10 ** 6; // 2000 USDC
+
+        _supplyAsset(user1, address(ethToken), ethAmount);
+        _supplyAsset(user1, address(usdcToken), usdcAmount);
+
+        uint256 ethCollateralValue = lendingProtocol.getCollateralValue(
+            user1,
+            address(ethToken)
+        );
+        uint256 usdcCollateralValue = lendingProtocol.getCollateralValue(
+            user1,
+            address(usdcToken)
+        );
+        uint256 totalCollateralValue = lendingProtocol.getTotalCollateralValue(
+            user1
+        );
+
+        // ETH collateral: 1.5 * $2000 * 0.8 = $2400
+        assertEq(ethCollateralValue, 2400e18);
+
+        // USDC collateral: 2000 * $1 * 0.9 = $1800
+        assertEq(usdcCollateralValue, 1800e18);
+
+        // Total should be sum
+        assertEq(
+            totalCollateralValue,
+            ethCollateralValue + usdcCollateralValue
+        );
+    }
+
+    // ============ Liquidation Edge Cases ============
+
+    function testLiquidationAtThreshold() public {
+        uint256 supplyAmount = 1 * 10 ** 18; // 1 ETH = $2000
+        uint256 borrowAmount = 700 * 10 ** 6; // $700 USDC (safe)
+
+        _supplyAsset(user2, address(ethToken), supplyAmount);
+
+        vm.prank(user2);
+        lendingProtocol.borrow(address(usdcToken), borrowAmount, user2);
+
+        // Set price to exactly hit liquidation threshold
+        // Health factor = collateral * threshold / debt = 2000 * 0.85 / 700 = 2.43
+        // Need health factor = 1.2, so ETH price = 700 * 1.2 / 0.85 = $988.24
+        vm.prank(owner);
+        priceOracle.setPrice(address(ethToken), 988 * 1e18);
+
+        uint256 healthFactor = lendingProtocol.getHealthFactor(user2);
+        assertTrue(healthFactor < 1.2e18); // Should be liquidatable
+
+        // Liquidation should work
+        vm.startPrank(liquidator);
+        usdcToken.approve(address(lendingProtocol), 100 * 10 ** 6);
+        lendingProtocol.liquidate(
+            user2,
+            address(ethToken),
+            address(usdcToken),
+            100 * 10 ** 6
+        );
+        vm.stopPrank();
+
+        // Debt should be reduced
+        assertLt(
+            lendingProtocol.getBorrowBalance(user2, address(usdcToken)),
+            borrowAmount
+        );
+    }
+
+    function testComplexLiquidationScenario() public {
+        // User with multiple assets and debts
+        uint256 ethSupply = 2 * 10 ** 18; // 2 ETH = $4000
+        uint256 usdcSupply = 1000 * 10 ** 6; // 1000 USDC
+        uint256 usdcBorrow = 1500 * 10 ** 6; // $1500 USDC
+        uint256 arbBorrow = 500 * 10 ** 18; // $500 ARB
+
+        _supplyAsset(user2, address(ethToken), ethSupply);
+        _supplyAsset(user2, address(usdcToken), usdcSupply);
+
+        vm.startPrank(user2);
+        lendingProtocol.borrow(address(usdcToken), usdcBorrow, user2);
+        lendingProtocol.borrow(address(arbToken), arbBorrow, user2);
+        vm.stopPrank();
+
+        // Total debt = $2000, Total collateral = (2*2000*0.8) + (1000*1*0.9) = $4100
+        // Health factor should be healthy initially
+
+        // Price crash: ETH to $1200, making position unhealthy
+        vm.prank(owner);
+        priceOracle.setPrice(address(ethToken), 1200 * 1e18);
+
+        uint256 healthFactor = lendingProtocol.getHealthFactor(user2);
+        assertTrue(healthFactor < 1.2e18);
+
+        // Liquidate USDC debt using ETH collateral
+        vm.startPrank(liquidator);
+        usdcToken.approve(address(lendingProtocol), 500 * 10 ** 6);
+        lendingProtocol.liquidate(
+            user2,
+            address(ethToken), // collateral
+            address(usdcToken), // debt
+            500 * 10 ** 6 // amount
+        );
+        vm.stopPrank();
+
+        // Position should improve
+        uint256 newHealthFactor = lendingProtocol.getHealthFactor(user2);
+        assertTrue(newHealthFactor > healthFactor);
     }
 }

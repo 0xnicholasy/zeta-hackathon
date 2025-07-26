@@ -155,17 +155,7 @@ abstract contract SimpleLendingProtocolBase is
     ) public view virtual returns (uint256) {
         uint256 amount = userSupplies[user][asset];
         uint256 price = assets[asset].price;
-
-        uint256 decimals = IERC20Metadata(asset).decimals();
-        uint256 normalizedAmount = amount;
-
-        if (decimals < 18) {
-            normalizedAmount = amount * (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            normalizedAmount = amount / (10 ** (decimals - 18));
-        }
-
-        return (normalizedAmount * price) / PRECISION;
+        return _calculateAssetValue(amount, asset, price);
     }
 
     function getDebtValue(
@@ -174,17 +164,7 @@ abstract contract SimpleLendingProtocolBase is
     ) public view virtual returns (uint256) {
         uint256 amount = userBorrows[user][asset];
         uint256 price = assets[asset].price;
-
-        uint256 decimals = IERC20Metadata(asset).decimals();
-        uint256 normalizedAmount = amount;
-
-        if (decimals < 18) {
-            normalizedAmount = amount * (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            normalizedAmount = amount / (10 ** (decimals - 18));
-        }
-
-        return (normalizedAmount * price) / PRECISION;
+        return _calculateAssetValue(amount, asset, price);
     }
 
     function canBorrow(
@@ -198,17 +178,7 @@ abstract contract SimpleLendingProtocolBase is
         }
 
         uint256 totalCollateralValue = getTotalCollateralValue(user);
-
-        uint256 decimals = IERC20Metadata(asset).decimals();
-        uint256 normalizedAmount = amount;
-        if (decimals < 18) {
-            normalizedAmount = amount * (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            normalizedAmount = amount / (10 ** (decimals - 18));
-        }
-
-        uint256 additionalDebtValue = (normalizedAmount * assets[asset].price) /
-            PRECISION;
+        uint256 additionalDebtValue = _calculateAssetValue(amount, asset, assets[asset].price);
         uint256 totalDebtValue = getTotalDebtValue(user) + additionalDebtValue;
 
         if (totalDebtValue == 0) return totalCollateralValue > 0;
@@ -228,16 +198,7 @@ abstract contract SimpleLendingProtocolBase is
             return false;
         }
 
-        uint256 decimals = IERC20Metadata(asset).decimals();
-        uint256 normalizedAmount = amount;
-        if (decimals < 18) {
-            normalizedAmount = amount * (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            normalizedAmount = amount / (10 ** (decimals - 18));
-        }
-
-        uint256 collateralToRemove = (normalizedAmount * assets[asset].price) /
-            PRECISION;
+        uint256 collateralToRemove = _calculateAssetValue(amount, asset, assets[asset].price);
         uint256 newCollateralValue = getTotalCollateralValue(user) -
             collateralToRemove;
         uint256 totalDebtValue = getTotalDebtValue(user);
@@ -338,17 +299,7 @@ abstract contract SimpleLendingProtocolBase is
             PRECISION) / assetPrice;
 
         uint256 decimals = IERC20Metadata(asset).decimals();
-        if (decimals < 18) {
-            maxBorrowAmount =
-                maxBorrowValueNormalized /
-                (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            maxBorrowAmount =
-                maxBorrowValueNormalized *
-                (10 ** (decimals - 18));
-        } else {
-            maxBorrowAmount = maxBorrowValueNormalized;
-        }
+        maxBorrowAmount = _denormalizeFromDecimals(maxBorrowValueNormalized, decimals);
 
         // Limit by contract's available balance
         uint256 contractBalance = IERC20(asset).balanceOf(address(this));
@@ -426,6 +377,25 @@ abstract contract SimpleLendingProtocolBase is
     }
 
     /**
+     * @dev Calculate USD value of an asset amount using asset decimals and price
+     * @param amount The amount in asset's native decimals
+     * @param asset The asset address (to get decimals)
+     * @param price The asset price (18 decimals)
+     * @return value The USD value (18 decimals)
+     */
+    function _calculateAssetValue(
+        uint256 amount,
+        address asset,
+        uint256 price
+    ) internal view returns (uint256 value) {
+        if (amount == 0 || price == 0) return 0;
+        
+        uint256 decimals = IERC20Metadata(asset).decimals();
+        uint256 normalizedAmount = _normalizeToDecimals(amount, decimals);
+        return (normalizedAmount * price) / PRECISION;
+    }
+
+    /**
      * @dev Check if withdrawal amount is sufficient to cover gas fees with proper decimal normalization
      * @param asset The asset being withdrawn
      * @param amount The withdrawal amount in asset decimals
@@ -466,6 +436,173 @@ abstract contract SimpleLendingProtocolBase is
 
         if (!_isAmountSufficientForGas(asset, amount, gasToken, gasFee)) {
             revert InvalidAmount();
+        }
+    }
+
+    // ============ Health Factor Preview Functions ============
+    // Note: These implementations use the deprecated asset.price field for basic protocol
+    // UniversalLendingProtocol overrides these with enhanced price oracle logic
+
+    /**
+     * @dev Calculate health factor after a potential borrow
+     * @param user The user address
+     * @param asset The asset to borrow
+     * @param amount The amount to borrow
+     * @return newHealthFactor The health factor after the borrow
+     */
+    function getHealthFactorAfterBorrow(
+        address user,
+        address asset,
+        uint256 amount
+    ) public view virtual returns (uint256 newHealthFactor) {
+        if (!assets[asset].isSupported) return 0;
+        
+        uint256 currentDebtValue = getTotalDebtValue(user);
+        uint256 additionalDebtValue = _calculateAssetValue(amount, asset, assets[asset].price);
+        uint256 newTotalDebtValue = currentDebtValue + additionalDebtValue;
+        
+        if (newTotalDebtValue == 0) {
+            return type(uint256).max;
+        }
+        
+        uint256 totalCollateralValue = getTotalCollateralValue(user);
+        return (totalCollateralValue * PRECISION) / newTotalDebtValue;
+    }
+
+    /**
+     * @dev Calculate health factor after a potential repay
+     * @param user The user address
+     * @param asset The asset to repay
+     * @param amount The amount to repay
+     * @return newHealthFactor The health factor after the repay
+     */
+    function getHealthFactorAfterRepay(
+        address user,
+        address asset,
+        uint256 amount
+    ) public view virtual returns (uint256 newHealthFactor) {
+        if (!assets[asset].isSupported) return type(uint256).max;
+        
+        uint256 currentDebtValue = getTotalDebtValue(user);
+        uint256 repayDebtValue = _calculateAssetValue(amount, asset, assets[asset].price);
+        uint256 userAssetDebt = userBorrows[user][asset];
+        uint256 userAssetDebtValue = _calculateAssetValue(userAssetDebt, asset, assets[asset].price);
+        
+        // Cap repay amount to actual debt
+        uint256 actualRepayValue = repayDebtValue > userAssetDebtValue ? userAssetDebtValue : repayDebtValue;
+        uint256 newTotalDebtValue = currentDebtValue > actualRepayValue ? currentDebtValue - actualRepayValue : 0;
+        
+        if (newTotalDebtValue == 0) {
+            return type(uint256).max;
+        }
+        
+        uint256 totalCollateralValue = getTotalCollateralValue(user);
+        return (totalCollateralValue * PRECISION) / newTotalDebtValue;
+    }
+
+    /**
+     * @dev Calculate health factor after a potential withdrawal
+     * @param user The user address
+     * @param asset The asset to withdraw
+     * @param amount The amount to withdraw
+     * @return newHealthFactor The health factor after the withdrawal
+     */
+    function getHealthFactorAfterWithdraw(
+        address user,
+        address asset,
+        uint256 amount
+    ) public view virtual returns (uint256 newHealthFactor) {
+        if (!assets[asset].isSupported) return 0;
+        
+        uint256 currentDebtValue = getTotalDebtValue(user);
+        
+        if (currentDebtValue == 0) {
+            return type(uint256).max;
+        }
+        
+        // Calculate new collateral value after withdrawal
+        uint256 withdrawalValue = _calculateAssetValue(amount, asset, assets[asset].price);
+        uint256 currentCollateralValue = getTotalCollateralValue(user);
+        uint256 newCollateralValue = currentCollateralValue > withdrawalValue ? 
+            currentCollateralValue - withdrawalValue : 0;
+        
+        return (newCollateralValue * PRECISION) / currentDebtValue;
+    }
+
+    /**
+     * @dev Get comprehensive user position data
+     * @param user The user address
+     * @return totalCollateralValue Total collateral value in USD
+     * @return totalDebtValue Total debt value in USD
+     * @return healthFactor Current health factor
+     * @return maxBorrowUsdValue Maximum borrowable value in USD
+     * @return liquidationThreshold Always returns LIQUIDATION_THRESHOLD (base implementation)
+     * @return suppliedAssets Array of supplied asset addresses
+     * @return suppliedAmounts Array of supplied amounts
+     * @return suppliedValues Array of supplied values in USD
+     * @return borrowedAssets Array of borrowed asset addresses
+     * @return borrowedAmounts Array of borrowed amounts
+     * @return borrowedValues Array of borrowed values in USD
+     */
+    function getUserPositionData(address user) public view virtual returns (
+        uint256 totalCollateralValue,
+        uint256 totalDebtValue,
+        uint256 healthFactor,
+        uint256 maxBorrowUsdValue,
+        uint256 liquidationThreshold,
+        address[] memory suppliedAssets,
+        uint256[] memory suppliedAmounts,
+        uint256[] memory suppliedValues,
+        address[] memory borrowedAssets,
+        uint256[] memory borrowedAmounts,
+        uint256[] memory borrowedValues
+    ) {
+        totalCollateralValue = getTotalCollateralValue(user);
+        totalDebtValue = getTotalDebtValue(user);
+        healthFactor = getHealthFactor(user);
+        maxBorrowUsdValue = maxAvailableBorrowsInUsd(user);
+        liquidationThreshold = LIQUIDATION_THRESHOLD; // Base implementation uses constant
+        
+        // Count assets
+        uint256 suppliedCount = 0;
+        uint256 borrowedCount = 0;
+        
+        for (uint256 i = 0; i < supportedAssets.length; i++) {
+            address asset = supportedAssets[i];
+            if (userSupplies[user][asset] > 0) suppliedCount++;
+            if (userBorrows[user][asset] > 0) borrowedCount++;
+        }
+        
+        // Initialize arrays
+        suppliedAssets = new address[](suppliedCount);
+        suppliedAmounts = new uint256[](suppliedCount);
+        suppliedValues = new uint256[](suppliedCount);
+        borrowedAssets = new address[](borrowedCount);
+        borrowedAmounts = new uint256[](borrowedCount);
+        borrowedValues = new uint256[](borrowedCount);
+        
+        // Fill supplied assets data
+        uint256 suppliedIndex = 0;
+        uint256 borrowedIndex = 0;
+        
+        for (uint256 i = 0; i < supportedAssets.length; i++) {
+            address asset = supportedAssets[i];
+            
+            uint256 supplyBalance = userSupplies[user][asset];
+            if (supplyBalance > 0) {
+                suppliedAssets[suppliedIndex] = asset;
+                suppliedAmounts[suppliedIndex] = supplyBalance;
+                suppliedValues[suppliedIndex] = getCollateralValue(user, asset);
+                suppliedIndex++;
+            }
+            
+            uint256 borrowBalance = userBorrows[user][asset];
+            if (borrowBalance > 0) {
+                borrowedAssets[borrowedIndex] = asset;
+                borrowedAmounts[borrowedIndex] = borrowBalance;
+                borrowedValues[borrowedIndex] = getDebtValue(user, asset);
+                borrowedIndex++;
+            }
         }
     }
 

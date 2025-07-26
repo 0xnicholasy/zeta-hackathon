@@ -29,6 +29,7 @@ import type {
 
 export interface MockZRC20Interface extends utils.Interface {
   functions: {
+    "GAS_LIMIT()": FunctionFragment;
     "PROTOCOL_FLAT_FEE()": FunctionFragment;
     "allowance(address,address)": FunctionFragment;
     "approve(address,uint256)": FunctionFragment;
@@ -52,6 +53,7 @@ export interface MockZRC20Interface extends utils.Interface {
 
   getFunction(
     nameOrSignatureOrTopic:
+      | "GAS_LIMIT"
       | "PROTOCOL_FLAT_FEE"
       | "allowance"
       | "approve"
@@ -73,6 +75,7 @@ export interface MockZRC20Interface extends utils.Interface {
       | "withdrawGasFee"
   ): FunctionFragment;
 
+  encodeFunctionData(functionFragment: "GAS_LIMIT", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "PROTOCOL_FLAT_FEE",
     values?: undefined
@@ -139,6 +142,7 @@ export interface MockZRC20Interface extends utils.Interface {
     values?: undefined
   ): string;
 
+  decodeFunctionResult(functionFragment: "GAS_LIMIT", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "PROTOCOL_FLAT_FEE",
     data: BytesLike
@@ -234,6 +238,8 @@ export interface MockZRC20 extends BaseContract {
   removeListener: OnEvent<this>;
 
   functions: {
+    GAS_LIMIT(overrides?: CallOverrides): Promise<[BigNumber]>;
+
     PROTOCOL_FLAT_FEE(overrides?: CallOverrides): Promise<[BigNumber]>;
 
     allowance(
@@ -315,6 +321,8 @@ export interface MockZRC20 extends BaseContract {
 
     withdrawGasFee(overrides?: CallOverrides): Promise<[string, BigNumber]>;
   };
+
+  GAS_LIMIT(overrides?: CallOverrides): Promise<BigNumber>;
 
   PROTOCOL_FLAT_FEE(overrides?: CallOverrides): Promise<BigNumber>;
 
@@ -398,6 +406,8 @@ export interface MockZRC20 extends BaseContract {
   withdrawGasFee(overrides?: CallOverrides): Promise<[string, BigNumber]>;
 
   callStatic: {
+    GAS_LIMIT(overrides?: CallOverrides): Promise<BigNumber>;
+
     PROTOCOL_FLAT_FEE(overrides?: CallOverrides): Promise<BigNumber>;
 
     allowance(
@@ -505,6 +515,8 @@ export interface MockZRC20 extends BaseContract {
   };
 
   estimateGas: {
+    GAS_LIMIT(overrides?: CallOverrides): Promise<BigNumber>;
+
     PROTOCOL_FLAT_FEE(overrides?: CallOverrides): Promise<BigNumber>;
 
     allowance(
@@ -588,6 +600,8 @@ export interface MockZRC20 extends BaseContract {
   };
 
   populateTransaction: {
+    GAS_LIMIT(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
     PROTOCOL_FLAT_FEE(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     allowance(
