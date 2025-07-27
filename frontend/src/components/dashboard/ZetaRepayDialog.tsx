@@ -6,12 +6,12 @@ import { Input } from '../ui/input';
 import { BaseTransactionDialog } from '../ui/base-transaction-dialog';
 import { TransactionStatus } from '../ui/transaction-status';
 import { TransactionSummary } from '../ui/transaction-summary';
-import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
 import { useContracts } from '../../hooks/useContracts';
 import { useRepayTransactionFlow } from '../../hooks/useTransactionFlow';
 import { useRepayValidation } from '../../hooks/useRepayValidation';
 import { SupportedChain } from '../../contracts/deployments';
-import { safeEVMAddressOrZeroAddress, safeEVMAddress, type UserAssetData } from './types';
+import { safeEVMAddressOrZeroAddress, safeEVMAddress } from '@/types/address';
+import { type UserAssetData } from './types';
 import { ERC20__factory, UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
 import { getHealthFactorColorClass, formatHealthFactor } from '../../utils/healthFactorUtils';
@@ -31,7 +31,6 @@ export function ZetaRepayDialog({ isOpen, onClose, selectedAsset, refetchUserDat
   const [amount, setAmount] = useState('');
 
   // Custom hooks
-  const crossChain = useCrossChainTracking();
   const transactionFlow = useRepayTransactionFlow();
   const { address } = useAccount();
   const safeAddress = safeEVMAddressOrZeroAddress(address);
@@ -116,9 +115,8 @@ export function ZetaRepayDialog({ isOpen, onClose, selectedAsset, refetchUserDat
   const handleClose = useCallback(() => {
     setAmount('');
     txActions.reset();
-    crossChain.reset();
     onClose();
-  }, [onClose, txActions, crossChain]);
+  }, [onClose, txActions]);
 
   // Get step text
   const getStepText = useCallback(() => {
@@ -333,7 +331,6 @@ export function ZetaRepayDialog({ isOpen, onClose, selectedAsset, refetchUserDat
         isTransactionTx={contractState.isTransactionTx}
         isTransactionSuccess={contractState.isTransactionSuccess}
         chainId={SupportedChain.ZETA_TESTNET}
-        crossChain={crossChain}
         transactionType="repay"
       />
     </BaseTransactionDialog>

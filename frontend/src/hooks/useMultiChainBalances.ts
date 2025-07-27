@@ -1,8 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAccount, useReadContracts } from 'wagmi';
 import { formatUnits } from 'viem';
-import type { EVMAddress } from '../components/dashboard/types';
-import { isZeroAddress, safeEVMAddressOrZeroAddress, ZERO_ADDRESS } from '../components/dashboard/types';
+import { EVMAddress, isZeroAddress, safeEVMAddressOrZeroAddress, ZERO_ADDRESS } from '@/types/address';
 import { createPublicClient, http, type PublicClient, type Chain } from 'viem';
 import { arbitrumSepolia, sepolia } from 'viem/chains';
 import {
@@ -13,7 +12,7 @@ import {
   getNetworkConfig
 } from '../contracts/deployments';
 import { ERC20__factory } from '@/contracts/typechain-types';
-import { getAssetPrice } from '../utils/directContractCalls';
+import { getAssetPrice } from '@/utils/directContractCalls';
 
 export interface TokenBalance {
   chainId: number;

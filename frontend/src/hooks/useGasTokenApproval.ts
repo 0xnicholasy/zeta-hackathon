@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useReadContract, useAccount } from 'wagmi';
 import { maxUint256 } from 'viem';
 import { IERC20__factory, UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
-import type { EVMAddress, UserAssetData } from '../components/dashboard/types';
-import { safeEVMAddressOrZeroAddress } from '../components/dashboard/types';
+import type { UserAssetData } from '../components/dashboard/types';
+import { EVMAddress, safeEVMAddressOrZeroAddress } from '@/types/address';
 
 interface UseGasTokenApprovalParams {
     selectedAsset: UserAssetData | null;

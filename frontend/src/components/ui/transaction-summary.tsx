@@ -1,7 +1,7 @@
 import { formatUnits } from 'viem';
 import { formatHexString } from '../../utils/formatHexString';
 import { TransactionType } from '../../types/transactions';
-import { EVMAddress } from '../dashboard/types';
+import { EVMAddress } from '@/types/address';
 
 interface TransactionSummaryProps {
     transactionType: TransactionType;
@@ -28,6 +28,8 @@ export function TransactionSummary({
     const isWithdraw = transactionType === 'withdraw';
     const isBorrow = transactionType === 'borrow';
     const isRepay = transactionType === 'repay';
+    const isLiquidate = transactionType === 'liquidate';
+    const isCrossChain = Boolean(destinationChain);
 
     return (
         <div className={`p-3 border border-border rounded-lg text-sm break-words ${className}`}>
@@ -56,7 +58,7 @@ export function TransactionSummary({
                             </>
                         ) : (
                             <>
-                                You will withdraw {amount} {tokenSymbol} from the lending protocol back to {destinationChain}.
+                                You will withdraw {amount} {tokenSymbol} from the lending protocol {isCrossChain ? `back to ${destinationChain}` : 'to your wallet'}.
                             </>
                         )}
                     </>
@@ -78,17 +80,22 @@ export function TransactionSummary({
                     Recipient: {formatHexString(recipientAddress)}
                 </div>
             )}
-
-            <div className="text-muted-foreground text-xs mt-2">
-                {isSupply && 'Cross-chain deposit fees may apply.'}
-                {isWithdraw && (
-                    isGasToken ?
-                        'Gas fee is paid from the withdrawal amount' :
-                        'Note: Cross-chain withdrawal fees will be deducted from the amount.'
-                )}
-                {isBorrow && 'Cross-chain transaction fees may apply. Ensure sufficient collateral to maintain health factor above 1.5.'}
-                {isRepay && 'Repaying debt will improve your health factor and free up borrowing capacity.'}
-            </div>
+            {isCrossChain ? (
+                <div className="text-muted-foreground text-xs mt-2">
+                    {isSupply && 'Cross-chain deposit fees may apply.'}
+                    {isWithdraw && (
+                        isGasToken ?
+                            'Gas fee is paid from the withdrawal amount' :
+                            'Note: Cross-chain withdrawal fees will be deducted from the amount.'
+                    )}
+                    {isBorrow && 'Cross-chain transaction fees may apply. Ensure sufficient collateral to maintain health factor above 1.5.'}
+                    {isRepay && 'Repaying debt will improve your health factor and free up borrowing capacity.'}
+                </div>
+            ) : (
+                <div className="text-muted-foreground text-xs mt-2">
+                    {isLiquidate && 'Note: Liquidation will reduce target address\'s collateral and debt.'}
+                </div>
+            )}
         </div>
     );
 }

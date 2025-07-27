@@ -6,7 +6,7 @@ import { useMultiChainBalances } from './useMultiChainBalances';
 import { SupportedChain, TOKEN_SYMBOLS, getTokenAddress } from '../contracts/deployments';
 import { UniversalLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/UniversalLendingProtocol__factory';
 import type { UserAssetData } from '../components/dashboard/types';
-import { safeEVMAddress, safeEVMAddressOrZeroAddress } from '../components/dashboard/types';
+import { safeEVMAddress, safeEVMAddressOrZeroAddress } from '@/types/address';
 import { ERC20__factory, IPriceOracle__factory } from '@/contracts/typechain-types';
 
 export function useDashboardData() {

@@ -1,6 +1,6 @@
 import { contractsData } from '@/config/contracts-data';
 import { isTestnetMode } from '../config/wagmi';
-import { isEVMAddress, isZeroAddress, ZERO_ADDRESS, type EVMAddress } from '../components/dashboard/types';
+import { isEVMAddress, isZeroAddress, ZERO_ADDRESS, type EVMAddress } from '@/types/address';
 
 // Type definitions
 export interface NetworkConfig {

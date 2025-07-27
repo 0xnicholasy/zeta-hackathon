@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useReadContract } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { IPriceOracle__factory, UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
-import type { EVMAddress, UserAssetData } from '../components/dashboard/types';
+import { EVMAddress } from '@/types/address';
+import type { UserAssetData } from '../components/dashboard/types';
 
 interface UseBorrowValidationParams {
     selectedAsset: UserAssetData | null;

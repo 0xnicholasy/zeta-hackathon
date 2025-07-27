@@ -12,7 +12,8 @@ import { useTransactionFlow } from '../../hooks/useTransactionFlow';
 import { useWithdrawValidation } from '../../hooks/useWithdrawValidation';
 import { SupportedChain } from '../../contracts/deployments';
 import { getChainDisplayName } from '../../utils/chainUtils';
-import { safeEVMAddressOrZeroAddress, type UserAssetData } from './types';
+import { safeEVMAddressOrZeroAddress } from '@/types/address';
+import { type UserAssetData } from './types';
 import { ERC20__factory, UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
 

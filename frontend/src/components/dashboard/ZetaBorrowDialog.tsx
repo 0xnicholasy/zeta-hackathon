@@ -6,12 +6,12 @@ import { Input } from '../ui/input';
 import { BaseTransactionDialog } from '../ui/base-transaction-dialog';
 import { TransactionStatus } from '../ui/transaction-status';
 import { TransactionSummary } from '../ui/transaction-summary';
-import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
 import { useContracts } from '../../hooks/useContracts';
 import { useBorrowTransactionFlow } from '../../hooks/useTransactionFlow';
 import { useBorrowValidation } from '../../hooks/useBorrowValidation';
 import { SupportedChain } from '../../contracts/deployments';
-import { safeEVMAddressOrZeroAddress, safeEVMAddress, type UserAssetData, validateEVMAddress } from './types';
+import { safeEVMAddressOrZeroAddress, safeEVMAddress, validateEVMAddress } from '@/types/address';
+import { type UserAssetData } from './types';
 import { UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
 import { getHealthFactorColorClass, formatHealthFactor } from '../../utils/healthFactorUtils';
@@ -30,7 +30,6 @@ export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset, refetchUserDa
   const [amount, setAmount] = useState('');
 
   // Custom hooks
-  const crossChain = useCrossChainTracking();
   const transactionFlow = useBorrowTransactionFlow();
   const { address } = useAccount();
   const safeAddress = safeEVMAddressOrZeroAddress(address);
@@ -103,9 +102,8 @@ export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset, refetchUserDa
   const handleClose = useCallback(() => {
     setAmount('');
     txActions.reset();
-    crossChain.reset();
     onClose();
-  }, [onClose, txActions, crossChain]);
+  }, [onClose, txActions]);
 
   // Get step text
   const getStepText = useCallback(() => {
@@ -335,7 +333,6 @@ export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset, refetchUserDa
         isTransactionTx={contractState.isTransactionTx}
         isTransactionSuccess={contractState.isTransactionSuccess}
         chainId={SupportedChain.ZETA_TESTNET}
-        crossChain={crossChain}
         transactionType="borrow"
       />
     </BaseTransactionDialog>

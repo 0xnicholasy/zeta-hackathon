@@ -8,7 +8,7 @@ import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useContracts, SupportedChain } from '../../hooks/useContracts';
-import { EVMAddress } from './types';
+import { EVMAddress } from '@/types/address';
 import { UniversalLendingProtocol__factory } from '../../contracts/typechain-types';
 import { getTokenDecimals, getTokenSymbol } from '../../contracts/deployments';
 import { useLiquidateTransactionFlow } from '../../hooks/useTransactionFlow';

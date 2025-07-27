@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useReadContract, useBalance, useAccount } from 'wagmi';
 import { UniversalLendingProtocol__factory, IPriceOracle__factory } from '@/contracts/typechain-types';
 import { SupportedChain, getTokenAddress } from '../contracts/deployments';
-import { safeEVMAddressOrZeroAddress, ZERO_ADDRESS, type EVMAddress, type UserAssetData } from '../components/dashboard/types';
+import { safeEVMAddressOrZeroAddress, ZERO_ADDRESS, type EVMAddress } from '@/types/address';
+import { type UserAssetData } from '../components/dashboard/types';
 
 interface UseRepayValidationParams {
     selectedAsset: UserAssetData | null;

@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '../components/ui/form';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { useContracts, SupportedChain } from '../hooks/useContracts';
-import { isEVMAddress, validateEVMAddress } from '../components/dashboard/types';
+import { isEVMAddress, validateEVMAddress } from '@/types/address';
 import { SupportedChainId } from '@/contracts/deployments';
 import { contractsData } from '../config/contracts-data';
 import { DepositContract__factory } from '../contracts/typechain-types/factories/contracts/DepositContract__factory';
@@ -324,7 +324,7 @@ function AdminPage() {
     try {
       const contractAddress = validateEVMAddress(contracts.universalLendingProtocol);
       const assetAddress = validateEVMAddress(data.asset);
-      
+
       // Standard DeFi parameters - these should ideally be configurable in the form
       const collateralFactor = parseUnits('0.8', 18); // 80% collateral factor
       const liquidationThreshold = parseUnits('0.85', 18); // 85% liquidation threshold  

@@ -2,13 +2,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { useReadContract } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { UniversalLendingProtocol__factory, ERC20__factory } from '@/contracts/typechain-types';
-import type { UserAssetData, EVMAddress } from '../components/dashboard/types';
-import {
-    safeEVMAddressOrZeroAddress,
-    addressesEqual,
-    ZERO_ADDRESS,
-    isZeroAddress
-} from '../components/dashboard/types';
+import type { UserAssetData } from '../components/dashboard/types';
+import { EVMAddress, ZERO_ADDRESS, isZeroAddress, addressesEqual, safeEVMAddressOrZeroAddress } from '@/types/address';
 import { getGasTokenSymbol, getGasTokenDecimals } from '../utils/chainUtils';
 
 

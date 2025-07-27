@@ -6,12 +6,11 @@ import { Input } from '../ui/input';
 import { BaseTransactionDialog } from '../ui/base-transaction-dialog';
 import { TransactionStatus } from '../ui/transaction-status';
 import { TransactionSummary } from '../ui/transaction-summary';
-import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
 import { useContracts } from '../../hooks/useContracts';
 import { useTransactionFlow } from '../../hooks/useTransactionFlow';
 import { useZetaChainBalances } from '../../hooks/useMultiChainBalances';
 import { SupportedChain } from '../../contracts/deployments';
-import { safeEVMAddress, safeEVMAddressOrZeroAddress } from './types';
+import { safeEVMAddress, safeEVMAddressOrZeroAddress } from '@/types/address';
 import { ERC20__factory, UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import type { UserAssetData } from './types';
 
@@ -30,7 +29,6 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset, refetchUserDa
   const [amount, setAmount] = useState('');
 
   // Custom hooks
-  const crossChain = useCrossChainTracking();
   const transactionFlow = useTransactionFlow();
   const { address } = useAccount();
   const { universalLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
@@ -121,9 +119,8 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset, refetchUserDa
   const handleClose = useCallback(() => {
     setAmount('');
     txActions.reset();
-    crossChain.reset();
     onClose();
-  }, [onClose, txActions, crossChain]);
+  }, [onClose, txActions]);
 
   // Get step text
   const getStepText = useCallback(() => {
@@ -161,7 +158,7 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset, refetchUserDa
     if (contractState.isTransactionSuccess && txState.currentStep === 'depositing') {
       txActions.setCurrentStep('success');
       txActions.setIsSubmitting(false);
-      
+
       // Refetch user data to update health factor and balances
       if (refetchUserData) {
         refetchUserData().catch(console.error);
@@ -182,7 +179,7 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset, refetchUserDa
       sourceChain="ZetaChain"
       currentStep={txState.currentStep}
       isSubmitting={txState.isSubmitting}
-      onSubmit={handleSubmit as unknown as () => void}
+      onSubmit={() => void handleSubmit()}
       isValidAmount={isValidAmount}
       isConnected={Boolean(address)}
       submitButtonText="Supply on Zeta"
@@ -264,10 +261,9 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset, refetchUserDa
         transactionHash={txState.transactionHash}
         isApprovingTx={contractState.isApprovingTx}
         isApprovalSuccess={contractState.isApprovalSuccess}
-        isTransactionTx={contractState.isTransactionTx}  
+        isTransactionTx={contractState.isTransactionTx}
         isTransactionSuccess={contractState.isTransactionSuccess}
         chainId={SupportedChain.ZETA_TESTNET}
-        crossChain={crossChain}
         transactionType="supply"
       />
     </BaseTransactionDialog>

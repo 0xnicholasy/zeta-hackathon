@@ -11,7 +11,7 @@ import { useContracts } from '../../hooks/useContracts';
 import { useTransactionFlow } from '../../hooks/useTransactionFlow';
 import { type SupportedChainId } from '../../contracts/deployments';
 import type { TokenBalance } from '../../hooks/useMultiChainBalances';
-import { safeEVMAddress, safeEVMAddressOrZeroAddress } from './types';
+import { safeEVMAddress, safeEVMAddressOrZeroAddress } from '@/types/address';
 import { DepositContract__factory, ERC20__factory } from '@/contracts/typechain-types';
 
 interface SupplyDialogProps {

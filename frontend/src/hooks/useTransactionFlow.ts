@@ -1,11 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import type { EVMTransactionHash } from '../components/dashboard/types';
-import { safeEVMTransactionHashOrZeroTransactionHash } from '../components/dashboard/types';
 import type {
     TransactionType,
     StepsForTransactionType
 } from '../types/transactions';
+import { EVMTransactionHash, safeEVMTransactionHashOrZeroTransactionHash } from '@/types/address';
 
 // Type guard to check if a step is valid for a given transaction type
 function isValidStepForTransactionType<T extends TransactionType>(
@@ -17,7 +16,7 @@ function isValidStepForTransactionType<T extends TransactionType>(
     const commonSteps = ['input', 'approve', 'approving', 'switchNetwork', 'success', 'failed'];
     const transactionSpecificSteps = ['deposit', 'depositing', 'withdraw', 'withdrawing', 'checkWithdraw', 'checkGas', 'borrow', 'borrowing', 'repay', 'repaying', 'liquidate', 'liquidating'];
     const allValidSteps = [...commonSteps, ...transactionSpecificSteps];
-    
+
     return allValidSteps.includes(step);
 }
 
@@ -122,7 +121,7 @@ export function useTransactionFlow<T extends TransactionType>(initialStep: Steps
 
                     const currentStepKey = currentStep as keyof typeof stepTransitions;
                     const nextStep = stepTransitions[currentStepKey];
-                    
+
                     if (nextStep && isValidStepForTransactionType<T>(nextStep)) {
                         setCurrentStep(nextStep);
                     } else {

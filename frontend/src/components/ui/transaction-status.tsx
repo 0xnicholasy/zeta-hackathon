@@ -3,7 +3,7 @@ import { HourglassLoader } from './hourglass-loader';
 import { getTransactionUrl, SupportedChain } from '../../contracts/deployments';
 import { formatHexString } from '../../utils/formatHexString';
 import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
-import type { EVMTransactionHash } from '../dashboard/types';
+import { EVMTransactionHash } from '@/types/address';
 import type { StepsForTransactionType, TransactionType } from '../../types/transactions';
 import { getChainDisplayNameFromId } from '../../utils/chainUtils';
 

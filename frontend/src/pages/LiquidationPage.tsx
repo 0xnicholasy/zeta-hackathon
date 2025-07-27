@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useAccount, useReadContract } from 'wagmi';
+import { useAccount, useReadContract, useSwitchChain } from 'wagmi';
 import { formatUnits } from 'viem';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
@@ -9,10 +9,10 @@ import { useContracts, SupportedChain } from '../hooks/useContracts';
 import { useNavigateTo } from '../types/routes';
 import { ROUTES } from '../config/routes';
 import { Header } from '../components/dashboard/Header';
-import { EVMAddress, isEVMAddress } from '../components/dashboard/types';
+import { EVMAddress, isEVMAddress } from '@/types/address';
 import { UniversalLendingProtocol__factory } from '../contracts/typechain-types';
 import { FaWallet, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaPlus, FaTrash } from 'react-icons/fa';
-import { LiquidationDialog } from '../components/dashboard/LiquidationDialog';
+import { LiquidationDialog } from '../components/liquidation/LiquidationDialog';
 import { HourglassLoader } from '../components/ui/hourglass-loader';
 
 interface TrackedAddress {
@@ -29,6 +29,7 @@ const DEFAULT_TRACKED_ADDRESS = '0xe1C5Bf97A7Ffb50988DeF972E1E242072298a59C' as 
 
 export default function LiquidationPage() {
   const { isConnected } = useAccount();
+  const { switchChain } = useSwitchChain();
   const navigate = useNavigateTo();
   const [liquidationDialogAddress, setLiquidationDialogAddress] = useState<EVMAddress | null>(null);
 
@@ -85,6 +86,12 @@ export default function LiquidationPage() {
       );
     }
   }, [userAccountData, currentAddress, selectedAddressIndex]);
+
+  useEffect(() => {
+    if (isConnected) {
+      switchChain({ chainId: SupportedChain.ZETA_TESTNET });
+    }
+  }, [isConnected, switchChain]);
 
 
   // Add new address to track

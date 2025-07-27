@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import type { EVMTransactionHash } from '../components/dashboard/types';
-import { safeEVMTransactionHash, ZERO_TRANSACTION_HASH } from '../components/dashboard/types';
+import { EVMTransactionHash, safeEVMTransactionHash, ZERO_TRANSACTION_HASH } from '@/types/address';
 
 export type CrossChainStatus = 'idle' | 'submitted' | 'pending' | 'success' | 'failed';
 
