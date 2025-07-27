@@ -11,7 +11,7 @@ import { useContracts } from '../../hooks/useContracts';
 import { useBorrowTransactionFlow } from '../../hooks/useTransactionFlow';
 import { useBorrowValidation } from '../../hooks/useBorrowValidation';
 import { SupportedChain } from '../../contracts/deployments';
-import { safeEVMAddressOrZeroAddress, safeEVMAddress, type UserAssetData } from './types';
+import { safeEVMAddressOrZeroAddress, safeEVMAddress, type UserAssetData, validateEVMAddress } from './types';
 import { UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import { formatHexString } from '@/utils/formatHexString';
 import { getHealthFactorColorClass, formatHealthFactor } from '../../utils/healthFactorUtils';
@@ -20,12 +20,13 @@ interface ZetaBorrowDialogProps {
   isOpen: boolean;
   onClose: () => void;
   selectedAsset: UserAssetData;
+  refetchUserData?: () => Promise<void>;
 }
 
 // Contract ABI
 const lendingProtocolAbi = UniversalLendingProtocol__factory.abi;
 
-export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset }: ZetaBorrowDialogProps) {
+export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset, refetchUserData }: ZetaBorrowDialogProps) {
   const [amount, setAmount] = useState('');
 
   // Custom hooks
@@ -33,13 +34,16 @@ export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset }: ZetaBorrowD
   const transactionFlow = useBorrowTransactionFlow();
   const { address } = useAccount();
   const safeAddress = safeEVMAddressOrZeroAddress(address);
-  const { universalLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+  const { universalLendingProtocol, priceOracle } = useContracts(SupportedChain.ZETA_TESTNET);
+  const universalLendingProtocolAddress = validateEVMAddress(universalLendingProtocol ?? '');
+  const priceOracleAddress = validateEVMAddress(priceOracle ?? '');
 
   // Validation hook
   const validation = useBorrowValidation({
     selectedAsset,
     amountToBorrow: amount,
-    universalLendingProtocol: safeEVMAddressOrZeroAddress(universalLendingProtocol),
+    universalLendingProtocol: universalLendingProtocolAddress,
+    priceOracle: priceOracleAddress,
     userAddress: safeAddress,
   });
 
@@ -62,7 +66,7 @@ export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset }: ZetaBorrowD
         functionName: 'borrow',
         args: [
           selectedAsset.address,
-          amountBigInt, 
+          amountBigInt,
           address,
         ],
       });
@@ -140,8 +144,13 @@ export function ZetaBorrowDialog({ isOpen, onClose, selectedAsset }: ZetaBorrowD
     if (contractState.isTransactionSuccess && txState.currentStep === 'borrowing') {
       txActions.setCurrentStep('success');
       txActions.setIsSubmitting(false);
+
+      // Refetch user data to update health factor and balances
+      if (refetchUserData) {
+        refetchUserData().catch(console.error);
+      }
     }
-  }, [contractState.isTransactionSuccess, txState.currentStep, txActions]);
+  }, [contractState.isTransactionSuccess, txState.currentStep, txActions, refetchUserData]);
 
   // Handle borrow transaction failure
   useEffect(() => {

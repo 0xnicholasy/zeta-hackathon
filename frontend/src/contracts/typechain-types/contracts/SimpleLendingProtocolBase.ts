@@ -54,20 +54,14 @@ export type RevertContextStructOutput = [string, string, BigNumber, string] & {
 };
 
 export declare namespace ISimpleLendingProtocol {
-  export type AssetStruct = {
-    isSupported: PromiseOrValue<boolean>;
-    price: PromiseOrValue<BigNumberish>;
-  };
+  export type AssetStruct = { isSupported: PromiseOrValue<boolean> };
 
-  export type AssetStructOutput = [boolean, BigNumber] & {
-    isSupported: boolean;
-    price: BigNumber;
-  };
+  export type AssetStructOutput = [boolean] & { isSupported: boolean };
 }
 
 export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
   functions: {
-    "addAsset(address,uint256)": FunctionFragment;
+    "addAsset(address)": FunctionFragment;
     "assets(address)": FunctionFragment;
     "borrow(address,uint256,address)": FunctionFragment;
     "borrowCrossChain(address,uint256,uint256,address)": FunctionFragment;
@@ -75,6 +69,7 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
     "canWithdraw(address,address,uint256)": FunctionFragment;
     "gateway()": FunctionFragment;
     "getAssetConfig(address)": FunctionFragment;
+    "getAssetPrice(address)": FunctionFragment;
     "getBorrowBalance(address,address)": FunctionFragment;
     "getCollateralValue(address,address)": FunctionFragment;
     "getDebtValue(address,address)": FunctionFragment;
@@ -98,12 +93,12 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
     "onCall((bytes,address,uint256),address,uint256,bytes)": FunctionFragment;
     "onRevert((address,address,uint256,bytes))": FunctionFragment;
     "owner()": FunctionFragment;
+    "priceOracle()": FunctionFragment;
     "renounceOwnership()": FunctionFragment;
     "repay(address,uint256,address)": FunctionFragment;
     "supply(address,uint256,address)": FunctionFragment;
     "supportedAssets(uint256)": FunctionFragment;
     "transferOwnership(address)": FunctionFragment;
-    "updatePrice(address,uint256)": FunctionFragment;
     "userBorrows(address,address)": FunctionFragment;
     "userSupplies(address,address)": FunctionFragment;
     "withdraw(address,uint256,address)": FunctionFragment;
@@ -120,6 +115,7 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
       | "canWithdraw"
       | "gateway"
       | "getAssetConfig"
+      | "getAssetPrice"
       | "getBorrowBalance"
       | "getCollateralValue"
       | "getDebtValue"
@@ -143,12 +139,12 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
       | "onCall"
       | "onRevert"
       | "owner"
+      | "priceOracle"
       | "renounceOwnership"
       | "repay"
       | "supply"
       | "supportedAssets"
       | "transferOwnership"
-      | "updatePrice"
       | "userBorrows"
       | "userSupplies"
       | "withdraw"
@@ -157,7 +153,7 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
 
   encodeFunctionData(
     functionFragment: "addAsset",
-    values: [PromiseOrValue<string>, PromiseOrValue<BigNumberish>]
+    values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
     functionFragment: "assets",
@@ -199,6 +195,10 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
   encodeFunctionData(functionFragment: "gateway", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "getAssetConfig",
+    values: [PromiseOrValue<string>]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getAssetPrice",
     values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
@@ -313,6 +313,10 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
+    functionFragment: "priceOracle",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "renounceOwnership",
     values?: undefined
   ): string;
@@ -339,10 +343,6 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
   encodeFunctionData(
     functionFragment: "transferOwnership",
     values: [PromiseOrValue<string>]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "updatePrice",
-    values: [PromiseOrValue<string>, PromiseOrValue<BigNumberish>]
   ): string;
   encodeFunctionData(
     functionFragment: "userBorrows",
@@ -385,6 +385,10 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
   decodeFunctionResult(functionFragment: "gateway", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "getAssetConfig",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getAssetPrice",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -468,6 +472,10 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
   decodeFunctionResult(functionFragment: "onRevert", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "priceOracle",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "renounceOwnership",
     data: BytesLike
   ): Result;
@@ -479,10 +487,6 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "transferOwnership",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "updatePrice",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -620,16 +624,13 @@ export interface SimpleLendingProtocolBase extends BaseContract {
   functions: {
     addAsset(
       asset: PromiseOrValue<string>,
-      priceInUSD: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
     assets(
       arg0: PromiseOrValue<string>,
       overrides?: CallOverrides
-    ): Promise<
-      [boolean, BigNumber] & { isSupported: boolean; price: BigNumber }
-    >;
+    ): Promise<[boolean] & { isSupported: boolean }>;
 
     borrow(
       asset: PromiseOrValue<string>,
@@ -666,6 +667,11 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<[ISimpleLendingProtocol.AssetStructOutput]>;
+
+    getAssetPrice(
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<[BigNumber] & { price: BigNumber }>;
 
     getBorrowBalance(
       user: PromiseOrValue<string>,
@@ -819,6 +825,8 @@ export interface SimpleLendingProtocolBase extends BaseContract {
 
     owner(overrides?: CallOverrides): Promise<[string]>;
 
+    priceOracle(overrides?: CallOverrides): Promise<[string]>;
+
     renounceOwnership(
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
@@ -844,12 +852,6 @@ export interface SimpleLendingProtocolBase extends BaseContract {
 
     transferOwnership(
       newOwner: PromiseOrValue<string>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<ContractTransaction>;
-
-    updatePrice(
-      asset: PromiseOrValue<string>,
-      priceInUSD: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
@@ -883,14 +885,13 @@ export interface SimpleLendingProtocolBase extends BaseContract {
 
   addAsset(
     asset: PromiseOrValue<string>,
-    priceInUSD: PromiseOrValue<BigNumberish>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
   assets(
     arg0: PromiseOrValue<string>,
     overrides?: CallOverrides
-  ): Promise<[boolean, BigNumber] & { isSupported: boolean; price: BigNumber }>;
+  ): Promise<boolean>;
 
   borrow(
     asset: PromiseOrValue<string>,
@@ -927,6 +928,11 @@ export interface SimpleLendingProtocolBase extends BaseContract {
     asset: PromiseOrValue<string>,
     overrides?: CallOverrides
   ): Promise<ISimpleLendingProtocol.AssetStructOutput>;
+
+  getAssetPrice(
+    asset: PromiseOrValue<string>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
 
   getBorrowBalance(
     user: PromiseOrValue<string>,
@@ -1080,6 +1086,8 @@ export interface SimpleLendingProtocolBase extends BaseContract {
 
   owner(overrides?: CallOverrides): Promise<string>;
 
+  priceOracle(overrides?: CallOverrides): Promise<string>;
+
   renounceOwnership(
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
@@ -1105,12 +1113,6 @@ export interface SimpleLendingProtocolBase extends BaseContract {
 
   transferOwnership(
     newOwner: PromiseOrValue<string>,
-    overrides?: Overrides & { from?: PromiseOrValue<string> }
-  ): Promise<ContractTransaction>;
-
-  updatePrice(
-    asset: PromiseOrValue<string>,
-    priceInUSD: PromiseOrValue<BigNumberish>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
@@ -1144,16 +1146,13 @@ export interface SimpleLendingProtocolBase extends BaseContract {
   callStatic: {
     addAsset(
       asset: PromiseOrValue<string>,
-      priceInUSD: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<void>;
 
     assets(
       arg0: PromiseOrValue<string>,
       overrides?: CallOverrides
-    ): Promise<
-      [boolean, BigNumber] & { isSupported: boolean; price: BigNumber }
-    >;
+    ): Promise<boolean>;
 
     borrow(
       asset: PromiseOrValue<string>,
@@ -1190,6 +1189,11 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<ISimpleLendingProtocol.AssetStructOutput>;
+
+    getAssetPrice(
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
 
     getBorrowBalance(
       user: PromiseOrValue<string>,
@@ -1343,6 +1347,8 @@ export interface SimpleLendingProtocolBase extends BaseContract {
 
     owner(overrides?: CallOverrides): Promise<string>;
 
+    priceOracle(overrides?: CallOverrides): Promise<string>;
+
     renounceOwnership(overrides?: CallOverrides): Promise<void>;
 
     repay(
@@ -1366,12 +1372,6 @@ export interface SimpleLendingProtocolBase extends BaseContract {
 
     transferOwnership(
       newOwner: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<void>;
-
-    updatePrice(
-      asset: PromiseOrValue<string>,
-      priceInUSD: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<void>;
 
@@ -1478,7 +1478,6 @@ export interface SimpleLendingProtocolBase extends BaseContract {
   estimateGas: {
     addAsset(
       asset: PromiseOrValue<string>,
-      priceInUSD: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
@@ -1519,6 +1518,11 @@ export interface SimpleLendingProtocolBase extends BaseContract {
     gateway(overrides?: CallOverrides): Promise<BigNumber>;
 
     getAssetConfig(
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    getAssetPrice(
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
@@ -1649,6 +1653,8 @@ export interface SimpleLendingProtocolBase extends BaseContract {
 
     owner(overrides?: CallOverrides): Promise<BigNumber>;
 
+    priceOracle(overrides?: CallOverrides): Promise<BigNumber>;
+
     renounceOwnership(
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
@@ -1674,12 +1680,6 @@ export interface SimpleLendingProtocolBase extends BaseContract {
 
     transferOwnership(
       newOwner: PromiseOrValue<string>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<BigNumber>;
-
-    updatePrice(
-      asset: PromiseOrValue<string>,
-      priceInUSD: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
@@ -1714,7 +1714,6 @@ export interface SimpleLendingProtocolBase extends BaseContract {
   populateTransaction: {
     addAsset(
       asset: PromiseOrValue<string>,
-      priceInUSD: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 
@@ -1755,6 +1754,11 @@ export interface SimpleLendingProtocolBase extends BaseContract {
     gateway(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     getAssetConfig(
+      asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    getAssetPrice(
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
@@ -1887,6 +1891,8 @@ export interface SimpleLendingProtocolBase extends BaseContract {
 
     owner(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
+    priceOracle(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
     renounceOwnership(
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
@@ -1912,12 +1918,6 @@ export interface SimpleLendingProtocolBase extends BaseContract {
 
     transferOwnership(
       newOwner: PromiseOrValue<string>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<PopulatedTransaction>;
-
-    updatePrice(
-      asset: PromiseOrValue<string>,
-      priceInUSD: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 

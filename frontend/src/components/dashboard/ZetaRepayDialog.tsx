@@ -20,13 +20,14 @@ interface ZetaRepayDialogProps {
   isOpen: boolean;
   onClose: () => void;
   selectedAsset: UserAssetData;
+  refetchUserData?: () => Promise<void>;
 }
 
 // Contract ABIs
 const lendingProtocolAbi = UniversalLendingProtocol__factory.abi;
 const erc20Abi = ERC20__factory.abi;
 
-export function ZetaRepayDialog({ isOpen, onClose, selectedAsset }: ZetaRepayDialogProps) {
+export function ZetaRepayDialog({ isOpen, onClose, selectedAsset, refetchUserData }: ZetaRepayDialogProps) {
   const [amount, setAmount] = useState('');
 
   // Custom hooks
@@ -34,14 +35,16 @@ export function ZetaRepayDialog({ isOpen, onClose, selectedAsset }: ZetaRepayDia
   const transactionFlow = useRepayTransactionFlow();
   const { address } = useAccount();
   const safeAddress = safeEVMAddressOrZeroAddress(address);
-  const { universalLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+  const { universalLendingProtocol, priceOracle } = useContracts(SupportedChain.ZETA_TESTNET);
 
   // Validation hook
   const validation = useRepayValidation({
     selectedAsset,
     amount,
     universalLendingProtocol: safeEVMAddressOrZeroAddress(universalLendingProtocol),
+    priceOracle: safeEVMAddressOrZeroAddress(priceOracle),
     userAddress: safeAddress,
+    isLocal: true,
   });
 
   // Computed values
@@ -148,13 +151,18 @@ export function ZetaRepayDialog({ isOpen, onClose, selectedAsset }: ZetaRepayDia
     }
   }, [contractState.isApprovalSuccess, txState.currentStep, handleRepay, txActions]);
 
-  // Handle repay transaction success -> show success
+  // Handle repay transaction success -> show success and refetch data
   useEffect(() => {
     if (contractState.isTransactionSuccess && txState.currentStep === 'repaying') {
       txActions.setCurrentStep('success');
       txActions.setIsSubmitting(false);
+
+      // Refetch user data to update health factor and balances
+      if (refetchUserData) {
+        refetchUserData().catch(console.error);
+      }
     }
-  }, [contractState.isTransactionSuccess, txState.currentStep, txActions]);
+  }, [contractState.isTransactionSuccess, txState.currentStep, txActions, refetchUserData]);
 
   // Handle repay transaction failure
   useEffect(() => {

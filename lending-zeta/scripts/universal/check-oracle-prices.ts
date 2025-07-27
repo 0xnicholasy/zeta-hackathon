@@ -25,7 +25,7 @@ async function main() {
 
   // Get existing price oracle from deployment
   let priceOracle;
-  
+
   try {
     priceOracle = await deploymentManager.getContractInstance("MockPriceOracle");
     console.log("Found MockPriceOracle at:", priceOracle.address);
@@ -53,11 +53,11 @@ async function main() {
 
       console.log(`${asset.symbol}:`);
       console.log(`  Token Address: ${tokenAddress}`);
-      
+
       // Get price from oracle
       const price = await priceOracle.getPrice(tokenAddress);
       const priceFormatted = ethers.utils.formatEther(price);
-      
+
       console.log(`  Current Price: $${priceFormatted}`);
       console.log("");
 

@@ -1,7 +1,7 @@
 /**
  * Transaction types supported by the lending protocol
  */
-export type TransactionType = 'supply' | 'withdraw' | 'borrow' | 'repay';
+export type TransactionType = 'supply' | 'withdraw' | 'borrow' | 'repay' | 'liquidate';
 
 /**
  * Common transaction steps shared across all transaction types
@@ -29,9 +29,14 @@ export type BorrowTransactionStep = CommonTransactionStep | 'borrow' | 'borrowin
 export type RepayTransactionStep = CommonTransactionStep | 'repay' | 'repaying';
 
 /**
+ * Liquidate transaction specific steps
+ */
+export type LiquidateTransactionStep = CommonTransactionStep | 'liquidate' | 'liquidating';
+
+/**
  * Union of all possible transaction steps
  */
-export type TransactionStep = SupplyTransactionStep | WithdrawTransactionStep | BorrowTransactionStep | RepayTransactionStep;
+export type TransactionStep = SupplyTransactionStep | WithdrawTransactionStep | BorrowTransactionStep | RepayTransactionStep | LiquidateTransactionStep;
 
 /**
  * Type mapping for transaction types to their specific steps
@@ -41,6 +46,7 @@ export type TransactionStepMap = {
     K extends 'withdraw' ? WithdrawTransactionStep :
     K extends 'borrow' ? BorrowTransactionStep :
     K extends 'repay' ? RepayTransactionStep :
+    K extends 'liquidate' ? LiquidateTransactionStep :
     never;
 };
 

@@ -15,7 +15,7 @@ import {
 async function main() {
   // Parse protocol type from command line arguments
   const protocolConfig = parseProtocolArgs();
-  
+
   // Display script header
   displayScriptHeader("Update DepositContract Lending Protocol Address", protocolConfig);
 
@@ -55,19 +55,19 @@ async function main() {
   }
 
   console.log("\n🔄 Updating Lending Protocol Address...");
-  
+
   try {
     // Update the lending protocol address with chain ID validation
     const tx = await depositContract.updateLendingProtocolAddress(
       newLendingProtocolAddress,
       zetaChainId
     );
-    
+
     console.log(`Transaction hash: ${tx.hash}`);
     console.log("⏳ Waiting for confirmation...");
-    
+
     const receipt = await tx.wait();
-    
+
     console.log(`✅ Transaction confirmed in block: ${receipt.blockNumber}`);
     console.log(`Gas used: ${receipt.gasUsed.toString()}`);
 
@@ -79,7 +79,7 @@ async function main() {
       console.log("❌ Update verification failed!");
       throw new Error("Address update verification failed");
     }
-    
+
   } catch (error: any) {
     handleCommonErrors(error, "lending protocol address update");
     throw error;

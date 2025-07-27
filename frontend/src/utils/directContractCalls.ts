@@ -1,7 +1,7 @@
 import { createPublicClient, http, formatUnits, type Address } from 'viem';
-import { SupportedChain, getUniversalLendingProtocolAddress, getTokenAddress, TOKEN_SYMBOLS } from '../contracts/deployments';
+import { SupportedChain, getUniversalLendingProtocolAddress, getTokenAddress, TOKEN_SYMBOLS, getPriceOracleAddress } from '../contracts/deployments';
 import { UniversalLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/UniversalLendingProtocol__factory';
-import { ERC20__factory } from '../contracts/typechain-types';
+import { ERC20__factory, IPriceOracle__factory } from '../contracts/typechain-types';
 
 const ALCHEMY_API_KEY = import.meta.env['VITE_ALCHEMY_API_KEY'] ?? '';
 if (!ALCHEMY_API_KEY) {
@@ -171,18 +171,18 @@ export async function getTokenBalance(tokenAddress: string, holderAddress: strin
 export async function getAssetPrice(assetAddress: string): Promise<bigint> {
   try {
     // Use the contract's public getAssetPrice function which includes validation
-    const protocolAddress = getUniversalLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
-    if (!protocolAddress) {
+    const oracleAddress = getPriceOracleAddress(SupportedChain.ZETA_TESTNET);
+    if (!oracleAddress) {
       // eslint-disable-next-line no-console
-      console.warn('UniversalLendingProtocol address not found');
+      console.error('PriceOracle address not found');
       return BigInt(0);
     }
 
     // Call the contract's getAssetPrice function (uses _getValidatedPrice internally) 
     const price = await zetaTestnetClient.readContract({
-      address: protocolAddress as Address,
-      abi: UniversalLendingProtocol__factory.abi,
-      functionName: 'getAssetPrice',
+      address: oracleAddress as Address,
+      abi: IPriceOracle__factory.abi,
+      functionName: 'getPrice',
       args: [assetAddress as Address],
     });
 

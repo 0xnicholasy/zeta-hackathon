@@ -23,6 +23,11 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     path: ROUTES.DASHBOARD,
     isPrivate: true,
   },
+  {
+    label: 'Liquidation',
+    path: ROUTES.LIQUIDATION,
+    isPrivate: true,
+  },
 ];
 
 export const useNavigateTo = () => {

@@ -1,10 +1,9 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useReadContract } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { UniversalLendingProtocol__factory, ERC20__factory } from '@/contracts/typechain-types';
 import type { UserAssetData, EVMAddress } from '../components/dashboard/types';
 import {
-    safeEVMAddress,
     safeEVMAddressOrZeroAddress,
     addressesEqual,
     ZERO_ADDRESS,
@@ -12,29 +11,21 @@ import {
 } from '../components/dashboard/types';
 import { getGasTokenSymbol, getGasTokenDecimals } from '../utils/chainUtils';
 
-// Default empty asset for safe handling
-const EMPTY_ASSET: UserAssetData = {
-    address: ZERO_ADDRESS,
-    symbol: '',
-    unit: '',
-    sourceChain: '',
-    suppliedBalance: '0',
-    borrowedBalance: '0',
-    formattedSuppliedBalance: '0',
-    formattedBorrowedBalance: '0',
-    suppliedUsdValue: '0',
-    borrowedUsdValue: '0',
-    price: '0',
-    isSupported: false,
-    externalChainId: 7001, // Default to ZetaChain testnet
-    decimals: 18,
-};
 
 // Default gas token info
 const EMPTY_GAS_TOKEN_INFO = {
     address: ZERO_ADDRESS,
     amount: BigInt(0),
     needsApproval: false,
+};
+
+const DEFAULT_VALIDATION_FAILED_RESULT: WithdrawValidationResult = {
+    isValid: false,
+    error: '',
+    needsApproval: false,
+    gasTokenInfo: EMPTY_GAS_TOKEN_INFO,
+    receiveAmount: BigInt(0),
+    formattedReceiveAmount: '0',
 };
 
 export interface GasTokenInfo {
@@ -55,7 +46,7 @@ export interface WithdrawValidationResult {
 export interface UseWithdrawValidationProps {
     selectedAsset: UserAssetData | null;
     amount: string;
-    universalLendingProtocol: string | undefined;
+    universalLendingProtocol: EVMAddress;
     userAddress: EVMAddress;
 }
 
@@ -65,50 +56,45 @@ const isTokenGasToken = (selectedAsset: UserAssetData, gasTokenAddress: EVMAddre
     return addressesEqual(selectedAsset.address, gasTokenAddress);
 };
 
-export function useWithdrawValidation(props: UseWithdrawValidationProps): WithdrawValidationResult {
-    // Create safe defaults to avoid null/undefined handling throughout the hook
-    const selectedAsset = props.selectedAsset ?? EMPTY_ASSET;
-    const amount = props.amount ?? '';
-    const universalLendingProtocol = props.universalLendingProtocol ?? '';
-    const userAddress = props.userAddress;
-
-    // State with safe defaults
-    // const [validationError, setValidationError] = useState<string>('');
-    const [gasTokenInfo, setGasTokenInfo] = useState<GasTokenInfo>(EMPTY_GAS_TOKEN_INFO);
+export function useWithdrawValidation({
+    selectedAsset,
+    amount,
+    universalLendingProtocol,
+    userAddress,
+}: UseWithdrawValidationProps): WithdrawValidationResult {
+    const [validationResult, setValidationResult] = useState<WithdrawValidationResult>(DEFAULT_VALIDATION_FAILED_RESULT);
 
     // Computed values
-    const amountBigInt = amount && !isZeroAddress(selectedAsset.address) ? parseUnits(amount, selectedAsset.decimals) : BigInt(0);
-    const maxAmount = selectedAsset.formattedSuppliedBalance;
-    const gasTokenSymbol = getGasTokenSymbol(selectedAsset.sourceChain);
-    const gasTokenDecimals = getGasTokenDecimals(selectedAsset.sourceChain);
-
-    // SimpleLendingProtocol ABI
-    const lendingProtocolAbi = UniversalLendingProtocol__factory.abi;
-    const erc20Abi = ERC20__factory.abi;
+    const amountBigInt = amount && selectedAsset && selectedAsset.address !== ZERO_ADDRESS ? parseUnits(amount, selectedAsset.decimals) : BigInt(0);
+    const maxAmount = selectedAsset?.formattedSuppliedBalance ?? '0';
+    const gasTokenSymbol = selectedAsset?.sourceChain ? getGasTokenSymbol(selectedAsset.sourceChain) : '';
+    const gasTokenDecimals = selectedAsset?.sourceChain ? getGasTokenDecimals(selectedAsset.sourceChain) : 18;
 
     // Check if user can withdraw this amount (health factor validation)
-    const { data: canWithdraw } = useReadContract({
-        address: safeEVMAddress(universalLendingProtocol),
-        abi: lendingProtocolAbi,
+    const { data: canWithdraw, error: canWithdrawError } = useReadContract({
+        address: universalLendingProtocol,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'canWithdraw',
-        args: !isZeroAddress(selectedAsset.address) && amountBigInt > 0 ? [
+        args: selectedAsset && amountBigInt > 0 ? [
             userAddress,
             selectedAsset.address,
             amountBigInt,
         ] : undefined,
         query: {
-            enabled: Boolean(!isZeroAddress(selectedAsset.address) && amountBigInt > 0 && universalLendingProtocol),
+            enabled: Boolean(selectedAsset && amountBigInt > 0),
+            refetchInterval: 10000,
         },
     });
 
     // Get gas fee requirements
-    const { data: gasFeeData } = useReadContract({
-        address: safeEVMAddress(universalLendingProtocol),
-        abi: lendingProtocolAbi,
+    const { data: gasFeeData, error: gasFeeError } = useReadContract({
+        address: universalLendingProtocol,
+        abi: UniversalLendingProtocol__factory.abi,
         functionName: 'getWithdrawGasFee',
-        args: !isZeroAddress(selectedAsset.address) ? [selectedAsset.address] : undefined,
+        args: selectedAsset ? [selectedAsset.address] : undefined,
         query: {
-            enabled: Boolean(!isZeroAddress(selectedAsset.address) && universalLendingProtocol),
+            enabled: Boolean(selectedAsset),
+            refetchInterval: 10000,
         },
     });
 
@@ -117,7 +103,7 @@ export function useWithdrawValidation(props: UseWithdrawValidationProps): Withdr
     const gasFeeAmount = gasFeeData?.[1] ?? BigInt(0);
 
     // Check if the selected token is the gas token
-    const isGasToken = !isZeroAddress(selectedAsset.address) ? isTokenGasToken(selectedAsset, gasTokenAddress) : false;
+    const isGasToken = selectedAsset && !isZeroAddress(selectedAsset.address) ? isTokenGasToken(selectedAsset, gasTokenAddress) : false;
 
     // Calculate receive amount for gas tokens (withdrawal amount - gas fee)
     const receiveAmount = isGasToken && gasFeeAmount && amountBigInt > 0
@@ -125,133 +111,150 @@ export function useWithdrawValidation(props: UseWithdrawValidationProps): Withdr
         : amountBigInt;
 
     // Format receive amount for display
-    const formattedReceiveAmount = receiveAmount > 0 && !isZeroAddress(selectedAsset.address)
+    const formattedReceiveAmount = receiveAmount > 0 && selectedAsset
         ? formatUnits(receiveAmount, selectedAsset.decimals)
         : '0';
 
     // Get gas token balance only if gas token is different from asset
-    const { data: gasTokenBalance } = useReadContract({
+    const { data: gasTokenBalance, error: gasTokenBalanceError } = useReadContract({
         address: gasTokenAddress,
-        abi: erc20Abi,
+        abi: ERC20__factory.abi,
         functionName: 'balanceOf',
         args: [userAddress],
         query: {
             enabled: Boolean(!isZeroAddress(gasTokenAddress) && !isGasToken),
+            refetchInterval: 10000,
         },
     });
 
     // Get gas token allowance only if gas token is different from asset
-    const { data: gasTokenAllowance } = useReadContract({
+    const { data: gasTokenAllowance, error: gasTokenAllowanceError } = useReadContract({
         address: gasTokenAddress,
-        abi: erc20Abi,
+        abi: ERC20__factory.abi,
         functionName: 'allowance',
-        args: [userAddress, safeEVMAddressOrZeroAddress(universalLendingProtocol)],
+        args: [userAddress, universalLendingProtocol],
         query: {
-            enabled: Boolean(!isZeroAddress(gasTokenAddress) && universalLendingProtocol && !isGasToken),
+            enabled: Boolean(!isZeroAddress(gasTokenAddress) && !isGasToken),
+            refetchInterval: 10000,
         },
     });
 
-    // Create error result helper
-    const createErrorResult = useCallback((error: string): WithdrawValidationResult => ({
-        isValid: false,
-        error,
-        needsApproval: false,
-        gasTokenInfo: EMPTY_GAS_TOKEN_INFO,
-        receiveAmount: BigInt(0),
-        formattedReceiveAmount: '0',
-    }), []);
+    // Validate withdrawal parameters
+    const validateWithdrawal = useCallback(() => {
+        if (!selectedAsset) {
+            setValidationResult({
+                ...DEFAULT_VALIDATION_FAILED_RESULT,
+                error: 'Missing required parameters',
+            });
+            return;
+        }
 
-    // Create success result helper
-    const createSuccessResult = useCallback((needsApproval = false, gasTokenInfo = EMPTY_GAS_TOKEN_INFO): WithdrawValidationResult => ({
-        isValid: !needsApproval,
-        error: '',
-        needsApproval,
-        gasTokenInfo,
-        receiveAmount,
-        formattedReceiveAmount,
-    }), [receiveAmount, formattedReceiveAmount]);
+        // Check for data loading errors
+        if (canWithdrawError || gasFeeError || gasTokenBalanceError || gasTokenAllowanceError) {
+            setValidationResult({
+                ...DEFAULT_VALIDATION_FAILED_RESULT,
+                error: 'Error loading data',
+            });
+            return;
+        }
 
-    // Validation logic
-    const validateWithdrawal = useCallback((): WithdrawValidationResult => {
-        // Early validation checks
-        if (isZeroAddress(selectedAsset.address) || !amountBigInt || !universalLendingProtocol) {
-            const error = 'Missing required data';
-            // setValidationError(error);
-            return createErrorResult(error);
+        // Check if data is still loading (only check what's needed)
+        if (gasFeeData === undefined) {
+            setValidationResult({
+                ...DEFAULT_VALIDATION_FAILED_RESULT,
+                error: 'Loading data...',
+            });
+            return;
+        }
+
+        // Handle case where no amount is entered yet
+        if (!amount || parseFloat(amount) <= 0) {
+            setValidationResult({
+                ...DEFAULT_VALIDATION_FAILED_RESULT,
+                error: '',
+                receiveAmount,
+                formattedReceiveAmount,
+            });
+            return;
         }
 
         // Check if withdrawal is allowed (health factor)
         if (canWithdraw === false) {
-            const error = 'Withdrawal would break collateral requirements';
-            // setValidationError(error);
-            return createErrorResult(error);
+            setValidationResult({
+                ...DEFAULT_VALIDATION_FAILED_RESULT,
+                error: 'Withdrawal would break collateral requirements',
+                receiveAmount,
+                formattedReceiveAmount,
+            });
+            return;
         }
 
         // Check gas fee requirements
-        if (!gasFeeData || isZeroAddress(gasTokenAddress) || !gasFeeAmount) {
-            const error = 'Unable to determine gas fee requirements';
-            // setValidationError(error);
-            return createErrorResult(error);
+        if (isZeroAddress(gasTokenAddress) || !gasFeeAmount) {
+            setValidationResult({
+                ...DEFAULT_VALIDATION_FAILED_RESULT,
+                error: 'Unable to determine gas fee requirements',
+                receiveAmount,
+                formattedReceiveAmount,
+            });
+            return;
         }
+
+        let error = '';
+        let isValid = true;
+        let needsApproval = false;
+        let currentGasTokenInfo = EMPTY_GAS_TOKEN_INFO;
 
         // For gas tokens: check if user has enough tokens for withdrawal amount + gas fee
         if (isGasToken) {
-            // Check if withdrawal amount + gas fee exceeds available balance
             const totalNeeded = amountBigInt;
             const availableBalance = parseUnits(maxAmount, selectedAsset.decimals);
 
             if (totalNeeded > availableBalance) {
-                const error = `Insufficient balance. You need ${formatUnits(totalNeeded, selectedAsset.decimals)} ${selectedAsset.unit} total (${amount} withdrawal + ${formatUnits(gasFeeAmount, gasTokenDecimals)} gas fee) but only have ${maxAmount} ${selectedAsset.unit} available.`;
-                // setValidationError(error);
-                return createErrorResult(error);
-            }
-
-            // Check if receive amount would be negative or zero
-            if (receiveAmount <= 0) {
-                const error = `Gas fee (${formatUnits(gasFeeAmount, gasTokenDecimals)} ${gasTokenSymbol}) is greater than or equal to withdrawal amount. You would receive 0 or negative tokens.`;
-                // setValidationError(error);
-                return createErrorResult(error);
+                error = `Insufficient balance. You need ${formatUnits(totalNeeded, selectedAsset.decimals)} ${selectedAsset.unit} total (${amount} withdrawal + ${formatUnits(gasFeeAmount, gasTokenDecimals)} gas fee) but only have ${maxAmount} ${selectedAsset.unit} available.`;
+                isValid = false;
+            } else if (receiveAmount <= 0) {
+                error = `Gas fee (${formatUnits(gasFeeAmount, gasTokenDecimals)} ${gasTokenSymbol}) is greater than or equal to withdrawal amount. You would receive 0 or negative tokens.`;
+                isValid = false;
             }
         } else {
             // For non-gas tokens: check separate gas token balance
             const safeGasTokenBalance = gasTokenBalance ?? BigInt(0);
 
             if (safeGasTokenBalance < gasFeeAmount) {
-                const error = `Insufficient ${gasTokenSymbol} in wallet for gas fees. Need ${formatUnits(gasFeeAmount, gasTokenDecimals)} ${gasTokenSymbol} but have ${formatUnits(safeGasTokenBalance, gasTokenDecimals)} ${gasTokenSymbol}. Please get more ${gasTokenSymbol} in your wallet before proceeding.`;
-                // setValidationError(error);
-                return createErrorResult(error);
-            }
+                error = `Insufficient ${gasTokenSymbol} in wallet for gas fees. Need ${formatUnits(gasFeeAmount, gasTokenDecimals)} ${gasTokenSymbol} but have ${formatUnits(safeGasTokenBalance, gasTokenDecimals)} ${gasTokenSymbol}. Please get more ${gasTokenSymbol} in your wallet before proceeding.`;
+                isValid = false;
+            } else {
+                // Check allowance for separate gas token
+                const safeGasTokenAllowance = gasTokenAllowance ?? BigInt(0);
 
-            // Check allowance for separate gas token
-            const safeGasTokenAllowance = gasTokenAllowance ?? BigInt(0);
-
-            if (safeGasTokenAllowance < gasFeeAmount) {
-                const newGasTokenInfo: GasTokenInfo = {
-                    address: gasTokenAddress,
-                    amount: gasFeeAmount,
-                    needsApproval: true,
-                };
-                setGasTokenInfo(newGasTokenInfo);
-                // setValidationError('');
-                return createSuccessResult(true, newGasTokenInfo);
+                if (safeGasTokenAllowance < gasFeeAmount) {
+                    currentGasTokenInfo = {
+                        address: gasTokenAddress,
+                        amount: gasFeeAmount,
+                        needsApproval: true,
+                    };
+                    needsApproval = true;
+                    isValid = false; // Need approval first
+                }
             }
         }
 
-        // setValidationError('');
-        setGasTokenInfo(EMPTY_GAS_TOKEN_INFO);
-        return createSuccessResult();
-    }, [
-        selectedAsset, amountBigInt, universalLendingProtocol, canWithdraw, gasFeeData,
-        gasTokenAddress, gasFeeAmount, gasTokenBalance, gasTokenAllowance, gasTokenSymbol,
-        gasTokenDecimals, isGasToken, receiveAmount, maxAmount, amount, createErrorResult, createSuccessResult
-    ]);
+        setValidationResult({
+            isValid,
+            error,
+            needsApproval,
+            gasTokenInfo: currentGasTokenInfo,
+            receiveAmount,
+            formattedReceiveAmount,
+        });
 
-    const validationResult = useMemo(() => validateWithdrawal(), [
-        validateWithdrawal
-    ]);
+    }, [selectedAsset, amount, canWithdraw, gasFeeData, gasTokenAddress, gasFeeAmount, gasTokenBalance, gasTokenAllowance, gasTokenSymbol, gasTokenDecimals, isGasToken, receiveAmount, formattedReceiveAmount, maxAmount, amountBigInt, canWithdrawError, gasFeeError, gasTokenBalanceError, gasTokenAllowanceError]);
 
-    return useMemo(() => ({
-        ...validationResult,
-        gasTokenInfo: gasTokenInfo.needsApproval ? gasTokenInfo : validationResult.gasTokenInfo,
-    }), [validationResult, gasTokenInfo]);
+    // Run validation when dependencies change
+    useEffect(() => {
+        validateWithdrawal();
+    }, [validateWithdrawal]);
+
+    return validationResult;
 }

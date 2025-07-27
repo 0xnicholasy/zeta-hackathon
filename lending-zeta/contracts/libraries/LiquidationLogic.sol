@@ -96,6 +96,31 @@ library LiquidationLogic {
     }
 
     /**
+     * @notice Calculates the USD value of collateral using validated price
+     * @dev Secure version that accepts pre-validated price to prevent stale price usage
+     *      Value = normalizedAmount * validatedPrice * collateralFactor / PRECISION^2
+     * @param asset Address of the ZRC-20 collateral asset
+     * @param amount Amount of the asset (in asset's native decimals)
+     * @param collateralFactor Percentage of asset value that counts as collateral (in PRECISION)
+     * @param validatedPrice Pre-validated asset price (in 1e18 precision)
+     * @return collateralValue USD value of collateral (in 1e18 precision)
+     */
+    function calculateCollateralValueWithPrice(
+        address asset,
+        uint256 amount,
+        uint256 collateralFactor,
+        uint256 validatedPrice
+    ) internal view returns (uint256) {
+        uint8 decimals = IERC20Metadata(asset).decimals();
+        
+        // Normalize amount to 18 decimals
+        uint256 normalizedAmount = _normalizeToDecimals(amount, decimals);
+        
+        uint256 result = (normalizedAmount * validatedPrice * collateralFactor) / (PRECISION * PRECISION);
+        return result;
+    }
+
+    /**
      * @notice Calculates the USD value of debt
      * @dev Value = normalizedAmount * price / PRECISION
      *      Debt is always counted at full value (no discount applied)
@@ -117,6 +142,29 @@ library LiquidationLogic {
         uint256 normalizedAmount = _normalizeToDecimals(amount, decimals);
         
         uint256 result = (normalizedAmount * price) / PRECISION;
+        return result;
+    }
+
+    /**
+     * @notice Calculates the USD value of debt using validated price
+     * @dev Secure version that accepts pre-validated price to prevent stale price usage
+     *      Value = normalizedAmount * validatedPrice / PRECISION
+     * @param asset Address of the ZRC-20 debt asset
+     * @param amount Amount of debt (in asset's native decimals)
+     * @param validatedPrice Pre-validated asset price (in 1e18 precision)
+     * @return debtValue USD value of debt (in 1e18 precision)
+     */
+    function calculateDebtValueWithPrice(
+        address asset,
+        uint256 amount,
+        uint256 validatedPrice
+    ) internal view returns (uint256) {
+        uint8 decimals = IERC20Metadata(asset).decimals();
+        
+        // Normalize amount to 18 decimals
+        uint256 normalizedAmount = _normalizeToDecimals(amount, decimals);
+        
+        uint256 result = (normalizedAmount * validatedPrice) / PRECISION;
         return result;
     }
 

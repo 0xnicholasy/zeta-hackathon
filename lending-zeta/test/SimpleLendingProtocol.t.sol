@@ -9,12 +9,14 @@ import {GatewayZEVM} from "@zetachain/protocol-contracts/contracts/zevm/GatewayZ
 import {MessageContext} from "@zetachain/protocol-contracts/contracts/zevm/interfaces/UniversalContract.sol";
 import {MockZRC20} from "../contracts/mocks/MockZRC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {MockPriceOracle} from "../contracts/mocks/MockPriceOracle.sol";
 
 contract SimpleLendingProtocolTest is Test {
     SimpleLendingProtocol public lendingProtocol;
     GatewayZEVM public gateway;
     MockZRC20 public ethToken;
     MockZRC20 public usdcToken;
+    MockPriceOracle public priceOracle;
 
     address public owner = address(0x1);
     address public user1 = address(0x2);
@@ -43,10 +45,12 @@ contract SimpleLendingProtocolTest is Test {
 
         // Deploy mock gateway
         gateway = new GatewayZEVM();
+        priceOracle = new MockPriceOracle();
 
         // Deploy lending protocol
         lendingProtocol = new SimpleLendingProtocol(
             payable(address(gateway)),
+            address(priceOracle),
             owner
         );
 
@@ -55,9 +59,13 @@ contract SimpleLendingProtocolTest is Test {
         usdcToken = new MockZRC20("USD Coin", "USDC", 6, INITIAL_BALANCE);
 
         // Add assets to protocol
-        lendingProtocol.addAsset(address(ethToken), ETH_PRICE);
-        lendingProtocol.addAsset(address(usdcToken), USDC_PRICE);
-        
+        lendingProtocol.addAsset(address(ethToken));
+        lendingProtocol.addAsset(address(usdcToken));
+
+        // Initialize prices with 18 decimal precision
+        priceOracle.setPrice(address(ethToken), ETH_PRICE * 10 ** 18); // $2000 with 18 decimals
+        priceOracle.setPrice(address(usdcToken), USDC_PRICE * 10 ** 18); // $1 with 18 decimals
+
         // Set up gas tokens for cross-chain operations (ETH as gas token for USDC)
         usdcToken.setGasToken(address(ethToken));
         ethToken.setGasToken(address(ethToken));
@@ -97,31 +105,37 @@ contract SimpleLendingProtocolTest is Test {
     function testAssetAddition() public {
         vm.prank(owner);
         address newAsset = address(0x999);
-        lendingProtocol.addAsset(newAsset, 100);
+        lendingProtocol.addAsset(newAsset);
+        priceOracle.setPrice(newAsset, 100 * 10 ** 18);
 
-        (bool isSupported, uint256 price) = lendingProtocol.assets(newAsset);
+        bool isSupported = lendingProtocol.assets(newAsset);
         assertTrue(isSupported);
-        assertEq(price, 100 * 10 ** 18);
+        assertEq(priceOracle.getPrice(newAsset), 100 * 10 ** 18);
         assertEq(lendingProtocol.getSupportedAssetsCount(), 3);
     }
 
     function testPriceUpdate() public {
         vm.prank(owner);
-        lendingProtocol.updatePrice(address(ethToken), 2500);
+        lendingProtocol.updatePrice(address(ethToken), 2500 * 10 ** 18);
 
-        (, uint256 price) = lendingProtocol.assets(address(ethToken));
-        assertEq(price, 2500 * 10 ** 18);
+        // The updatePrice function stores price with original precision from setPrice
+        assertEq(priceOracle.getPrice(address(ethToken)), 2500 * 10 ** 18);
     }
 
     function testOnlyOwnerCanAddAsset() public {
         vm.prank(user1);
         vm.expectRevert();
-        lendingProtocol.addAsset(address(0x999), 100);
+        lendingProtocol.addAsset(address(0x999));
     }
 
     function testCannotUpdateUnsupportedAsset() public {
         vm.prank(owner);
-        vm.expectRevert(abi.encodeWithSelector(ISimpleLendingProtocol.AssetNotSupported.selector, address(0x999)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISimpleLendingProtocol.AssetNotSupported.selector,
+                address(0x999)
+            )
+        );
         lendingProtocol.updatePrice(address(0x999), 100);
     }
 
@@ -147,7 +161,12 @@ contract SimpleLendingProtocolTest is Test {
 
     function testSupplyUnsupportedAsset() public {
         vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSelector(ISimpleLendingProtocol.AssetNotSupported.selector, address(0x999)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISimpleLendingProtocol.AssetNotSupported.selector,
+                address(0x999)
+            )
+        );
         lendingProtocol.supply(address(0x999), 1000, user1);
     }
 
@@ -322,7 +341,7 @@ contract SimpleLendingProtocolTest is Test {
 
         // Drop ETH price to make position liquidatable (below 110% threshold)
         vm.prank(owner);
-        lendingProtocol.updatePrice(address(ethToken), 1050); // ETH drops to $1050
+        lendingProtocol.updatePrice(address(ethToken), 1050 * 10 ** 18); // ETH drops to $1050
         // Health factor: $1050 / $1000 = 1.05 < 1.1 (liquidation threshold)
 
         assertTrue(lendingProtocol.isLiquidatable(user2));
@@ -567,16 +586,16 @@ contract SimpleLendingProtocolTest is Test {
         // Test that USDC (6 decimals) withdrawal works correctly with gas fees
         uint256 supplyAmount = 100 * 10 ** 6; // 100 USDC (6 decimals)
         uint256 withdrawAmount = 50 * 10 ** 6; // 50 USDC (6 decimals)
-        
+
         vm.startPrank(user1);
         usdcToken.approve(address(lendingProtocol), supplyAmount);
         lendingProtocol.supply(address(usdcToken), supplyAmount, user1);
-        
+
         // This should not fail due to decimal mismatch
         // The old bug would compare 50000000 (USDC) with gas fee in ETH decimals
         lendingProtocol.withdraw(address(usdcToken), withdrawAmount, user1);
         vm.stopPrank();
-        
+
         assertEq(
             lendingProtocol.userSupplies(user1, address(usdcToken)),
             supplyAmount - withdrawAmount
@@ -586,18 +605,23 @@ contract SimpleLendingProtocolTest is Test {
     function testGasFeeComparisonWithDifferentDecimals() public {
         // Test that gas fee comparison works correctly across different decimal tokens
         uint256 smallUsdcAmount = 1 * 10 ** 6; // 1 USDC (6 decimals)
-        
+
         vm.startPrank(user1);
         usdcToken.approve(address(lendingProtocol), 1000 * 10 ** 6);
         lendingProtocol.supply(address(usdcToken), 1000 * 10 ** 6, user1);
-        
+
         // Mock the gas fee to be higher than 1 USDC in ETH terms
         // Since MockZRC20 returns 0 gas fee by default, let's set a gas fee
         usdcToken.setGasFee(address(ethToken), 2 * 10 ** 18); // 2 ETH gas fee
-        
+
         // This should fail because 1 USDC is less than 2 ETH gas fee
         vm.expectRevert(ISimpleLendingProtocol.InvalidAmount.selector);
-        lendingProtocol.withdrawCrossChain(address(usdcToken), smallUsdcAmount, 1, user1);
+        lendingProtocol.withdrawCrossChain(
+            address(usdcToken),
+            smallUsdcAmount,
+            1,
+            user1
+        );
         vm.stopPrank();
     }
 
@@ -605,19 +629,23 @@ contract SimpleLendingProtocolTest is Test {
         // Test that large amounts work correctly with decimal normalization
         uint256 largeSupplyAmount = 100000 * 10 ** 6; // 100,000 USDC
         uint256 largeWithdrawAmount = 50000 * 10 ** 6; // 50,000 USDC
-        
+
         // Give user more USDC for this test
         vm.prank(owner);
         usdcToken.transfer(user1, largeSupplyAmount);
-        
+
         vm.startPrank(user1);
         usdcToken.approve(address(lendingProtocol), largeSupplyAmount);
         lendingProtocol.supply(address(usdcToken), largeSupplyAmount, user1);
-        
+
         // This should work fine with large amounts and proper decimal handling
-        lendingProtocol.withdraw(address(usdcToken), largeWithdrawAmount, user1);
+        lendingProtocol.withdraw(
+            address(usdcToken),
+            largeWithdrawAmount,
+            user1
+        );
         vm.stopPrank();
-        
+
         assertEq(
             lendingProtocol.userSupplies(user1, address(usdcToken)),
             largeSupplyAmount - largeWithdrawAmount
@@ -628,24 +656,30 @@ contract SimpleLendingProtocolTest is Test {
         // Test operations with both 18-decimal and 6-decimal tokens
         uint256 ethAmount = 1 * 10 ** 18; // 1 ETH (18 decimals)
         uint256 usdcAmount = 2000 * 10 ** 6; // 2000 USDC (6 decimals)
-        
+
         vm.startPrank(user1);
-        
+
         // Supply both tokens
         ethToken.approve(address(lendingProtocol), ethAmount);
         usdcToken.approve(address(lendingProtocol), usdcAmount);
-        
+
         lendingProtocol.supply(address(ethToken), ethAmount, user1);
         lendingProtocol.supply(address(usdcToken), usdcAmount, user1);
-        
+
         lendingProtocol.withdraw(address(ethToken), ethAmount / 2, user1);
         lendingProtocol.withdraw(address(usdcToken), usdcAmount / 2, user1);
-        
+
         vm.stopPrank();
-        
+
         // Verify balances are correct
-        assertEq(lendingProtocol.userSupplies(user1, address(ethToken)), ethAmount / 2);
-        assertEq(lendingProtocol.userSupplies(user1, address(usdcToken)), usdcAmount / 2);
+        assertEq(
+            lendingProtocol.userSupplies(user1, address(ethToken)),
+            ethAmount / 2
+        );
+        assertEq(
+            lendingProtocol.userSupplies(user1, address(usdcToken)),
+            usdcAmount / 2
+        );
     }
 
     // ============ Gas Fee Validation Tests ============
@@ -653,7 +687,6 @@ contract SimpleLendingProtocolTest is Test {
     function testValidateAmountVsGasFee() public view {
         // Test the new _validateAmountVsGasFee function indirectly
         // This function is internal, so we test through public functions that use it
-        
         // Mock setup - in real implementation, gas fees are determined by ZRC20 contracts
         // Here we verify the logic works through withdrawal attempts
     }
@@ -661,29 +694,35 @@ contract SimpleLendingProtocolTest is Test {
     function testNormalizeToDecimalsIndirectly() public {
         // Test the _normalizeToDecimals function indirectly through operations
         // The function is internal but used in all gas fee comparisons
-        
+
         uint256 usdcSupply = 1000 * 10 ** 6; // 6 decimals
         uint256 ethSupply = 1 * 10 ** 18; // 18 decimals
-        
+
         vm.startPrank(user1);
-        
+
         usdcToken.approve(address(lendingProtocol), usdcSupply);
         ethToken.approve(address(lendingProtocol), ethSupply);
-        
+
         lendingProtocol.supply(address(usdcToken), usdcSupply, user1);
         lendingProtocol.supply(address(ethToken), ethSupply, user1);
-        
+
         // Both should work despite different decimals
         uint256 usdcWithdraw = 100 * 10 ** 6;
         uint256 ethWithdraw = 0.1 * 10 ** 18;
-        
+
         lendingProtocol.withdraw(address(usdcToken), usdcWithdraw, user1);
         lendingProtocol.withdraw(address(ethToken), ethWithdraw, user1);
-        
+
         vm.stopPrank();
-        
+
         // Verify both worked correctly
-        assertEq(lendingProtocol.userSupplies(user1, address(usdcToken)), usdcSupply - usdcWithdraw);
-        assertEq(lendingProtocol.userSupplies(user1, address(ethToken)), ethSupply - ethWithdraw);
+        assertEq(
+            lendingProtocol.userSupplies(user1, address(usdcToken)),
+            usdcSupply - usdcWithdraw
+        );
+        assertEq(
+            lendingProtocol.userSupplies(user1, address(ethToken)),
+            ethSupply - ethWithdraw
+        );
     }
 }

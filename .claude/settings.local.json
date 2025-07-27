@@ -40,7 +40,8 @@
       "WebFetch(domain:athens.explorer.zetachain.com)",
       "Bash(npm run type-check:*)",
       "Bash(npm run build:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(forge build:*)"
     ],
     "deny": []
   }

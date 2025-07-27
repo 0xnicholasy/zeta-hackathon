@@ -15,9 +15,10 @@ import { SupportedChain } from '../../contracts/deployments';
 
 interface BorrowCardProps {
     userAssets: UserAssetData[];
+    refetchUserData?: () => Promise<void>;
 }
 
-export function BorrowCard({ userAssets }: BorrowCardProps) {
+export function BorrowCard({ userAssets, refetchUserData }: BorrowCardProps) {
     // Wallet chain detection
     const walletChainId = useChainId();
     const isOnZetaChain = walletChainId === SupportedChain.ZETA_TESTNET;
@@ -313,11 +314,13 @@ export function BorrowCard({ userAssets }: BorrowCardProps) {
                             isOpen={isBorrowDialogOpen}
                             onClose={handleDialogClose}
                             selectedAsset={selectedAsset}
+                            {...(refetchUserData && { refetchUserData })}
                         />
                         <RepayDialog
                             isOpen={isRepayDialogOpen}
                             onClose={handleDialogClose}
                             selectedAsset={selectedAsset}
+                            {...(refetchUserData && { refetchUserData })}
                         />
                     </>
                 )
@@ -328,6 +331,7 @@ export function BorrowCard({ userAssets }: BorrowCardProps) {
                     isOpen={isZetaBorrowDialogOpen}
                     onClose={() => setIsZetaBorrowDialogOpen(false)}
                     selectedAsset={selectedAssetForZetaBorrow}
+                    {...(refetchUserData && { refetchUserData })}
                 />
             )}
 
@@ -336,6 +340,7 @@ export function BorrowCard({ userAssets }: BorrowCardProps) {
                     isOpen={isZetaRepayDialogOpen}
                     onClose={() => setIsZetaRepayDialogOpen(false)}
                     selectedAsset={selectedAssetForZetaRepay}
+                    {...(refetchUserData && { refetchUserData })}
                 />
             )}
         </Card >

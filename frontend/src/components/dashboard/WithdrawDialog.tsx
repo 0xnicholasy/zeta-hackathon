@@ -20,6 +20,7 @@ interface WithdrawDialogProps {
     isOpen: boolean;
     onClose: () => void;
     selectedAsset: UserAssetData;
+    refetchUserData?: () => Promise<void>;
 }
 
 // Contract ABIs

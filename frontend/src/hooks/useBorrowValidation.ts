@@ -1,13 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useReadContract } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
-import { UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
+import { IPriceOracle__factory, UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import type { EVMAddress, UserAssetData } from '../components/dashboard/types';
 
 interface UseBorrowValidationParams {
     selectedAsset: UserAssetData | null;
     amountToBorrow: string;
     universalLendingProtocol: EVMAddress;
+    priceOracle: EVMAddress;
     userAddress: EVMAddress;
 }
 
@@ -21,68 +22,27 @@ interface BorrowValidationResult {
     borrowValueUsd: number;
 }
 
+const DEFAULT_VALIDATION_FAILED_RESULT: BorrowValidationResult = {
+    isValid: false,
+    error: '',
+    canBorrow: false,
+    maxBorrowAmount: '0',
+    currentHealthFactor: 0,
+    estimatedHealthFactor: 0,
+    borrowValueUsd: 0,
+};
+
 export function useBorrowValidation({
     selectedAsset,
     amountToBorrow,
     universalLendingProtocol,
+    priceOracle,
     userAddress,
 }: UseBorrowValidationParams): BorrowValidationResult {
-    const [validationResult, setValidationResult] = useState<BorrowValidationResult>({
-        isValid: false,
-        error: '',
-        canBorrow: false,
-        maxBorrowAmount: '0',
-        currentHealthFactor: 0,
-        estimatedHealthFactor: 0,
-        borrowValueUsd: 0,
-    });
-
-    // Get total collateral value
-    const { data: totalCollateralValue } = useReadContract({
-        address: universalLendingProtocol,
-        abi: UniversalLendingProtocol__factory.abi,
-        functionName: 'getTotalCollateralValue',
-        args: [userAddress],
-        query: {
-            refetchInterval: 10000,
-        },
-    });
-
-    // Get total debt value
-    const { data: totalDebtValue } = useReadContract({
-        address: universalLendingProtocol,
-        abi: UniversalLendingProtocol__factory.abi,
-        functionName: 'getTotalDebtValue',
-        args: [userAddress],
-        query: {
-            refetchInterval: 10000,
-        },
-    });
-
-    // Get health factor
-    const { data: healthFactor } = useReadContract({
-        address: universalLendingProtocol,
-        abi: UniversalLendingProtocol__factory.abi,
-        functionName: 'getHealthFactor',
-        args: [userAddress],
-        query: {
-            refetchInterval: 10000,
-        },
-    });
-
-    // Get max available borrows in USD
-    const { data: maxAvailableBorrowsInUsd } = useReadContract({
-        address: universalLendingProtocol,
-        abi: UniversalLendingProtocol__factory.abi,
-        functionName: 'maxAvailableBorrowsInUsd',
-        args: [userAddress],
-        query: {
-            refetchInterval: 10000,
-        },
-    });
+    const [validationResult, setValidationResult] = useState<BorrowValidationResult>(DEFAULT_VALIDATION_FAILED_RESULT);
 
     // Get max available borrows for specific asset (considers protocol's available balance)
-    const { data: maxAvailableBorrowsForAsset } = useReadContract({
+    const { data: maxAvailableBorrowsForAsset, error: maxAvailableBorrowsForAssetError } = useReadContract({
         address: universalLendingProtocol,
         abi: UniversalLendingProtocol__factory.abi,
         functionName: 'maxAvailableBorrows',
@@ -93,11 +53,21 @@ export function useBorrowValidation({
         },
     });
 
-    // Get asset price from the lending protocol (replaces deprecated selectedAsset.price)
-    const { data: assetPrice } = useReadContract({
+    const { data: userPositionData, error: userPositionDataError } = useReadContract({
         address: universalLendingProtocol,
         abi: UniversalLendingProtocol__factory.abi,
-        functionName: 'getAssetPrice',
+        functionName: 'getUserPositionData',
+        args: [userAddress],
+        query: {
+            refetchInterval: 10000,
+        },
+    });
+
+    // Get asset price from the lending protocol (replaces deprecated selectedAsset.price)
+    const { data: assetPrice, error: assetPriceError } = useReadContract({
+        address: priceOracle,
+        abi: IPriceOracle__factory.abi,
+        functionName: 'getPrice',
         args: selectedAsset ? [selectedAsset.address] : undefined,
         query: {
             enabled: Boolean(selectedAsset),
@@ -125,51 +95,32 @@ export function useBorrowValidation({
     const validateBorrow = useCallback(() => {
         if (!selectedAsset) {
             setValidationResult({
-                isValid: false,
+                ...DEFAULT_VALIDATION_FAILED_RESULT,
                 error: 'Missing required parameters',
-                canBorrow: false,
-                maxBorrowAmount: '0',
-                currentHealthFactor: 0,
-                estimatedHealthFactor: 0,
-                borrowValueUsd: 0,
             });
             return;
         }
 
         // We still need to calculate max borrow even if no amount is entered
         // Only skip if no amount for validation, but continue for max borrow calculation
-
-        if (totalCollateralValue === undefined || totalDebtValue === undefined || healthFactor === undefined || maxAvailableBorrowsInUsd === undefined || maxAvailableBorrowsForAsset === undefined || assetPrice === undefined) {
-            // console.log("🚀 ~ validateBorrow ~ totalCollateralValue:", totalCollateralValue)
-            // console.log("🚀 ~ validateBorrow ~ totalDebtValue:", totalDebtValue)
-            // console.log("🚀 ~ validateBorrow ~ healthFactor:", healthFactor)
-            // console.log("🚀 ~ validateBorrow ~ maxAvailableBorrowsInUsd:", maxAvailableBorrowsInUsd)
-            // console.log("🚀 ~ validateBorrow ~ maxAvailableBorrowsForAsset:", maxAvailableBorrowsForAsset)
-            // console.log("🚀 ~ validateBorrow ~ assetPrice:", assetPrice)
+        if (userPositionData === undefined || maxAvailableBorrowsForAsset === undefined
+            || userPositionDataError || maxAvailableBorrowsForAssetError || assetPriceError) {
             setValidationResult({
-                isValid: false,
-                error: 'Loading user data...',
-                canBorrow: false,
-                maxBorrowAmount: '0',
-                currentHealthFactor: 0,
-                estimatedHealthFactor: 0,
-                borrowValueUsd: 0,
+                ...DEFAULT_VALIDATION_FAILED_RESULT,
+                error: 'Error loading user data',
             });
             return;
         }
+
+        const [totalCollateralValue, totalDebtValue, healthFactor] = userPositionData ?? [];
 
         // Convert asset price from the contract (18 decimals) to USD
         const assetPriceUsd = Number(assetPrice) / 1e18;
 
         if (isNaN(assetPriceUsd) || assetPriceUsd <= 0) {
             setValidationResult({
-                isValid: false,
+                ...DEFAULT_VALIDATION_FAILED_RESULT,
                 error: 'Asset price is invalid or not available',
-                canBorrow: false,
-                maxBorrowAmount: '0',
-                currentHealthFactor: 0,
-                estimatedHealthFactor: 0,
-                borrowValueUsd: 0,
             });
             return;
         }
@@ -177,11 +128,6 @@ export function useBorrowValidation({
         // Get values from contract (already in USD, normalized to 18 decimals)
         const totalDebtValueFormatted = Number(totalDebtValue) / 1e18;
         const totalCollateralValueFormatted = Number(totalCollateralValue) / 1e18;
-        
-        // console.log("🚀 ~ validateBorrow ~ totalCollateralValue raw:", totalCollateralValue)
-        // console.log("🚀 ~ validateBorrow ~ totalCollateralValueFormatted:", totalCollateralValueFormatted)
-        // console.log("🚀 ~ validateBorrow ~ maxAvailableBorrowsForAsset raw:", maxAvailableBorrowsForAsset)
-        // console.log("🚀 ~ validateBorrow ~ maxBorrowAmount:", formatUnits(maxAvailableBorrowsForAsset, selectedAsset.decimals))
 
         // Handle health factor - contract returns type(uint256).max when debt is 0
         let currentHealthFactorFormatted;
@@ -251,7 +197,7 @@ export function useBorrowValidation({
             estimatedHealthFactor,
             borrowValueUsd,
         });
-    }, [selectedAsset, amountToBorrow, totalCollateralValue, totalDebtValue, healthFactor, maxAvailableBorrowsInUsd, maxAvailableBorrowsForAsset, assetPrice, canBorrowResult]);
+    }, [selectedAsset, userPositionData, maxAvailableBorrowsForAsset, userPositionDataError, maxAvailableBorrowsForAssetError, assetPriceError, assetPrice, amountToBorrow, canBorrowResult]);
 
     // Run validation when dependencies change
     useEffect(() => {

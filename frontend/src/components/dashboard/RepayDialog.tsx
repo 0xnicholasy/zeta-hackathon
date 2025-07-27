@@ -20,6 +20,7 @@ interface RepayDialogProps {
     isOpen: boolean;
     onClose: () => void;
     selectedAsset: UserAssetData;
+    refetchUserData?: () => Promise<void>;
 }
 
 // Contract ABIs
@@ -69,16 +70,18 @@ export function RepayDialog({
         return selectedAsset.address; // Fallback to original address
     }, [selectedAsset]);
 
-    // For validation, we need to use the SimpleLendingProtocol on ZetaChain to check debt
+    // For validation, we need to use the UniversalLendingProtocol on ZetaChain to check debt
     // but the user's wallet balance will be checked on the foreign chain
-    const { simpleLendingProtocol: zetaLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+    const { universalLendingProtocol: zetaLendingProtocol, priceOracle } = useContracts(SupportedChain.ZETA_TESTNET);
 
     // Validation hook
     const validation = useRepayValidation({
         selectedAsset,
         amount,
         universalLendingProtocol: safeEVMAddressOrZeroAddress(zetaLendingProtocol),
+        priceOracle: safeEVMAddressOrZeroAddress(priceOracle),
         userAddress: safeAddress,
+        isLocal: false,
     });
 
     // Computed values

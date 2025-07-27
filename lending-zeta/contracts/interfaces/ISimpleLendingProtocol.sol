@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 interface ISimpleLendingProtocol {
     struct Asset {
         bool isSupported;
-        uint256 price; // Price in USD with 18 decimals
+        // Removed deprecated price field - use oracle for pricing
     }
 
     error Unauthorized();
@@ -63,10 +63,8 @@ interface ISimpleLendingProtocol {
         uint256 repayAmount
     ) external;
 
-    // Admin functions
-    function addAsset(address asset, uint256 priceInUSD) external;
-
-    function updatePrice(address asset, uint256 priceInUSD) external;
+    // Admin functions - updated to use oracle
+    function addAsset(address asset) external;
 
     // View functions
     function getHealthFactor(address user) external view returns (uint256);
@@ -132,6 +130,9 @@ interface ISimpleLendingProtocol {
 
     function maxAvailableAmount(address asset) external view returns (uint256);
 
+    // Add oracle functions to interface
+    function getAssetPrice(address asset) external view returns (uint256);
+
     // ============ Health Factor Preview Functions ============
 
     /**
@@ -188,17 +189,22 @@ interface ISimpleLendingProtocol {
      * @return borrowedAmounts Array of borrowed amounts
      * @return borrowedValues Array of borrowed values in USD
      */
-    function getUserPositionData(address user) external view returns (
-        uint256 totalCollateralValue,
-        uint256 totalDebtValue,
-        uint256 healthFactor,
-        uint256 maxBorrowUsdValue,
-        uint256 liquidationThreshold,
-        address[] memory suppliedAssets,
-        uint256[] memory suppliedAmounts,
-        uint256[] memory suppliedValues,
-        address[] memory borrowedAssets,
-        uint256[] memory borrowedAmounts,
-        uint256[] memory borrowedValues
-    );
+    function getUserPositionData(
+        address user
+    )
+        external
+        view
+        returns (
+            uint256 totalCollateralValue,
+            uint256 totalDebtValue,
+            uint256 healthFactor,
+            uint256 maxBorrowUsdValue,
+            uint256 liquidationThreshold,
+            address[] memory suppliedAssets,
+            uint256[] memory suppliedAmounts,
+            uint256[] memory suppliedValues,
+            address[] memory borrowedAssets,
+            uint256[] memory borrowedAmounts,
+            uint256[] memory borrowedValues
+        );
 }

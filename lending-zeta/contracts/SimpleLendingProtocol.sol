@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./SimpleLendingProtocolBase.sol";
 
+// import "./interfaces/IPriceOracle.sol";
+
 /**
  * @title SimpleLendingProtocol
  * @dev A universal lending protocol for ZetaChain that enables cross-chain lending and borrowing
@@ -15,15 +17,13 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
 
     constructor(
         address payable gatewayAddress,
+        address _priceOracle,
         address owner
-    ) SimpleLendingProtocolBase(gatewayAddress, owner) {}
+    ) SimpleLendingProtocolBase(gatewayAddress, _priceOracle, owner) {}
 
     // Admin functions
-    function addAsset(address asset, uint256 priceInUSD) external onlyOwner {
-        assets[asset] = Asset({
-            isSupported: true,
-            price: priceInUSD * PRECISION
-        });
+    function addAsset(address asset) external onlyOwner {
+        assets[asset] = Asset({isSupported: true});
 
         if (!isAssetAdded[asset]) {
             supportedAssets.push(asset);
@@ -33,7 +33,7 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
 
     function updatePrice(address asset, uint256 priceInUSD) external onlyOwner {
         if (!assets[asset].isSupported) revert AssetNotSupported(asset);
-        assets[asset].price = priceInUSD * PRECISION;
+        priceOracle.setPrice(asset, priceInUSD);
     }
 
     // Core lending functions
@@ -216,8 +216,8 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         if (!isLiquidatable(user)) revert HealthFactorTooLow();
 
         uint256 collateralValue = (repayAmount *
-            assets[debtAsset].price *
-            105) / (100 * assets[collateralAsset].price);
+            priceOracle.getPrice(debtAsset) *
+            105) / (100 * priceOracle.getPrice(collateralAsset));
         if (userSupplies[user][collateralAsset] < collateralValue)
             revert InsufficientCollateral();
 

@@ -19,9 +19,10 @@ interface SupplyCardProps {
     walletChainId?: number;
     externalBalances: Record<number, Record<string, TokenBalance>>;
     isLoadingExternalBalances: boolean;
+    refetchUserData?: () => Promise<void>;
 }
 
-export function SupplyCard({ userAssets, selectedChain, walletChainId, externalBalances, isLoadingExternalBalances }: SupplyCardProps) {
+export function SupplyCard({ userAssets, selectedChain, walletChainId, externalBalances, isLoadingExternalBalances, refetchUserData }: SupplyCardProps) {
     const chainId = parseInt(selectedChain);
     if (!isSupportedChain(chainId)) {
         throw new Error(`Invalid chain ID: ${chainId}`);
@@ -181,7 +182,7 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                         <h3 className="text-base font-semibold mb-3 text-muted-foreground">Supply On ZetaChain</h3>
                         <div className="space-y-2">
                             {suppliedAssets.map((asset) => {
-                                const { zrc20Symbol, zetaBalance, } = getZetaTokenInfo(asset);
+                                const { zrc20Symbol, zetaBalance, zetaUsdValue } = getZetaTokenInfo(asset);
                                 if (Number(zetaBalance) === 0) {
                                     return null;
                                 }
@@ -202,10 +203,7 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                                         <div className="text-right">
                                             <div className="text-sm font-medium">{Number(zetaBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
                                             <div className="text-xs text-muted-foreground">
-                                                {(() => {
-                                                    const { zetaUsdValue } = getZetaTokenInfo(asset);
-                                                    return zetaUsdValue !== '0' ? `$${Number(zetaUsdValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00';
-                                                })()}
+                                                {zetaUsdValue !== '0' ? `$${Number(zetaUsdValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
                                             </div>
                                             <Button
                                                 variant="zeta"
@@ -289,18 +287,21 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                 onClose={() => setIsSupplyDialogOpen(false)}
                 selectedToken={selectedToken}
                 chainId={chainId}
+                {...(refetchUserData && { refetchUserData })}
             />
 
             {selectedAssetForWithdraw && <WithdrawDialog
                 isOpen={isWithdrawDialogOpen}
                 onClose={() => setIsWithdrawDialogOpen(false)}
                 selectedAsset={selectedAssetForWithdraw}
+                {...(refetchUserData && { refetchUserData })}
             />}
 
             {selectedAssetForZetaSupply && <ZetaSupplyDialog
                 isOpen={isZetaSupplyDialogOpen}
                 onClose={() => setIsZetaSupplyDialogOpen(false)}
                 selectedAsset={selectedAssetForZetaSupply}
+                {...(refetchUserData && { refetchUserData })}
             />}
 
             {selectedAssetForZetaWithdraw && <ZetaWithdrawDialog

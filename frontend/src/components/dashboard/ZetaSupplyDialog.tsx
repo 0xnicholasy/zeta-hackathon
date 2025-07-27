@@ -19,13 +19,14 @@ interface ZetaSupplyDialogProps {
   isOpen: boolean;
   onClose: () => void;
   selectedAsset: UserAssetData;
+  refetchUserData?: () => Promise<void>;
 }
 
 // Contract ABIs
 const lendingProtocolAbi = UniversalLendingProtocol__factory.abi;
 const erc20Abi = ERC20__factory.abi;
 
-export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset }: ZetaSupplyDialogProps) {
+export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset, refetchUserData }: ZetaSupplyDialogProps) {
   const [amount, setAmount] = useState('');
 
   // Custom hooks
@@ -155,13 +156,18 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset }: ZetaSupplyD
     }
   }, [contractState.isApprovalSuccess, txState.currentStep, handleSupply, txActions]);
 
-  // Handle supply transaction success -> show success
+  // Handle supply transaction success -> show success and refetch data
   useEffect(() => {
     if (contractState.isTransactionSuccess && txState.currentStep === 'depositing') {
       txActions.setCurrentStep('success');
       txActions.setIsSubmitting(false);
+      
+      // Refetch user data to update health factor and balances
+      if (refetchUserData) {
+        refetchUserData().catch(console.error);
+      }
     }
-  }, [contractState.isTransactionSuccess, txState.currentStep, txActions]);
+  }, [contractState.isTransactionSuccess, txState.currentStep, txActions, refetchUserData]);
 
   // Early return AFTER all hooks have been called
   if (!selectedAsset || !universalLendingProtocol) return null;

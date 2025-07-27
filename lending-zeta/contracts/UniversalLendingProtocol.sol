@@ -6,6 +6,7 @@ import "./interfaces/IUniversalLendingProtocol.sol";
 import "./interfaces/IPriceOracle.sol";
 import "./libraries/InterestRateModel.sol";
 import "./libraries/LiquidationLogic.sol";
+import "./libraries/UserAssetCalculations.sol";
 
 /**
  * @title UniversalLendingProtocol
@@ -18,12 +19,11 @@ contract UniversalLendingProtocol is
     using SafeERC20 for IERC20;
     using InterestRateModel for *;
     using LiquidationLogic for *;
+    using UserAssetCalculations for *;
 
     uint256 private constant RESERVE_FACTOR = 0.1e18; // 10%
     uint256 private constant MAX_PRICE_AGE = 3600; // 1 hour
     uint256 private constant MIN_VALID_PRICE = 1e6; // Minimum valid price (prevents flash loan attacks)
-
-    IPriceOracle public priceOracle;
 
     // Enhanced asset configuration
     mapping(address => AssetConfig) public enhancedAssets;
@@ -40,8 +40,8 @@ contract UniversalLendingProtocol is
         address payable _gateway,
         address _priceOracle,
         address _owner
-    ) SimpleLendingProtocol(_gateway, _owner) {
-        priceOracle = IPriceOracle(_priceOracle);
+    ) SimpleLendingProtocol(_gateway, _priceOracle, _owner) {
+        // Oracle is already set in parent constructor
     }
 
     // Enhanced admin functions
@@ -77,10 +77,7 @@ contract UniversalLendingProtocol is
 
         // Add to base protocol first - manually set the asset in the base mapping
         // Note: price field is deprecated, use priceOracle.getPrice() instead
-        assets[asset] = Asset({
-            isSupported: true,
-            price: 0 // Deprecated: Use priceOracle.getPrice() for actual price
-        });
+        assets[asset] = Asset({isSupported: true});
 
         if (!isAssetAdded[asset]) {
             supportedAssets.push(asset);
@@ -348,7 +345,39 @@ contract UniversalLendingProtocol is
         );
     }
 
-    // Enhanced health factor calculation
+    /**
+     * @dev Internal function to calculate health factor with optional custom balances
+     * Single source of truth for all health factor calculations - now uses consolidated helpers
+     */
+    function _calculateHealthFactorInternal(
+        address user,
+        address modifiedAsset,
+        uint256 newCollateralBalance,
+        uint256 newDebtBalance,
+        bool isModified
+    ) internal view returns (uint256) {
+        UserAssetCalculations.UserAssetData memory assetData = UserAssetCalculations.calculateUserAssetData(
+            user, 
+            modifiedAsset, 
+            newCollateralBalance, 
+            newDebtBalance, 
+            isModified,
+            supportedAssets,
+            userSupplies,
+            userBorrows,
+            enhancedAssets,
+            priceOracle
+        );
+
+        if (assetData.totalDebtValue == 0) {
+            return type(uint256).max;
+        }
+
+        return (assetData.totalWeightedCollateral * PRECISION) / assetData.totalDebtValue;
+    }
+
+
+    // Enhanced health factor calculation - single source of truth
     function getHealthFactor(
         address user
     )
@@ -357,32 +386,7 @@ contract UniversalLendingProtocol is
         override(ISimpleLendingProtocol, SimpleLendingProtocolBase)
         returns (uint256)
     {
-        uint256 totalDebtValue = getTotalDebtValue(user);
-
-        if (totalDebtValue == 0) {
-            return type(uint256).max;
-        }
-
-        // Calculate weighted collateral value using liquidation thresholds
-        uint256 totalWeightedCollateral = 0;
-
-        for (uint256 i = 0; i < supportedAssets.length; i++) {
-            address asset = supportedAssets[i];
-            uint256 supplyBalance = userSupplies[user][asset];
-
-            if (supplyBalance > 0) {
-                uint256 assetPrice = _getValidatedPrice(asset);
-                uint256 collateralValue = (supplyBalance * assetPrice) /
-                    PRECISION;
-
-                // Use only liquidation threshold for health factor calculation
-                uint256 weightedCollateral = (collateralValue *
-                    enhancedAssets[asset].liquidationThreshold) / PRECISION;
-                totalWeightedCollateral += weightedCollateral;
-            }
-        }
-
-        return (totalWeightedCollateral * PRECISION) / totalDebtValue;
+        return _calculateHealthFactorInternal(user, address(0), 0, 0, false);
     }
 
     // Override to use price oracle instead of fixed prices
@@ -397,10 +401,10 @@ contract UniversalLendingProtocol is
     {
         uint256 amount = userBorrows[user][asset];
         uint256 price = _getValidatedPrice(asset);
-        return _calculateAssetValue(amount, asset, price);
+        return UserAssetCalculations._calculateAssetValue(amount, asset, price);
     }
 
-    // Enhanced user account data with weighted liquidation thresholds
+    // Enhanced user account data with weighted liquidation thresholds - now uses consolidated helpers
     function getUserAccountData(
         address user
     )
@@ -415,83 +419,41 @@ contract UniversalLendingProtocol is
             uint256 healthFactor
         )
     {
-        uint256 totalCollateral;
-        uint256 totalDebt;
-        uint256 weightedLiquidationThreshold;
+        UserAssetCalculations.UserAssetData memory assetData = UserAssetCalculations.calculateUserAssetData(
+            user, 
+            address(0), 
+            0, 
+            0, 
+            false,
+            supportedAssets,
+            userSupplies,
+            userBorrows,
+            enhancedAssets,
+            priceOracle
+        );
 
-        for (uint256 i = 0; i < supportedAssets.length; i++) {
-            address asset = supportedAssets[i];
-            uint256 supplyBalance = userSupplies[user][asset];
-            uint256 borrowBalance = userBorrows[user][asset];
+        // The getUserAccountData function returns borrowable collateral as totalCollateralValue 
+        // (collateral * collateralFactor), not raw collateral value
+        totalCollateralValue = assetData.totalBorrowableCollateral;
+        totalDebtValue = assetData.totalDebtValue;
 
-            if (supplyBalance > 0 || borrowBalance > 0) {
-                // uint256 price = priceOracle.getPrice(asset);
+        if (totalCollateralValue > 0) {
+            // Calculate weighted liquidation threshold based on borrowable collateral
+            currentLiquidationThreshold = assetData.weightedLiquidationThreshold / assetData.totalCollateralValue;
 
-                if (supplyBalance > 0) {
-                    uint256 collateralValue = LiquidationLogic
-                        .calculateCollateralValue(
-                            asset,
-                            supplyBalance,
-                            enhancedAssets[asset].collateralFactor,
-                            priceOracle
-                        );
-                    totalCollateral += collateralValue;
-                    weightedLiquidationThreshold +=
-                        collateralValue *
-                        enhancedAssets[asset].liquidationThreshold;
-                }
-
-                if (borrowBalance > 0) {
-                    uint256 debtValue = LiquidationLogic.calculateDebtValue(
-                        asset,
-                        borrowBalance,
-                        priceOracle
-                    );
-                    totalDebt += debtValue;
-                }
-            }
-        }
-
-        totalCollateralValue = totalCollateral;
-        totalDebtValue = totalDebt;
-
-        if (totalCollateral > 0) {
-            currentLiquidationThreshold =
-                weightedLiquidationThreshold /
-                totalCollateral;
-
-            uint256 requiredCollateral = (totalDebt * MINIMUM_HEALTH_FACTOR) /
-                PRECISION;
-            if (totalCollateral > requiredCollateral) {
-                availableBorrows = totalCollateral - requiredCollateral;
+            uint256 requiredCollateral = (totalDebtValue * MINIMUM_HEALTH_FACTOR) / PRECISION;
+            if (totalCollateralValue > requiredCollateral) {
+                availableBorrows = totalCollateralValue - requiredCollateral;
             } else {
                 availableBorrows = 0;
             }
 
-            healthFactor = LiquidationLogic.calculateHealthFactor(
-                totalCollateral,
-                totalDebt,
-                currentLiquidationThreshold
-            );
+            healthFactor = getHealthFactor(user);
         } else {
             currentLiquidationThreshold = 0;
             availableBorrows = 0;
             healthFactor = type(uint256).max;
         }
-    }
-
-    // Internal helper function for validated price retrieval
-    function _getValidatedPrice(address asset) internal view returns (uint256) {
-        uint256 price = priceOracle.getPrice(asset);
-
-        // Basic validation checks
-        require(price > 0, "Invalid price: zero");
-        require(price >= MIN_VALID_PRICE, "Invalid price: too low");
-
-        // Additional staleness check would go here if oracle supports timestamps
-        // This is a placeholder for more sophisticated oracle validation
-
-        return price;
     }
 
     /**
@@ -596,15 +558,6 @@ contract UniversalLendingProtocol is
         return assets[asset];
     }
 
-    /**
-     * @dev Get the current validated price for an asset from the oracle
-     * @param asset The asset address
-     * @return price The current price in USD with 18 decimals
-     */
-    function getAssetPrice(address asset) external view returns (uint256 price) {
-        return _getValidatedPrice(asset);
-    }
-
     function getEnhancedAssetConfig(
         address asset
     ) external view returns (AssetConfig memory) {
@@ -625,36 +578,30 @@ contract UniversalLendingProtocol is
         override(ISimpleLendingProtocol, SimpleLendingProtocolBase)
         returns (uint256 maxBorrowUsdValue)
     {
-        uint256 totalDebtValue = getTotalDebtValue(user);
-        
-        // Calculate borrowable collateral value using collateral factors
-        uint256 totalBorrowableCollateral = 0;
-        
-        for (uint256 i = 0; i < supportedAssets.length; i++) {
-            address asset = supportedAssets[i];
-            uint256 supplyBalance = userSupplies[user][asset];
-            
-            if (supplyBalance > 0) {
-                uint256 assetPrice = _getValidatedPrice(asset);
-                uint256 collateralValue = (supplyBalance * assetPrice) / PRECISION;
-                
-                // Use collateral factor for borrowing capacity
-                uint256 borrowableCollateral = (collateralValue * 
-                    enhancedAssets[asset].collateralFactor) / PRECISION;
-                totalBorrowableCollateral += borrowableCollateral;
-            }
-        }
-        
-        if (totalBorrowableCollateral == 0) return 0;
-        
+        UserAssetCalculations.UserAssetData memory assetData = UserAssetCalculations.calculateUserAssetData(
+            user, 
+            address(0), 
+            0, 
+            0, 
+            false,
+            supportedAssets,
+            userSupplies,
+            userBorrows,
+            enhancedAssets,
+            priceOracle
+        );
+
+        if (assetData.totalBorrowableCollateral == 0) return 0;
+
         // Max borrow = borrowable collateral / minimum health factor
         // This ensures the simple calculation that tests expect: collateral * factor / 1.5
-        uint256 maxTotalDebtValue = (totalBorrowableCollateral * PRECISION) / MINIMUM_HEALTH_FACTOR;
-        
+        uint256 maxTotalDebtValue = (assetData.totalBorrowableCollateral * PRECISION) /
+            MINIMUM_HEALTH_FACTOR;
+
         // Calculate how much more we can borrow
-        if (maxTotalDebtValue <= totalDebtValue) return 0;
-        
-        maxBorrowUsdValue = maxTotalDebtValue - totalDebtValue;
+        if (maxTotalDebtValue <= assetData.totalDebtValue) return 0;
+
+        maxBorrowUsdValue = maxTotalDebtValue - assetData.totalDebtValue;
     }
 
     /**
@@ -686,7 +633,7 @@ contract UniversalLendingProtocol is
             assetPrice;
 
         uint256 decimals = IERC20Metadata(asset).decimals();
-        maxBorrowAmount = _denormalizeFromDecimals(
+        maxBorrowAmount = UserAssetCalculations._denormalizeFromDecimals(
             maxBorrowValueNormalized,
             decimals
         );
@@ -697,39 +644,41 @@ contract UniversalLendingProtocol is
         address user,
         address asset,
         uint256 amount
-    ) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (bool) {
+    )
+        public
+        view
+        override(ISimpleLendingProtocol, SimpleLendingProtocolBase)
+        returns (bool)
+    {
         // Check if contract has sufficient balance for the borrow
         if (IERC20(asset).balanceOf(address(this)) < amount) {
             return false;
         }
 
         if (!enhancedAssets[asset].isSupported) return false;
-        
-        uint256 additionalDebtValue = _calculateAssetValue(amount, asset, _getValidatedPrice(asset));
+
+        uint256 additionalDebtValue = UserAssetCalculations._calculateAssetValue(
+            amount,
+            asset,
+            _getValidatedPrice(asset)
+        );
         uint256 currentDebtValue = getTotalDebtValue(user);
         uint256 newTotalDebtValue = currentDebtValue + additionalDebtValue;
-        
+
         if (newTotalDebtValue == 0) return true;
+
+        // Calculate what the health factor would be after borrowing
+        uint256 currentDebt = userBorrows[user][asset];
+        uint256 newDebt = currentDebt + amount;
         
-        // Calculate weighted collateral value using liquidation thresholds
-        uint256 totalWeightedCollateral = 0;
+        uint256 healthFactor = _calculateHealthFactorInternal(
+            user, 
+            asset, 
+            userSupplies[user][asset], 
+            newDebt, 
+            true
+        );
         
-        for (uint256 i = 0; i < supportedAssets.length; i++) {
-            address collateralAsset = supportedAssets[i];
-            uint256 supplyBalance = userSupplies[user][collateralAsset];
-            
-            if (supplyBalance > 0) {
-                uint256 assetPrice = _getValidatedPrice(collateralAsset);
-                uint256 collateralValue = (supplyBalance * assetPrice) / PRECISION;
-                
-                // Use liquidation threshold for weighted collateral calculation
-                uint256 weightedCollateral = (collateralValue * 
-                    enhancedAssets[collateralAsset].liquidationThreshold) / PRECISION;
-                totalWeightedCollateral += weightedCollateral;
-            }
-        }
-        
-        uint256 healthFactor = (totalWeightedCollateral * PRECISION) / newTotalDebtValue;
         return healthFactor >= MINIMUM_HEALTH_FACTOR;
     }
 
@@ -738,42 +687,35 @@ contract UniversalLendingProtocol is
         address user,
         address asset,
         uint256 amount
-    ) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (bool) {
+    )
+        public
+        view
+        override(ISimpleLendingProtocol, SimpleLendingProtocolBase)
+        returns (bool)
+    {
         // Check if contract has sufficient balance for the withdrawal
         if (IERC20(asset).balanceOf(address(this)) < amount) {
             return false;
         }
 
         if (!enhancedAssets[asset].isSupported) return false;
-        
+
         uint256 totalDebtValue = getTotalDebtValue(user);
-        
+
         if (totalDebtValue == 0) return true;
+
+        // Calculate what the health factor would be after withdrawal
+        uint256 currentSupply = userSupplies[user][asset];
+        uint256 newSupply = currentSupply > amount ? currentSupply - amount : 0;
         
-        // Calculate weighted collateral value after withdrawal using liquidation thresholds
-        uint256 totalWeightedCollateral = 0;
+        uint256 healthFactor = _calculateHealthFactorInternal(
+            user, 
+            asset, 
+            newSupply, 
+            userBorrows[user][asset], 
+            true
+        );
         
-        for (uint256 i = 0; i < supportedAssets.length; i++) {
-            address collateralAsset = supportedAssets[i];
-            uint256 supplyBalance = userSupplies[user][collateralAsset];
-            
-            // If this is the asset being withdrawn, reduce the balance
-            if (collateralAsset == asset) {
-                supplyBalance = supplyBalance > amount ? supplyBalance - amount : 0;
-            }
-            
-            if (supplyBalance > 0) {
-                uint256 assetPrice = _getValidatedPrice(collateralAsset);
-                uint256 collateralValue = (supplyBalance * assetPrice) / PRECISION;
-                
-                // Use liquidation threshold for weighted collateral calculation
-                uint256 weightedCollateral = (collateralValue * 
-                    enhancedAssets[collateralAsset].liquidationThreshold) / PRECISION;
-                totalWeightedCollateral += weightedCollateral;
-            }
-        }
-        
-        uint256 healthFactor = (totalWeightedCollateral * PRECISION) / totalDebtValue;
         return healthFactor >= MINIMUM_HEALTH_FACTOR;
     }
 
@@ -789,10 +731,11 @@ contract UniversalLendingProtocol is
     {
         uint256 amount = userSupplies[user][asset];
         uint256 price = _getValidatedPrice(asset);
-        uint256 assetValue = _calculateAssetValue(amount, asset, price);
-        
+        uint256 assetValue = UserAssetCalculations._calculateAssetValue(amount, asset, price);
+
         // Apply collateral factor to get effective collateral value
-        return (assetValue * enhancedAssets[asset].collateralFactor) / PRECISION;
+        return
+            (assetValue * enhancedAssets[asset].collateralFactor) / PRECISION;
     }
 
     // ============ Health Factor Simulation View Functions ============
@@ -808,36 +751,24 @@ contract UniversalLendingProtocol is
         address user,
         address asset,
         uint256 amount
-    ) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (uint256 newHealthFactor) {
+    )
+        public
+        view
+        override(ISimpleLendingProtocol, SimpleLendingProtocolBase)
+        returns (uint256 newHealthFactor)
+    {
         if (!enhancedAssets[asset].isSupported) return 0;
+
+        uint256 currentDebt = userBorrows[user][asset];
+        uint256 newDebt = currentDebt + amount;
         
-        uint256 currentDebtValue = getTotalDebtValue(user);
-        uint256 additionalDebtValue = _calculateAssetValue(amount, asset, _getValidatedPrice(asset));
-        uint256 newTotalDebtValue = currentDebtValue + additionalDebtValue;
-        
-        if (newTotalDebtValue == 0) {
-            return type(uint256).max;
-        }
-        
-        // Calculate weighted collateral value using liquidation thresholds
-        uint256 totalWeightedCollateral = 0;
-        
-        for (uint256 i = 0; i < supportedAssets.length; i++) {
-            address collateralAsset = supportedAssets[i];
-            uint256 supplyBalance = userSupplies[user][collateralAsset];
-            
-            if (supplyBalance > 0) {
-                uint256 assetPrice = _getValidatedPrice(collateralAsset);
-                uint256 collateralValue = (supplyBalance * assetPrice) / PRECISION;
-                
-                // Use liquidation threshold for health factor calculation
-                uint256 weightedCollateral = (collateralValue * 
-                    enhancedAssets[collateralAsset].liquidationThreshold) / PRECISION;
-                totalWeightedCollateral += weightedCollateral;
-            }
-        }
-        
-        return (totalWeightedCollateral * PRECISION) / newTotalDebtValue;
+        return _calculateHealthFactorInternal(
+            user, 
+            asset, 
+            userSupplies[user][asset], 
+            newDebt, 
+            true
+        );
     }
 
     /**
@@ -851,41 +782,24 @@ contract UniversalLendingProtocol is
         address user,
         address asset,
         uint256 amount
-    ) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (uint256 newHealthFactor) {
+    )
+        public
+        view
+        override(ISimpleLendingProtocol, SimpleLendingProtocolBase)
+        returns (uint256 newHealthFactor)
+    {
         if (!enhancedAssets[asset].isSupported) return type(uint256).max;
+
+        uint256 currentDebt = userBorrows[user][asset];
+        uint256 newDebt = currentDebt > amount ? currentDebt - amount : 0;
         
-        uint256 currentDebtValue = getTotalDebtValue(user);
-        uint256 repayDebtValue = _calculateAssetValue(amount, asset, _getValidatedPrice(asset));
-        uint256 userAssetDebt = userBorrows[user][asset];
-        uint256 userAssetDebtValue = _calculateAssetValue(userAssetDebt, asset, _getValidatedPrice(asset));
-        
-        // Cap repay amount to actual debt
-        uint256 actualRepayValue = repayDebtValue > userAssetDebtValue ? userAssetDebtValue : repayDebtValue;
-        uint256 newTotalDebtValue = currentDebtValue > actualRepayValue ? currentDebtValue - actualRepayValue : 0;
-        
-        if (newTotalDebtValue == 0) {
-            return type(uint256).max;
-        }
-        
-        // Calculate weighted collateral value using liquidation thresholds
-        uint256 totalWeightedCollateral = 0;
-        
-        for (uint256 i = 0; i < supportedAssets.length; i++) {
-            address collateralAsset = supportedAssets[i];
-            uint256 supplyBalance = userSupplies[user][collateralAsset];
-            
-            if (supplyBalance > 0) {
-                uint256 assetPrice = _getValidatedPrice(collateralAsset);
-                uint256 collateralValue = (supplyBalance * assetPrice) / PRECISION;
-                
-                // Use liquidation threshold for health factor calculation  
-                uint256 weightedCollateral = (collateralValue * 
-                    enhancedAssets[collateralAsset].liquidationThreshold) / PRECISION;
-                totalWeightedCollateral += weightedCollateral;
-            }
-        }
-        
-        return (totalWeightedCollateral * PRECISION) / newTotalDebtValue;
+        return _calculateHealthFactorInternal(
+            user, 
+            asset, 
+            userSupplies[user][asset], 
+            newDebt, 
+            true
+        );
     }
 
     /**
@@ -899,39 +813,116 @@ contract UniversalLendingProtocol is
         address user,
         address asset,
         uint256 amount
-    ) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (uint256 newHealthFactor) {
+    )
+        public
+        view
+        override(ISimpleLendingProtocol, SimpleLendingProtocolBase)
+        returns (uint256 newHealthFactor)
+    {
         if (!enhancedAssets[asset].isSupported) return 0;
+
+        uint256 currentSupply = userSupplies[user][asset];
+        uint256 newSupply = currentSupply > amount ? currentSupply - amount : 0;
         
-        uint256 currentDebtValue = getTotalDebtValue(user);
-        
-        if (currentDebtValue == 0) {
-            return type(uint256).max;
+        return _calculateHealthFactorInternal(
+            user, 
+            asset, 
+            newSupply, 
+            userBorrows[user][asset], 
+            true
+        );
+    }
+
+    /**
+     * @dev Calculate the maximum liquidation amount for a user position
+     * @param user The user whose position is being liquidated
+     * @param collateralAsset The collateral asset to seize
+     * @param debtAsset The debt asset to repay
+     * @return maxRepayAmount Maximum amount of debt that can be repaid in the liquidation
+     * @return liquidatedCollateral Amount of collateral that would be seized
+     * @return canLiquidate Whether the position is eligible for liquidation
+     */
+    function getMaxLiquidation(
+        address user,
+        address collateralAsset,
+        address debtAsset
+    )
+        external
+        view
+        override
+        returns (
+            uint256 maxRepayAmount,
+            uint256 liquidatedCollateral,
+            bool canLiquidate
+        )
+    {
+        // Check if assets are supported
+        if (!enhancedAssets[collateralAsset].isSupported || 
+            !enhancedAssets[debtAsset].isSupported) {
+            return (0, 0, false);
         }
-        
-        // Calculate weighted collateral value after withdrawal
-        uint256 totalWeightedCollateral = 0;
-        
-        for (uint256 i = 0; i < supportedAssets.length; i++) {
-            address collateralAsset = supportedAssets[i];
-            uint256 supplyBalance = userSupplies[user][collateralAsset];
+
+        // Check if position is liquidatable
+        uint256 healthFactor = getHealthFactor(user);
+        if (healthFactor >= 1.2e18) {
+            return (0, 0, false);
+        }
+
+        // Get user's debt in the specified asset
+        uint256 userDebt = userBorrows[user][debtAsset];
+        if (userDebt == 0) {
+            return (0, 0, false);
+        }
+
+        // Get user's collateral in the specified asset
+        uint256 userCollateral = userSupplies[user][collateralAsset];
+        if (userCollateral == 0) {
+            return (0, 0, false);
+        }
+
+        // Get asset prices
+        uint256 debtPrice = _getValidatedPrice(debtAsset);
+        uint256 collateralPrice = _getValidatedPrice(collateralAsset);
+
+        // Calculate maximum repay amount (typically 50% of debt, but we'll use full debt for maximum)
+        // In practice, protocols often limit to 50% to prevent full liquidation
+        maxRepayAmount = userDebt;
+
+        // Calculate corresponding collateral that would be liquidated
+        liquidatedCollateral = LiquidationLogic.calculateLiquidationAmount(
+            maxRepayAmount,
+            debtPrice,
+            collateralPrice,
+            enhancedAssets[collateralAsset].liquidationBonus
+        );
+
+        // Ensure we don't liquidate more collateral than available
+        if (liquidatedCollateral > userCollateral) {
+            // If calculated liquidation exceeds available collateral, 
+            // work backwards from available collateral
+            liquidatedCollateral = userCollateral;
             
-            // If this is the asset being withdrawn, reduce the balance
-            if (collateralAsset == asset) {
-                supplyBalance = supplyBalance > amount ? supplyBalance - amount : 0;
-            }
+            // Calculate the maximum repay amount for this collateral
+            // liquidatedCollateral = repayAmount * debtPrice * (1 + bonus) / collateralPrice
+            // Therefore: repayAmount = liquidatedCollateral * collateralPrice / (debtPrice * (1 + bonus))
+            uint256 bonusFactor = PRECISION + enhancedAssets[collateralAsset].liquidationBonus;
+            maxRepayAmount = (liquidatedCollateral * collateralPrice * PRECISION) / 
+                            (debtPrice * bonusFactor);
             
-            if (supplyBalance > 0) {
-                uint256 assetPrice = _getValidatedPrice(collateralAsset);
-                uint256 collateralValue = (supplyBalance * assetPrice) / PRECISION;
-                
-                // Use liquidation threshold for health factor calculation
-                uint256 weightedCollateral = (collateralValue * 
-                    enhancedAssets[collateralAsset].liquidationThreshold) / PRECISION;
-                totalWeightedCollateral += weightedCollateral;
+            // Ensure we don't repay more than the user's actual debt
+            if (maxRepayAmount > userDebt) {
+                maxRepayAmount = userDebt;
+                // Recalculate liquidated collateral for the capped repay amount
+                liquidatedCollateral = LiquidationLogic.calculateLiquidationAmount(
+                    maxRepayAmount,
+                    debtPrice,
+                    collateralPrice,
+                    enhancedAssets[collateralAsset].liquidationBonus
+                );
             }
         }
-        
-        return (totalWeightedCollateral * PRECISION) / currentDebtValue;
+
+        canLiquidate = true;
     }
 
     /**
@@ -949,20 +940,27 @@ contract UniversalLendingProtocol is
      * @return borrowedAmounts Array of borrowed amounts
      * @return borrowedValues Array of borrowed values in USD
      */
-    function getUserPositionData(address user) public view override(ISimpleLendingProtocol, SimpleLendingProtocolBase) returns (
-        uint256 totalCollateralValue,
-        uint256 totalDebtValue,
-        uint256 healthFactor,
-        uint256 maxBorrowUsdValue,
-        uint256 liquidationThreshold,
-        address[] memory suppliedAssets,
-        uint256[] memory suppliedAmounts,
-        uint256[] memory suppliedValues,
-        address[] memory borrowedAssets,
-        uint256[] memory borrowedAmounts,
-        uint256[] memory borrowedValues
-    ) {
-        // Get basic account data
+    function getUserPositionData(
+        address user
+    )
+        public
+        view
+        override(ISimpleLendingProtocol, SimpleLendingProtocolBase)
+        returns (
+            uint256 totalCollateralValue,
+            uint256 totalDebtValue,
+            uint256 healthFactor,
+            uint256 maxBorrowUsdValue,
+            uint256 liquidationThreshold,
+            address[] memory suppliedAssets,
+            uint256[] memory suppliedAmounts,
+            uint256[] memory suppliedValues,
+            address[] memory borrowedAssets,
+            uint256[] memory borrowedAmounts,
+            uint256[] memory borrowedValues
+        )
+    {
+        // Get basic account data using consolidated helper
         (
             totalCollateralValue,
             totalDebtValue,
@@ -970,47 +968,58 @@ contract UniversalLendingProtocol is
             liquidationThreshold,
             healthFactor
         ) = getUserAccountData(user);
-        
-        // Count assets
+
+        // Count assets and collect data in a single loop to reduce gas costs
+        address[] memory tempSuppliedAssets = new address[](supportedAssets.length);
+        uint256[] memory tempSuppliedAmounts = new uint256[](supportedAssets.length);
+        uint256[] memory tempSuppliedValues = new uint256[](supportedAssets.length);
+        address[] memory tempBorrowedAssets = new address[](supportedAssets.length);
+        uint256[] memory tempBorrowedAmounts = new uint256[](supportedAssets.length);
+        uint256[] memory tempBorrowedValues = new uint256[](supportedAssets.length);
+
         uint256 suppliedCount = 0;
         uint256 borrowedCount = 0;
-        
+
+        // Single loop for counting and collecting data
         for (uint256 i = 0; i < supportedAssets.length; i++) {
             address asset = supportedAssets[i];
-            if (userSupplies[user][asset] > 0) suppliedCount++;
-            if (userBorrows[user][asset] > 0) borrowedCount++;
+            uint256 supplyBalance = userSupplies[user][asset];
+            uint256 borrowBalance = userBorrows[user][asset];
+
+            if (supplyBalance > 0) {
+                tempSuppliedAssets[suppliedCount] = asset;
+                tempSuppliedAmounts[suppliedCount] = supplyBalance;
+                tempSuppliedValues[suppliedCount] = getCollateralValue(user, asset);
+                suppliedCount++;
+            }
+
+            if (borrowBalance > 0) {
+                tempBorrowedAssets[borrowedCount] = asset;
+                tempBorrowedAmounts[borrowedCount] = borrowBalance;
+                tempBorrowedValues[borrowedCount] = getDebtValue(user, asset);
+                borrowedCount++;
+            }
         }
-        
-        // Initialize arrays
+
+        // Create final arrays with exact sizes
         suppliedAssets = new address[](suppliedCount);
         suppliedAmounts = new uint256[](suppliedCount);
         suppliedValues = new uint256[](suppliedCount);
         borrowedAssets = new address[](borrowedCount);
         borrowedAmounts = new uint256[](borrowedCount);
         borrowedValues = new uint256[](borrowedCount);
-        
-        // Fill supplied assets data
-        uint256 suppliedIndex = 0;
-        uint256 borrowedIndex = 0;
-        
-        for (uint256 i = 0; i < supportedAssets.length; i++) {
-            address asset = supportedAssets[i];
-            
-            uint256 supplyBalance = userSupplies[user][asset];
-            if (supplyBalance > 0) {
-                suppliedAssets[suppliedIndex] = asset;
-                suppliedAmounts[suppliedIndex] = supplyBalance;
-                suppliedValues[suppliedIndex] = getCollateralValue(user, asset);
-                suppliedIndex++;
-            }
-            
-            uint256 borrowBalance = userBorrows[user][asset];
-            if (borrowBalance > 0) {
-                borrowedAssets[borrowedIndex] = asset;
-                borrowedAmounts[borrowedIndex] = borrowBalance;
-                borrowedValues[borrowedIndex] = getDebtValue(user, asset);
-                borrowedIndex++;
-            }
+
+        // Copy data to final arrays
+        for (uint256 i = 0; i < suppliedCount; i++) {
+            suppliedAssets[i] = tempSuppliedAssets[i];
+            suppliedAmounts[i] = tempSuppliedAmounts[i];
+            suppliedValues[i] = tempSuppliedValues[i];
+        }
+
+        for (uint256 i = 0; i < borrowedCount; i++) {
+            borrowedAssets[i] = tempBorrowedAssets[i];
+            borrowedAmounts[i] = tempBorrowedAmounts[i];
+            borrowedValues[i] = tempBorrowedValues[i];
         }
     }
 }

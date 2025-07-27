@@ -1,7 +1,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { useNavigateTo } from '../../types/routes';
+import { ROUTES } from '../../config/routes';
 import { FaPlus, FaArrowDown, FaExchangeAlt, FaBolt } from 'react-icons/fa';
 
 export function QuickActions() {
+    const navigate = useNavigateTo();
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer">
@@ -52,7 +56,10 @@ export function QuickActions() {
                 </CardContent>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card 
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => navigate(ROUTES.LIQUIDATION)}
+            >
                 <CardHeader className="pb-3">
                     <CardTitle className="text-lg flex items-center gap-2">
                         <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">

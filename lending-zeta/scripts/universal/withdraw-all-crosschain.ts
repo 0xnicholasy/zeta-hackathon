@@ -153,9 +153,11 @@ async function main() {
               // Approve gas tokens if needed
               if (currentAllowance.lt(gasFeeAmount)) {
                 console.log(`  => Approving gas tokens...`);
-                const approveTx = await gasToken.approve(universalLendingAddress, gasFeeAmount);
+                // Use approve with a buffer for better UX
+                const approveAmount = gasFeeAmount.mul(110).div(100); // 10% buffer
+                const approveTx = await gasToken.approve(universalLendingAddress, approveAmount);
                 await approveTx.wait();
-                console.log(`  => Gas tokens approved`);
+                console.log(`  => Gas tokens approved with buffer`);
               }
             }
 

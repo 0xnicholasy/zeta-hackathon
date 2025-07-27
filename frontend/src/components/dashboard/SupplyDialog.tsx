@@ -19,6 +19,7 @@ interface SupplyDialogProps {
   onClose: () => void;
   selectedToken: TokenBalance | null;
   chainId: SupportedChainId;
+  refetchUserData?: () => Promise<void>;
 }
 
 // Contract ABIs

@@ -11,10 +11,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./interfaces/ISimpleLendingProtocol.sol";
+import "./interfaces/IPriceOracle.sol";
 
 /**
  * @title SimpleLendingProtocolBase
- * @dev Base implementation of the simple lending protocol
+ * @dev Base implementation of the simple lending protocol with oracle-based pricing
  */
 abstract contract SimpleLendingProtocolBase is
     UniversalContract,
@@ -25,10 +26,12 @@ abstract contract SimpleLendingProtocolBase is
     using SafeERC20 for IERC20;
 
     IGatewayZEVM public immutable gateway;
+    IPriceOracle public priceOracle;
 
     uint256 internal constant PRECISION = 1e18;
     uint256 internal constant MINIMUM_HEALTH_FACTOR = 1.5e18;
     uint256 internal constant LIQUIDATION_THRESHOLD = 1.1e18; // 110%
+    uint256 private constant MIN_VALID_PRICE = 1e6; // Minimum valid price
 
     mapping(address => Asset) public assets;
     mapping(address => mapping(address => uint256)) public userSupplies;
@@ -42,8 +45,34 @@ abstract contract SimpleLendingProtocolBase is
         _;
     }
 
-    constructor(address payable gatewayAddress, address owner) Ownable(owner) {
+    constructor(
+        address payable gatewayAddress,
+        address _priceOracle,
+        address owner
+    ) Ownable(owner) {
         gateway = IGatewayZEVM(gatewayAddress);
+        priceOracle = IPriceOracle(_priceOracle);
+    }
+
+    // Internal helper function for validated price retrieval
+    function _getValidatedPrice(address asset) internal view returns (uint256) {
+        uint256 price = priceOracle.getPrice(asset);
+
+        // Basic validation checks
+        require(price >= MIN_VALID_PRICE, "Invalid price: too low");
+
+        return price;
+    }
+
+    /**
+     * @dev Get the current validated price for an asset from the oracle
+     * @param asset The asset address
+     * @return price The current price in USD with 18 decimals
+     */
+    function getAssetPrice(
+        address asset
+    ) external view returns (uint256 price) {
+        return _getValidatedPrice(asset);
     }
 
     // Virtual functions for extension
@@ -154,7 +183,7 @@ abstract contract SimpleLendingProtocolBase is
         address asset
     ) public view virtual returns (uint256) {
         uint256 amount = userSupplies[user][asset];
-        uint256 price = assets[asset].price;
+        uint256 price = _getValidatedPrice(asset);
         return _calculateAssetValue(amount, asset, price);
     }
 
@@ -163,7 +192,7 @@ abstract contract SimpleLendingProtocolBase is
         address asset
     ) public view virtual returns (uint256) {
         uint256 amount = userBorrows[user][asset];
-        uint256 price = assets[asset].price;
+        uint256 price = _getValidatedPrice(asset);
         return _calculateAssetValue(amount, asset, price);
     }
 
@@ -178,7 +207,11 @@ abstract contract SimpleLendingProtocolBase is
         }
 
         uint256 totalCollateralValue = getTotalCollateralValue(user);
-        uint256 additionalDebtValue = _calculateAssetValue(amount, asset, assets[asset].price);
+        uint256 additionalDebtValue = _calculateAssetValue(
+            amount,
+            asset,
+            _getValidatedPrice(asset)
+        );
         uint256 totalDebtValue = getTotalDebtValue(user) + additionalDebtValue;
 
         if (totalDebtValue == 0) return totalCollateralValue > 0;
@@ -198,7 +231,11 @@ abstract contract SimpleLendingProtocolBase is
             return false;
         }
 
-        uint256 collateralToRemove = _calculateAssetValue(amount, asset, assets[asset].price);
+        uint256 collateralToRemove = _calculateAssetValue(
+            amount,
+            asset,
+            _getValidatedPrice(asset)
+        );
         uint256 newCollateralValue = getTotalCollateralValue(user) -
             collateralToRemove;
         uint256 totalDebtValue = getTotalDebtValue(user);
@@ -291,7 +328,7 @@ abstract contract SimpleLendingProtocolBase is
         uint256 additionalBorrowValueUsd = maxTotalDebtValue - totalDebtValue;
 
         // Convert USD value to asset amount
-        uint256 assetPrice = assets[asset].price;
+        uint256 assetPrice = _getValidatedPrice(asset);
         if (assetPrice == 0) return 0;
 
         // Calculate asset amount and denormalize to asset decimals
@@ -299,7 +336,10 @@ abstract contract SimpleLendingProtocolBase is
             PRECISION) / assetPrice;
 
         uint256 decimals = IERC20Metadata(asset).decimals();
-        maxBorrowAmount = _denormalizeFromDecimals(maxBorrowValueNormalized, decimals);
+        maxBorrowAmount = _denormalizeFromDecimals(
+            maxBorrowValueNormalized,
+            decimals
+        );
 
         // Limit by contract's available balance
         uint256 contractBalance = IERC20(asset).balanceOf(address(this));
@@ -389,7 +429,7 @@ abstract contract SimpleLendingProtocolBase is
         uint256 price
     ) internal view returns (uint256 value) {
         if (amount == 0 || price == 0) return 0;
-        
+
         uint256 decimals = IERC20Metadata(asset).decimals();
         uint256 normalizedAmount = _normalizeToDecimals(amount, decimals);
         return (normalizedAmount * price) / PRECISION;
@@ -440,8 +480,7 @@ abstract contract SimpleLendingProtocolBase is
     }
 
     // ============ Health Factor Preview Functions ============
-    // Note: These implementations use the deprecated asset.price field for basic protocol
-    // UniversalLendingProtocol overrides these with enhanced price oracle logic
+    // Updated to use oracle-based pricing
 
     /**
      * @dev Calculate health factor after a potential borrow
@@ -456,15 +495,19 @@ abstract contract SimpleLendingProtocolBase is
         uint256 amount
     ) public view virtual returns (uint256 newHealthFactor) {
         if (!assets[asset].isSupported) return 0;
-        
+
         uint256 currentDebtValue = getTotalDebtValue(user);
-        uint256 additionalDebtValue = _calculateAssetValue(amount, asset, assets[asset].price);
+        uint256 additionalDebtValue = _calculateAssetValue(
+            amount,
+            asset,
+            _getValidatedPrice(asset)
+        );
         uint256 newTotalDebtValue = currentDebtValue + additionalDebtValue;
-        
+
         if (newTotalDebtValue == 0) {
             return type(uint256).max;
         }
-        
+
         uint256 totalCollateralValue = getTotalCollateralValue(user);
         return (totalCollateralValue * PRECISION) / newTotalDebtValue;
     }
@@ -482,20 +525,32 @@ abstract contract SimpleLendingProtocolBase is
         uint256 amount
     ) public view virtual returns (uint256 newHealthFactor) {
         if (!assets[asset].isSupported) return type(uint256).max;
-        
+
         uint256 currentDebtValue = getTotalDebtValue(user);
-        uint256 repayDebtValue = _calculateAssetValue(amount, asset, assets[asset].price);
+        uint256 repayDebtValue = _calculateAssetValue(
+            amount,
+            asset,
+            _getValidatedPrice(asset)
+        );
         uint256 userAssetDebt = userBorrows[user][asset];
-        uint256 userAssetDebtValue = _calculateAssetValue(userAssetDebt, asset, assets[asset].price);
-        
+        uint256 userAssetDebtValue = _calculateAssetValue(
+            userAssetDebt,
+            asset,
+            _getValidatedPrice(asset)
+        );
+
         // Cap repay amount to actual debt
-        uint256 actualRepayValue = repayDebtValue > userAssetDebtValue ? userAssetDebtValue : repayDebtValue;
-        uint256 newTotalDebtValue = currentDebtValue > actualRepayValue ? currentDebtValue - actualRepayValue : 0;
-        
+        uint256 actualRepayValue = repayDebtValue > userAssetDebtValue
+            ? userAssetDebtValue
+            : repayDebtValue;
+        uint256 newTotalDebtValue = currentDebtValue > actualRepayValue
+            ? currentDebtValue - actualRepayValue
+            : 0;
+
         if (newTotalDebtValue == 0) {
             return type(uint256).max;
         }
-        
+
         uint256 totalCollateralValue = getTotalCollateralValue(user);
         return (totalCollateralValue * PRECISION) / newTotalDebtValue;
     }
@@ -513,19 +568,24 @@ abstract contract SimpleLendingProtocolBase is
         uint256 amount
     ) public view virtual returns (uint256 newHealthFactor) {
         if (!assets[asset].isSupported) return 0;
-        
+
         uint256 currentDebtValue = getTotalDebtValue(user);
-        
+
         if (currentDebtValue == 0) {
             return type(uint256).max;
         }
-        
+
         // Calculate new collateral value after withdrawal
-        uint256 withdrawalValue = _calculateAssetValue(amount, asset, assets[asset].price);
+        uint256 withdrawalValue = _calculateAssetValue(
+            amount,
+            asset,
+            _getValidatedPrice(asset)
+        );
         uint256 currentCollateralValue = getTotalCollateralValue(user);
-        uint256 newCollateralValue = currentCollateralValue > withdrawalValue ? 
-            currentCollateralValue - withdrawalValue : 0;
-        
+        uint256 newCollateralValue = currentCollateralValue > withdrawalValue
+            ? currentCollateralValue - withdrawalValue
+            : 0;
+
         return (newCollateralValue * PRECISION) / currentDebtValue;
     }
 
@@ -544,35 +604,42 @@ abstract contract SimpleLendingProtocolBase is
      * @return borrowedAmounts Array of borrowed amounts
      * @return borrowedValues Array of borrowed values in USD
      */
-    function getUserPositionData(address user) public view virtual returns (
-        uint256 totalCollateralValue,
-        uint256 totalDebtValue,
-        uint256 healthFactor,
-        uint256 maxBorrowUsdValue,
-        uint256 liquidationThreshold,
-        address[] memory suppliedAssets,
-        uint256[] memory suppliedAmounts,
-        uint256[] memory suppliedValues,
-        address[] memory borrowedAssets,
-        uint256[] memory borrowedAmounts,
-        uint256[] memory borrowedValues
-    ) {
+    function getUserPositionData(
+        address user
+    )
+        public
+        view
+        virtual
+        returns (
+            uint256 totalCollateralValue,
+            uint256 totalDebtValue,
+            uint256 healthFactor,
+            uint256 maxBorrowUsdValue,
+            uint256 liquidationThreshold,
+            address[] memory suppliedAssets,
+            uint256[] memory suppliedAmounts,
+            uint256[] memory suppliedValues,
+            address[] memory borrowedAssets,
+            uint256[] memory borrowedAmounts,
+            uint256[] memory borrowedValues
+        )
+    {
         totalCollateralValue = getTotalCollateralValue(user);
         totalDebtValue = getTotalDebtValue(user);
         healthFactor = getHealthFactor(user);
         maxBorrowUsdValue = maxAvailableBorrowsInUsd(user);
         liquidationThreshold = LIQUIDATION_THRESHOLD; // Base implementation uses constant
-        
+
         // Count assets
         uint256 suppliedCount = 0;
         uint256 borrowedCount = 0;
-        
+
         for (uint256 i = 0; i < supportedAssets.length; i++) {
             address asset = supportedAssets[i];
             if (userSupplies[user][asset] > 0) suppliedCount++;
             if (userBorrows[user][asset] > 0) borrowedCount++;
         }
-        
+
         // Initialize arrays
         suppliedAssets = new address[](suppliedCount);
         suppliedAmounts = new uint256[](suppliedCount);
@@ -580,14 +647,14 @@ abstract contract SimpleLendingProtocolBase is
         borrowedAssets = new address[](borrowedCount);
         borrowedAmounts = new uint256[](borrowedCount);
         borrowedValues = new uint256[](borrowedCount);
-        
+
         // Fill supplied assets data
         uint256 suppliedIndex = 0;
         uint256 borrowedIndex = 0;
-        
+
         for (uint256 i = 0; i < supportedAssets.length; i++) {
             address asset = supportedAssets[i];
-            
+
             uint256 supplyBalance = userSupplies[user][asset];
             if (supplyBalance > 0) {
                 suppliedAssets[suppliedIndex] = asset;
@@ -595,7 +662,7 @@ abstract contract SimpleLendingProtocolBase is
                 suppliedValues[suppliedIndex] = getCollateralValue(user, asset);
                 suppliedIndex++;
             }
-            
+
             uint256 borrowBalance = userBorrows[user][asset];
             if (borrowBalance > 0) {
                 borrowedAssets[borrowedIndex] = asset;
@@ -632,7 +699,7 @@ abstract contract SimpleLendingProtocolBase is
                 _repay(zrc20, amount, onBehalfOf);
                 return;
             }
-        } 
+        }
         // Extended message handling - 224 bytes for cross-chain operations
         else if (message.length == 224) {
             (
@@ -679,11 +746,7 @@ abstract contract SimpleLendingProtocolBase is
         RevertContext calldata revertContext
     ) external virtual onlyGateway {
         // Standard revert handling for all implementations
-        emit Withdraw(
-            address(0),
-            revertContext.asset,
-            revertContext.amount
-        );
+        emit Withdraw(address(0), revertContext.asset, revertContext.amount);
     }
 
     // Virtual cross-chain functions to be implemented by child contracts if needed
@@ -699,14 +762,14 @@ abstract contract SimpleLendingProtocolBase is
         if (IERC20(asset).balanceOf(address(this)) < amount)
             revert InsufficientBalance();
         if (!canBorrow(user, asset, amount)) revert InsufficientCollateral();
-        
+
         _validateAmountVsGasFee(asset, amount);
         userBorrows[user][asset] += amount;
-        
+
         (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
         uint256 withdrawalAmount = amount;
         uint256 approvalAmount = amount;
-        
+
         if (asset == gasZRC20) {
             withdrawalAmount = amount - gasFee;
             approvalAmount = amount;
@@ -720,20 +783,20 @@ abstract contract SimpleLendingProtocolBase is
                 revert InsufficientBalance();
             }
             IERC20(asset).approve(address(gateway), amount);
-            
+
             // Check if user has sufficient gas tokens and transfer them
             uint256 userGasBalance = IERC20(gasZRC20).balanceOf(user);
             if (userGasBalance < gasFee) {
                 revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
             }
-            
+
             // Transfer gas tokens from user to contract for gateway fee
             if (!IERC20(gasZRC20).transferFrom(user, address(this), gasFee)) {
                 revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
             }
             IERC20(gasZRC20).approve(address(gateway), gasFee);
         }
-        
+
         gateway.withdraw(
             abi.encodePacked(recipient),
             withdrawalAmount,
@@ -761,14 +824,14 @@ abstract contract SimpleLendingProtocolBase is
         if (amount == 0) revert InvalidAmount();
         if (userSupplies[user][asset] < amount) revert InsufficientBalance();
         if (!canWithdraw(user, asset, amount)) revert InsufficientCollateral();
-        
+
         _validateAmountVsGasFee(asset, amount);
         userSupplies[user][asset] -= amount;
-        
+
         (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
         uint256 withdrawalAmount = amount;
         uint256 approvalAmount = amount;
-        
+
         if (asset == gasZRC20) {
             withdrawalAmount = amount - gasFee;
             approvalAmount = amount;
@@ -782,20 +845,20 @@ abstract contract SimpleLendingProtocolBase is
                 revert InsufficientBalance();
             }
             IERC20(asset).approve(address(gateway), amount);
-            
+
             // Check if user has sufficient gas tokens and transfer them
             uint256 userGasBalance = IERC20(gasZRC20).balanceOf(user);
             if (userGasBalance < gasFee) {
                 revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
             }
-            
+
             // Transfer gas tokens from user to contract for gateway fee
             if (!IERC20(gasZRC20).transferFrom(user, address(this), gasFee)) {
                 revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
             }
             IERC20(gasZRC20).approve(address(gateway), gasFee);
         }
-        
+
         gateway.withdraw(
             abi.encodePacked(recipient),
             withdrawalAmount,

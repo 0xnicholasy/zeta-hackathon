@@ -222,11 +222,6 @@ const _abi = [
         name: "asset",
         type: "address",
       },
-      {
-        internalType: "uint256",
-        name: "priceInUSD",
-        type: "uint256",
-      },
     ],
     name: "addAsset",
     outputs: [],
@@ -359,15 +354,29 @@ const _abi = [
             name: "isSupported",
             type: "bool",
           },
-          {
-            internalType: "uint256",
-            name: "price",
-            type: "uint256",
-          },
         ],
         internalType: "struct ISimpleLendingProtocol.Asset",
         name: "",
         type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "asset",
+        type: "address",
+      },
+    ],
+    name: "getAssetPrice",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
       },
     ],
     stateMutability: "view",
@@ -889,24 +898,6 @@ const _abi = [
       },
     ],
     name: "supply",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "asset",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "priceInUSD",
-        type: "uint256",
-      },
-    ],
-    name: "updatePrice",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",

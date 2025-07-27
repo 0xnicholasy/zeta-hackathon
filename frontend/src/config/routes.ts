@@ -8,6 +8,7 @@ const DashBoardPage = React.lazy(() => import('../pages/DashBoardPage'));
 const DebuggingPage = React.lazy(() => import('../pages/DebuggingPage'));
 const NotFoundPage = React.lazy(() => import('../pages/NotFoundPage'));
 const AdminPage = React.lazy(() => import('../pages/AdminPage'));
+const LiquidationPage = React.lazy(() => import('../pages/LiquidationPage'));
 
 export interface AppRoute {
   path: string;
@@ -20,6 +21,7 @@ export interface AppRoute {
 export const ROUTES = {
   HOME: '/',
   DASHBOARD: '/dashboard',
+  LIQUIDATION: '/liquidation',
   DEBUGGING: '/debugging',
   ADMIN: '/admin',
   NOT_FOUND: '*',
@@ -39,6 +41,13 @@ export const appRoutes: AppRoute[] = [
     element: DashBoardPage,
     isPublic: false,
     description: 'Main lending and borrowing interface',
+  },
+  {
+    path: ROUTES.LIQUIDATION,
+    name: 'Liquidation',
+    element: LiquidationPage,
+    isPublic: false,
+    description: 'Liquidation dashboard for tracking and liquidating undercollateralized positions',
   },
   {
     path: ROUTES.DEBUGGING,

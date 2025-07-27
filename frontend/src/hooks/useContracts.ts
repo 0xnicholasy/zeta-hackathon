@@ -71,7 +71,7 @@ export function useContracts(targetChainId?: SupportedChainId) {
     simpleLendingProtocol: getContract(CONTRACT_NAMES.SIMPLE_LENDING_PROTOCOL),
     universalLendingProtocol: getContract(CONTRACT_NAMES.UNIVERSAL_LENDING_PROTOCOL),
     depositContract: getContract(CONTRACT_NAMES.DEPOSIT_CONTRACT),
-    priceOracle: getContract(CONTRACT_NAMES.PRICE_ORACLE),
+    priceOracle: getContract(CONTRACT_NAMES.MOCK_PRICE_ORACLE),
     // Specific token getters
     ethArbi: getToken(TOKEN_SYMBOLS.ETH_ARBI),
     usdcArbi: getToken(TOKEN_SYMBOLS.USDC_ARBI),
@@ -141,7 +141,7 @@ export function useDeploymentStatus(targetChainId?: SupportedChainId) {
       hasSimpleLendingProtocol: isContractDeployed(CONTRACT_NAMES.SIMPLE_LENDING_PROTOCOL, chainId),
       hasUniversalLendingProtocol: isContractDeployed(CONTRACT_NAMES.UNIVERSAL_LENDING_PROTOCOL, chainId),
       hasDepositContract: isContractDeployed(CONTRACT_NAMES.DEPOSIT_CONTRACT, chainId),
-      hasPriceOracle: isContractDeployed(CONTRACT_NAMES.PRICE_ORACLE, chainId),
+      hasPriceOracle: isContractDeployed(CONTRACT_NAMES.MOCK_PRICE_ORACLE, chainId),
       isSupported: getNetworkConfig(chainId) !== null,
     };
   }, [chainId]);

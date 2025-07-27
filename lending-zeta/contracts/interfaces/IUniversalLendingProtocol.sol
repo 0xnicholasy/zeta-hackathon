@@ -92,4 +92,18 @@ interface IUniversalLendingProtocol is ISimpleLendingProtocol {
             uint256 currentLiquidationThreshold,
             uint256 healthFactor
         );
+
+    // Liquidation helper function
+    function getMaxLiquidation(
+        address user,
+        address collateralAsset,
+        address debtAsset
+    )
+        external
+        view
+        returns (
+            uint256 maxRepayAmount,
+            uint256 liquidatedCollateral,
+            bool canLiquidate
+        );
 }

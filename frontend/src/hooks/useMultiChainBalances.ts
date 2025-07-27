@@ -99,7 +99,7 @@ export function useMultiChainBalances() {
     try {
       // Map external chain tokens to their ZRC-20 counterparts
       let zetaTokenSymbol = '';
-      
+
       if (chainId === SupportedChain.ARBITRUM_SEPOLIA) {
         if (tokenSymbol === 'ETH') zetaTokenSymbol = TOKEN_SYMBOLS.ETH_ARBI;
         if (tokenSymbol === 'USDC') zetaTokenSymbol = TOKEN_SYMBOLS.USDC_ARBI;
@@ -292,7 +292,10 @@ export function useMultiChainBalances() {
     Object.values(balances).forEach(chainBalances => {
       Object.values(chainBalances).forEach(tokenBalance => {
         if (tokenBalance.usdValue) {
-          total += parseFloat(tokenBalance.usdValue);
+          const value = parseFloat(tokenBalance.usdValue);
+          if (!isNaN(value)) {
+            total += value;
+          }
         }
       });
     });
@@ -307,7 +310,10 @@ export function useMultiChainBalances() {
     Object.values(balances).forEach(chainBalances => {
       const tokenBalance = chainBalances[tokenSymbol];
       if (tokenBalance?.usdValue) {
-        total += parseFloat(tokenBalance.usdValue);
+        const value = parseFloat(tokenBalance.usdValue);
+        if (!isNaN(value)) {
+          total += value;
+        }
       }
     });
 
@@ -418,17 +424,20 @@ export function useZetaChainBalances() {
   const [zetaBalancesWithPrices, setZetaBalancesWithPrices] = useState<ChainTokenBalance>(processedZetaBalances);
 
   useEffect(() => {
+    let isMounted = true;
+
     const updatePrices = async () => {
       if (!processedZetaBalances || Object.keys(processedZetaBalances).length === 0) return;
 
       const updatedBalances = { ...processedZetaBalances };
 
       for (const [tokenSymbol, tokenBalance] of Object.entries(processedZetaBalances)) {
+        if (!isMounted) return;
         try {
           const priceInWei = await getAssetPrice(tokenBalance.tokenAddress);
           const priceInUSD = Number(formatUnits(priceInWei, 18));
           const balanceNum = Number(tokenBalance.formattedBalance);
-          const usdValue = (balanceNum * priceInUSD);
+          const usdValue = balanceNum * priceInUSD;
 
           updatedBalances[tokenSymbol] = {
             ...tokenBalance,
@@ -441,10 +450,16 @@ export function useZetaChainBalances() {
         }
       }
 
-      setZetaBalancesWithPrices(updatedBalances);
+      if (isMounted) {
+        setZetaBalancesWithPrices(updatedBalances);
+      }
     };
 
     void updatePrices();
+
+    return () => {
+      isMounted = false;
+    };
   }, [processedZetaBalances]);
 
   return {

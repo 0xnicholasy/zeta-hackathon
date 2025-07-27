@@ -279,11 +279,6 @@ const _abi = [
         name: "asset",
         type: "address",
       },
-      {
-        internalType: "uint256",
-        name: "priceInUSD",
-        type: "uint256",
-      },
     ],
     name: "addAsset",
     outputs: [],
@@ -304,11 +299,6 @@ const _abi = [
         internalType: "bool",
         name: "isSupported",
         type: "bool",
-      },
-      {
-        internalType: "uint256",
-        name: "price",
-        type: "uint256",
       },
     ],
     stateMutability: "view",
@@ -453,15 +443,29 @@ const _abi = [
             name: "isSupported",
             type: "bool",
           },
-          {
-            internalType: "uint256",
-            name: "price",
-            type: "uint256",
-          },
         ],
         internalType: "struct ISimpleLendingProtocol.Asset",
         name: "",
         type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "asset",
+        type: "address",
+      },
+    ],
+    name: "getAssetPrice",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "price",
+        type: "uint256",
       },
     ],
     stateMutability: "view",
@@ -1055,6 +1059,19 @@ const _abi = [
   },
   {
     inputs: [],
+    name: "priceOracle",
+    outputs: [
+      {
+        internalType: "contract IPriceOracle",
+        name: "",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "renounceOwnership",
     outputs: [],
     stateMutability: "nonpayable",
@@ -1134,24 +1151,6 @@ const _abi = [
       },
     ],
     name: "transferOwnership",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "asset",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "priceInUSD",
-        type: "uint256",
-      },
-    ],
-    name: "updatePrice",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",

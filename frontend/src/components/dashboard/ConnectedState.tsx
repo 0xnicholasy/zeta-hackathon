@@ -43,6 +43,7 @@ export function ConnectedState() {
         healthFactor,
         externalBalances,
         isLoadingExternalBalances,
+        refetchUserData,
     } = useDashboardData();
 
     return (
@@ -109,9 +110,11 @@ export function ConnectedState() {
                     walletChainId={walletChainId}
                     externalBalances={externalBalances}
                     isLoadingExternalBalances={isLoadingExternalBalances}
+                    refetchUserData={refetchUserData}
                 />
                 <BorrowCard
                     userAssets={userAssets}
+                    refetchUserData={refetchUserData}
                 />
             </div>
             {/* Account Health */}

@@ -22,6 +22,7 @@ interface BorrowDialogProps {
     isOpen: boolean;
     onClose: () => void;
     selectedAsset: UserAssetData;
+    refetchUserData?: () => Promise<void>;
 }
 
 // Contract ABI
@@ -41,7 +42,7 @@ export function BorrowDialog({
     const currentChainId = useChainId();
     const { switchChain } = useSwitchChain();
     const safeAddress = safeEVMAddressOrZeroAddress(address);
-    const { universalLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
+    const { universalLendingProtocol, priceOracle } = useContracts(SupportedChain.ZETA_TESTNET);
 
     // Check if user is on ZetaChain (required for borrowing)
     const isOnZetaChain = currentChainId === SupportedChain.ZETA_TESTNET;
@@ -52,6 +53,7 @@ export function BorrowDialog({
         selectedAsset,
         amountToBorrow: amount,
         universalLendingProtocol: safeEVMAddressOrZeroAddress(universalLendingProtocol),
+        priceOracle: safeEVMAddressOrZeroAddress(priceOracle),
         userAddress: safeAddress,
     });
 
@@ -285,9 +287,9 @@ export function BorrowDialog({
             isValidAmount={validation.isValid && !gasApproval.hasInsufficientBalance && !gasApproval.error}
             isConnected={Boolean(address)}
             submitButtonText={
-                !isOnZetaChain 
-                    ? `Switch to ${zetaNetworkConfig?.name || 'ZetaChain'}` 
-                    : gasApproval.needsApproval 
+                !isOnZetaChain
+                    ? `Switch to ${zetaNetworkConfig?.name || 'ZetaChain'}`
+                    : gasApproval.needsApproval
                         ? "Approve & Borrow"
                         : "Borrow"
             }
@@ -377,29 +379,29 @@ export function BorrowDialog({
                     )}
 
                     {/* Gas Fee Info (show when borrowing different asset than gas token) */}
-                    {gasApproval.gasTokenAddress && selectedAsset && 
-                     selectedAsset.address.toLowerCase() !== gasApproval.gasTokenAddress.toLowerCase() && (
-                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm">
-                            <div className="text-blue-800 dark:text-blue-200 font-medium mb-2">
-                                Gas Fee Information
-                            </div>
-                            <div className="space-y-1 text-blue-700 dark:text-blue-300">
-                                <div className="flex justify-between">
-                                    <span>Gas fee:</span>
-                                    <span>{(Number(gasApproval.gasFee) / 1e18).toFixed(6)} ETH.ARBI</span>
+                    {gasApproval.gasTokenAddress && selectedAsset &&
+                        selectedAsset.address.toLowerCase() !== gasApproval.gasTokenAddress.toLowerCase() && (
+                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm">
+                                <div className="text-blue-800 dark:text-blue-200 font-medium mb-2">
+                                    Gas Fee Information
                                 </div>
-                                <div className="flex justify-between">
-                                    <span>Your balance:</span>
-                                    <span>{(Number(gasApproval.userGasBalance) / 1e18).toFixed(6)} ETH.ARBI</span>
-                                </div>
-                                {gasApproval.needsApproval && (
-                                    <div className="text-blue-600 dark:text-blue-400 text-xs mt-2">
-                                        Approval needed for gas token to pay withdrawal fees
+                                <div className="space-y-1 text-blue-700 dark:text-blue-300">
+                                    <div className="flex justify-between">
+                                        <span>Gas fee:</span>
+                                        <span>{(Number(gasApproval.gasFee) / 1e18).toFixed(6)} ETH.ARBI</span>
                                     </div>
-                                )}
+                                    <div className="flex justify-between">
+                                        <span>Your balance:</span>
+                                        <span>{(Number(gasApproval.userGasBalance) / 1e18).toFixed(6)} ETH.ARBI</span>
+                                    </div>
+                                    {gasApproval.needsApproval && (
+                                        <div className="text-blue-600 dark:text-blue-400 text-xs mt-2">
+                                            Approval needed for gas token to pay withdrawal fees
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
                     {/* Gas Token Error Display */}
                     {gasApproval.error && (

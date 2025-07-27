@@ -233,7 +233,7 @@ export const getDepositContractAddress = (chainId: number) =>
   getContractAddress(CONTRACT_NAMES.DEPOSIT_CONTRACT, chainId);
 
 export const getPriceOracleAddress = (chainId: number) =>
-  getContractAddress(CONTRACT_NAMES.PRICE_ORACLE, chainId);
+  getContractAddress(CONTRACT_NAMES.MOCK_PRICE_ORACLE, chainId);
 
 // Helper functions for tokens
 export const getEthArbiAddress = (chainId: number) =>
@@ -247,3 +247,56 @@ export const getEthEthAddress = (chainId: number) =>
 
 export const getUsdcEthAddress = (chainId: number) =>
   getTokenAddress(TOKEN_SYMBOLS.USDC_ETH, chainId);
+
+/**
+ * Get token decimals by address across all supported chains
+ */
+export function getTokenDecimals(assetAddress: EVMAddress): number {
+  // Check all supported chains for this asset
+  for (const chainId of getSupportedChainIds()) {
+    try {
+      const network = getNetworkConfig(chainId);
+      if (!network) continue;
+
+      // Find the token symbol for this address
+      for (const [symbol, address] of Object.entries(network.tokens)) {
+        if (address?.toLowerCase() === assetAddress.toLowerCase()) {
+          // USDC tokens use 6 decimals, everything else uses 18
+          return symbol.includes('USDC') ? 6 : 18;
+        }
+      }
+    } catch {
+      // Ignore errors for unsupported chains
+      continue;
+    }
+  }
+
+  // Default to 18 decimals if token not found
+  return 18;
+}
+
+/**
+ * Get token symbol by address across all supported chains
+ */
+export function getTokenSymbol(assetAddress: EVMAddress): string {
+  // Check all supported chains for this asset
+  for (const chainId of getSupportedChainIds()) {
+    try {
+      const network = getNetworkConfig(chainId);
+      if (!network) continue;
+
+      // Find the token symbol for this address
+      for (const [symbol, address] of Object.entries(network.tokens)) {
+        if (address?.toLowerCase() === assetAddress.toLowerCase()) {
+          return symbol;
+        }
+      }
+    } catch {
+      // Ignore errors for unsupported chains
+      continue;
+    }
+  }
+
+  // Return truncated address if token not found
+  return assetAddress.slice(0, 8) + '...';
+}

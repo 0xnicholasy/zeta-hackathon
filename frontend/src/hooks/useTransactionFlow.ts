@@ -15,7 +15,7 @@ function isValidStepForTransactionType<T extends TransactionType>(
     // for all transaction types. In a more robust implementation, this could
     // be enhanced with a complete validation mapping.
     const commonSteps = ['input', 'approve', 'approving', 'switchNetwork', 'success', 'failed'];
-    const transactionSpecificSteps = ['deposit', 'depositing', 'withdraw', 'withdrawing', 'checkWithdraw', 'checkGas', 'borrow', 'borrowing', 'repay', 'repaying'];
+    const transactionSpecificSteps = ['deposit', 'depositing', 'withdraw', 'withdrawing', 'checkWithdraw', 'checkGas', 'borrow', 'borrowing', 'repay', 'repaying', 'liquidate', 'liquidating'];
     const allValidSteps = [...commonSteps, ...transactionSpecificSteps];
     
     return allValidSteps.includes(step);
@@ -116,7 +116,8 @@ export function useTransactionFlow<T extends TransactionType>(initialStep: Steps
                         'deposit': 'depositing' as const,
                         'withdraw': 'withdrawing' as const,
                         'borrow': 'borrowing' as const,
-                        'repay': 'repaying' as const
+                        'repay': 'repaying' as const,
+                        'liquidate': 'liquidating' as const
                     } as const;
 
                     const currentStepKey = currentStep as keyof typeof stepTransitions;
@@ -177,4 +178,8 @@ export function useBorrowTransactionFlow(): TransactionFlowHookReturn<'borrow'> 
 
 export function useRepayTransactionFlow(): TransactionFlowHookReturn<'repay'> {
     return useTransactionFlow<'repay'>();
+}
+
+export function useLiquidateTransactionFlow(): TransactionFlowHookReturn<'liquidate'> {
+    return useTransactionFlow<'liquidate'>();
 }
