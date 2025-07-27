@@ -1458,7 +1458,7 @@ contract UniversalLendingProtocolTest is Test {
         lendingProtocol.borrow(address(arbToken), arbBorrow, user2);
         vm.stopPrank();
 
-        // Total debt = $2000, Total collateral = (2*1200*0.85) + (1000*1*0.85) = $2890
+        // Total debt = $2000, Total collateral = (2*$900*0.85) + (1000*$1*0.85) = $2380
         // Health factor should be healthy initially
 
         // Price crash: ETH to $900, making position unhealthy (HF < 1.2)
@@ -1527,7 +1527,7 @@ contract UniversalLendingProtocolTest is Test {
         vm.warp(block.timestamp + 3601);
 
         // Health factor calculation should revert due to stale prices
-
+        vm.expectRevert();
         lendingProtocol.getHealthFactor(user1);
     }
 
@@ -1553,11 +1553,11 @@ contract UniversalLendingProtocolTest is Test {
         lendingProtocol.supply(address(ethToken), supplyAmount, user1);
 
         // However, trying to get health factor should fail due to stale prices
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.getHealthFactor(user1);
 
         // Trying to get asset price should also fail
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.getAssetPrice(address(ethToken));
 
         vm.stopPrank();
@@ -1579,7 +1579,7 @@ contract UniversalLendingProtocolTest is Test {
 
         // Withdraw operation should fail due to stale prices in health factor check
         vm.prank(user1);
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.withdraw(address(ethToken), withdrawAmount, user1);
     }
 
@@ -1595,7 +1595,7 @@ contract UniversalLendingProtocolTest is Test {
 
         // Borrow operation should fail due to stale prices in collateral check
         vm.prank(user1);
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.borrow(address(usdcToken), borrowAmount, user1);
     }
 
@@ -1619,7 +1619,7 @@ contract UniversalLendingProtocolTest is Test {
         // Liquidation should fail due to stale prices
         vm.startPrank(liquidator);
         usdcToken.approve(address(lendingProtocol), 400 * 10 ** 6);
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.liquidate(
             user2,
             address(ethToken),
@@ -1651,7 +1651,7 @@ contract UniversalLendingProtocolTest is Test {
         vm.stopPrank();
 
         // But trying to get health factor should fail due to stale prices
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.getHealthFactor(user1);
     }
 
@@ -1674,7 +1674,7 @@ contract UniversalLendingProtocolTest is Test {
 
         // One second past threshold should fail
         vm.warp(block.timestamp + 1);
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.getHealthFactor(user1);
     }
 
@@ -1696,7 +1696,7 @@ contract UniversalLendingProtocolTest is Test {
         priceOracle.setPrice(address(ethToken), ETH_PRICE); // Fresh ETH price
 
         // Health factor should fail because USDC price is stale
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.getHealthFactor(user1);
 
         // Update USDC price too
@@ -1718,7 +1718,7 @@ contract UniversalLendingProtocolTest is Test {
         vm.warp(block.timestamp + 3601);
 
         // canBorrow should fail due to stale prices
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.canBorrow(user1, address(usdcToken), borrowAmount);
     }
 
@@ -1736,7 +1736,7 @@ contract UniversalLendingProtocolTest is Test {
         vm.warp(block.timestamp + 3601);
 
         // canWithdraw should fail due to stale prices when there's debt
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.canWithdraw(user1, address(ethToken), withdrawAmount);
     }
 
@@ -1749,7 +1749,7 @@ contract UniversalLendingProtocolTest is Test {
         vm.warp(block.timestamp + 3601);
 
         // maxAvailableBorrows should fail due to stale prices
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.maxAvailableBorrows(user1, address(usdcToken));
     }
 
@@ -1758,7 +1758,7 @@ contract UniversalLendingProtocolTest is Test {
         vm.warp(block.timestamp + 3601);
 
         // getAssetPrice should fail due to stale prices
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.getAssetPrice(address(ethToken));
     }
 
@@ -1812,7 +1812,7 @@ contract UniversalLendingProtocolTest is Test {
                 assertTrue(healthFactor > 1.5e18);
             } else {
                 // Should fail
-
+                vm.expectRevert("Price too stale");
                 lendingProtocol.getHealthFactor(user1);
             }
 
@@ -1962,7 +1962,7 @@ contract UniversalLendingProtocolTest is Test {
         );
 
         // But price validation should fail
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.getAssetPrice(address(ethToken));
     }
 
@@ -2002,25 +2002,28 @@ contract UniversalLendingProtocolTest is Test {
         vm.warp(block.timestamp + 3601);
 
         // All simulation functions should fail with stale prices when there's debt
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.getHealthFactorAfterBorrow(
             user1,
             address(usdcToken),
             borrowAmount
         );
 
+        vm.expectRevert("Price too stale");
         lendingProtocol.getHealthFactorAfterRepay(
             user1,
             address(usdcToken),
             borrowAmount
         );
 
+        vm.expectRevert("Price too stale");
         lendingProtocol.getHealthFactorAfterWithdraw(
             user1,
             address(ethToken),
             1 * 10 ** 18
         );
 
+        vm.expectRevert("Price too stale");
         lendingProtocol.getUserPositionData(user1);
     }
 
@@ -2033,9 +2036,10 @@ contract UniversalLendingProtocolTest is Test {
         vm.warp(block.timestamp + 3601);
 
         // Collateral value calculation should fail
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.getCollateralValue(user1, address(ethToken));
 
+        vm.expectRevert("Price too stale");
         lendingProtocol.getTotalCollateralValue(user1);
     }
 
@@ -2052,9 +2056,10 @@ contract UniversalLendingProtocolTest is Test {
         vm.warp(block.timestamp + 3601);
 
         // Debt value calculation should fail
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.getDebtValue(user1, address(usdcToken));
 
+        vm.expectRevert("Price too stale");
         lendingProtocol.getTotalDebtValue(user1);
     }
 
@@ -2104,7 +2109,7 @@ contract UniversalLendingProtocolTest is Test {
 
         // Should fail at maxPriceAge + 1
         vm.warp(block.timestamp + 1);
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.getHealthFactor(user1);
     }
 
@@ -2132,7 +2137,7 @@ contract UniversalLendingProtocolTest is Test {
         // ARB price remains stale
 
         // Health factor should fail due to stale ARB price
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.getHealthFactor(user1);
 
         // Fix ARB price
@@ -2171,7 +2176,7 @@ contract UniversalLendingProtocolTest is Test {
         // Liquidation should fail due to stale collateral price
         vm.startPrank(liquidator);
         usdcToken.approve(address(lendingProtocol), 400 * 10 ** 6);
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.liquidate(
             user2,
             address(ethToken),
@@ -2206,7 +2211,7 @@ contract UniversalLendingProtocolTest is Test {
 
         // But if prices become stale, operations should fail
         vm.warp(block.timestamp + 3601);
-
+        vm.expectRevert("Price too stale");
         lendingProtocol.canBorrow(user1, address(usdcToken), additionalBorrow);
     }
 }

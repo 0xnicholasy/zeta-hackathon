@@ -19,7 +19,12 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         address payable gatewayAddress,
         address _priceOracle,
         address owner
-    ) SimpleLendingProtocolBase(gatewayAddress, _priceOracle, owner) {}
+    ) SimpleLendingProtocolBase(gatewayAddress, _priceOracle, owner) {
+        require(
+            _priceOracle != address(0),
+            "Price oracle cannot be zero address"
+        );
+    }
 
     // Admin functions
     function addAsset(address asset) external onlyOwner {
@@ -211,9 +216,15 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
             !assets[collateralAsset].isSupported ||
             !assets[debtAsset].isSupported
         ) revert AssetNotSupported(collateralAsset);
-        if (repayAmount == 0) revert InvalidAmount();
-        if (userBorrows[user][debtAsset] < repayAmount) revert InvalidAmount();
-        if (!isLiquidatable(user)) revert HealthFactorTooLow();
+
+        // Check if position is liquidatable
+        uint256 healthFactor = getHealthFactor(user);
+        if (healthFactor >= 1.2e18) revert HealthFactorTooLow();
+
+        // cache oracle prices and validate
+        uint256 debtPrice = priceOracle.getPrice(debtAsset);
+        uint256 collateralPrice = priceOracle.getPrice(collateralAsset);
+        require(debtPrice > 0 && collateralPrice > 0, "Invalid oracle prices");
 
         uint256 collateralValue = (repayAmount *
             priceOracle.getPrice(debtAsset) *

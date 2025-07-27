@@ -216,9 +216,23 @@ export function LiquidationDialog({ targetAddress, isOpen, onClose }: Liquidatio
     // Reset any previous state
     resetTransaction();
 
-    // Always start with approval for safety
-    handleApprove();
-  }, [universalLendingProtocol, userAddress, selectedCollateralAsset, selectedDebtAsset, repayAmount, resetTransaction, handleApprove]);
+    // Check if approval is needed before initiating the flow
+    if (needsApproval) {
+      handleApprove();
+    } else {
+      handleLiquidate();
+    }
+  }, [
+    universalLendingProtocol,
+    userAddress,
+    selectedCollateralAsset,
+    selectedDebtAsset,
+    repayAmount,
+    resetTransaction,
+    handleApprove,
+    handleLiquidate,
+    needsApproval,
+  ]);
 
   const isLiquidatable = parsedPositionData && parseFloat(parsedPositionData.healthFactor) < 1.2;
 

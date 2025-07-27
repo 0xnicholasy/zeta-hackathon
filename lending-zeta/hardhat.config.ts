@@ -35,8 +35,6 @@ const config: HardhatUserConfig = {
       url: process.env.ARBITRUM_SEPOLIA_RPC_URL || `https://arb-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
       chainId: 421614,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      gasPrice: 20000000000, // 20 Gwei
-      gas: 8000000 // 8M gas limit
     },
     "ethereum-sepolia": {
       url: process.env.ETHEREUM_SEPOLIA_RPC_URL || `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,

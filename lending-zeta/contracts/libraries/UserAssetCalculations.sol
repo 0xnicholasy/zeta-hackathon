@@ -34,7 +34,6 @@ library UserAssetCalculations {
         uint256 weightedLiquidationThreshold;
     }
 
-
     /**
      * @notice Helper function to get asset values for a specific user and asset
      * @dev Consolidates price fetching and value calculations to eliminate code duplication
@@ -63,26 +62,46 @@ library UserAssetCalculations {
         mapping(address => mapping(address => uint256)) storage userBorrows,
         IUniversalLendingProtocol.AssetConfig memory assetConfig,
         uint256 validatedPrice
-    ) internal view returns (
-        uint256 collateralValue,
-        uint256 debtValue,
-        uint256 borrowableCollateral,
-        uint256 weightedCollateral
-    ) {
+    )
+        internal
+        view
+        returns (
+            uint256 collateralValue,
+            uint256 debtValue,
+            uint256 borrowableCollateral,
+            uint256 weightedCollateral
+        )
+    {
         // Use custom balances if provided, otherwise use current balances
-        uint256 supplyBalance = useCustomBalances ? customSupplyBalance : userSupplies[user][asset];
-        uint256 debtBalance = useCustomBalances ? customDebtBalance : userBorrows[user][asset];
+        uint256 supplyBalance = useCustomBalances
+            ? customSupplyBalance
+            : userSupplies[user][asset];
+        uint256 debtBalance = useCustomBalances
+            ? customDebtBalance
+            : userBorrows[user][asset];
 
         // Calculate collateral value
         if (supplyBalance > 0) {
-            collateralValue = _calculateAssetValue(supplyBalance, asset, validatedPrice);
-            borrowableCollateral = (collateralValue * assetConfig.collateralFactor) / PRECISION;
-            weightedCollateral = (collateralValue * assetConfig.liquidationThreshold) / PRECISION;
+            collateralValue = _calculateAssetValue(
+                supplyBalance,
+                asset,
+                validatedPrice
+            );
+            borrowableCollateral =
+                (collateralValue * assetConfig.collateralFactor) /
+                PRECISION;
+            weightedCollateral =
+                (collateralValue * assetConfig.liquidationThreshold) /
+                PRECISION;
         }
 
         // Calculate debt value
         if (debtBalance > 0) {
-            debtValue = _calculateAssetValue(debtBalance, asset, validatedPrice);
+            debtValue = _calculateAssetValue(
+                debtBalance,
+                asset,
+                validatedPrice
+            );
         }
     }
 
@@ -111,43 +130,58 @@ library UserAssetCalculations {
         address[] storage supportedAssets,
         mapping(address => mapping(address => uint256)) storage userSupplies,
         mapping(address => mapping(address => uint256)) storage userBorrows,
-        mapping(address => IUniversalLendingProtocol.AssetConfig) storage enhancedAssets,
+        mapping(address => IUniversalLendingProtocol.AssetConfig)
+            storage enhancedAssets,
         IPriceOracle priceOracle
     ) internal view returns (UserAssetData memory data) {
         for (uint256 i = 0; i < supportedAssets.length; i++) {
             address asset = supportedAssets[i];
-            
+
             // Determine if we should use custom balances for this asset
             bool useCustom = useModified && asset == modifiedAsset;
             uint256 customSupply = useCustom ? newSupplyBalance : 0;
             uint256 customDebt = useCustom ? newDebtBalance : 0;
 
-            // Get validated price once per asset
-            uint256 validatedPrice = _getValidatedPrice(asset, priceOracle);
+            // Get current balances (use custom if modified, otherwise get from storage)
+            uint256 supplyBalance = useCustom
+                ? customSupply
+                : userSupplies[user][asset];
+            uint256 debtBalance = useCustom
+                ? customDebt
+                : userBorrows[user][asset];
 
-            (
-                uint256 collateralValue,
-                uint256 debtValue,
-                uint256 borrowableCollateral,
-                uint256 weightedCollateral
-            ) = getAssetValues(
-                user, 
-                asset, 
-                customSupply, 
-                customDebt, 
-                useCustom,
-                userSupplies,
-                userBorrows,
-                enhancedAssets[asset],
-                validatedPrice
-            );
+            // Only validate price if user has balance in this asset
+            if (supplyBalance > 0 || debtBalance > 0) {
+                // Get validated price once per asset (only when needed)
+                uint256 validatedPrice = _getValidatedPrice(asset, priceOracle);
 
-            // Accumulate all values
-            data.totalCollateralValue += collateralValue;
-            data.totalDebtValue += debtValue;
-            data.totalBorrowableCollateral += borrowableCollateral;
-            data.totalWeightedCollateral += weightedCollateral;
-            data.weightedLiquidationThreshold += collateralValue * enhancedAssets[asset].liquidationThreshold;
+                (
+                    uint256 collateralValue,
+                    uint256 debtValue,
+                    uint256 borrowableCollateral,
+                    uint256 weightedCollateral
+                ) = getAssetValues(
+                        user,
+                        asset,
+                        customSupply,
+                        customDebt,
+                        useCustom,
+                        userSupplies,
+                        userBorrows,
+                        enhancedAssets[asset],
+                        validatedPrice
+                    );
+
+                // Accumulate all values
+                data.totalCollateralValue += collateralValue;
+                data.totalDebtValue += debtValue;
+                data.totalBorrowableCollateral += borrowableCollateral;
+                data.totalWeightedCollateral += weightedCollateral;
+                data.weightedLiquidationThreshold += weightedCollateral > 0
+                    ? collateralValue *
+                        enhancedAssets[asset].liquidationThreshold
+                    : 0;
+            }
         }
     }
 
@@ -182,10 +216,10 @@ library UserAssetCalculations {
         IPriceOracle priceOracle
     ) internal view returns (uint256 validatedPrice) {
         validatedPrice = priceOracle.getPrice(asset);
-        
+
         // Validate price is not zero (basic sanity check)
         require(validatedPrice > 0, "Invalid price: zero");
-        
+
         // Additional validation could be added here:
         // - Price staleness checks
         // - Minimum/maximum price bounds

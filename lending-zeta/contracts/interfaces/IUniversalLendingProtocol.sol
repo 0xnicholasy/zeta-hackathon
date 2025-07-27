@@ -93,6 +93,14 @@ interface IUniversalLendingProtocol is ISimpleLendingProtocol {
             uint256 healthFactor
         );
 
+    /// @notice Calculates the maximum liquidation parameters for a user's position
+    /// @dev This function helps determine liquidation feasibility and amounts before execution
+    /// @param user The address of the user whose position is being evaluated for liquidation
+    /// @param collateralAsset The address of the collateral asset to be liquidated
+    /// @param debtAsset The address of the debt asset to be repaid
+    /// @return maxRepayAmount The maximum amount of debt that can be repaid in the liquidation
+    /// @return liquidatedCollateral The amount of collateral that would be seized
+    /// @return canLiquidate Whether the position is eligible for liquidation (health factor < 1)
     // Liquidation helper function
     function getMaxLiquidation(
         address user,

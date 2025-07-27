@@ -64,19 +64,25 @@ export default function LiquidationPage() {
   // Update health factor when data changes
   useEffect(() => {
     if (userAccountData && currentAddress && userAccountData[4]) {
+      // Capture the current index to prevent race conditions
+      const capturedIndex = selectedAddressIndex;
+      const capturedAddress = currentAddress;
+
       const factor = formatUnits(userAccountData[4], 18);
       const isLiquidatable = parseFloat(factor) < 1.2;
 
-      setTrackedAddresses(prev => prev.map((tracked, index) =>
-        index === selectedAddressIndex
-          ? {
-            ...tracked,
-            healthFactor: factor,
-            isLiquidatable,
-            lastUpdated: new Date()
-          }
-          : tracked
-      ));
+      setTrackedAddresses(prev =>
+        prev.map((tracked, index) =>
+          index === capturedIndex && tracked.address === capturedAddress
+            ? {
+              ...tracked,
+              healthFactor: factor,
+              isLiquidatable,
+              lastUpdated: new Date()
+            }
+            : tracked
+        )
+      );
     }
   }, [userAccountData, currentAddress, selectedAddressIndex]);
 

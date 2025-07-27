@@ -249,20 +249,23 @@ export const getUsdcEthAddress = (chainId: number) =>
   getTokenAddress(TOKEN_SYMBOLS.USDC_ETH, chainId);
 
 /**
- * Get token decimals by address across all supported chains
+ * Helper function to find token information by address across all supported chains
  */
-export function getTokenDecimals(assetAddress: EVMAddress): number {
+function findTokenInfo<T>(
+  assetAddress: EVMAddress,
+  callback: (symbol: string) => T,
+  defaultValue: T
+): T {
   // Check all supported chains for this asset
   for (const chainId of getSupportedChainIds()) {
     try {
       const network = getNetworkConfig(chainId);
       if (!network) continue;
 
-      // Find the token symbol for this address
+      // Find the token for this address
       for (const [symbol, address] of Object.entries(network.tokens)) {
         if (address?.toLowerCase() === assetAddress.toLowerCase()) {
-          // USDC tokens use 6 decimals, everything else uses 18
-          return symbol.includes('USDC') ? 6 : 18;
+          return callback(symbol);
         }
       }
     } catch {
@@ -271,32 +274,27 @@ export function getTokenDecimals(assetAddress: EVMAddress): number {
     }
   }
 
-  // Default to 18 decimals if token not found
-  return 18;
+  return defaultValue;
+}
+
+/**
+ * Get token decimals by address across all supported chains
+ */
+export function getTokenDecimals(assetAddress: EVMAddress): number {
+  return findTokenInfo(
+    assetAddress,
+    (symbol) => symbol.includes('USDC') ? 6 : 18,
+    18
+  );
 }
 
 /**
  * Get token symbol by address across all supported chains
  */
 export function getTokenSymbol(assetAddress: EVMAddress): string {
-  // Check all supported chains for this asset
-  for (const chainId of getSupportedChainIds()) {
-    try {
-      const network = getNetworkConfig(chainId);
-      if (!network) continue;
-
-      // Find the token symbol for this address
-      for (const [symbol, address] of Object.entries(network.tokens)) {
-        if (address?.toLowerCase() === assetAddress.toLowerCase()) {
-          return symbol;
-        }
-      }
-    } catch {
-      // Ignore errors for unsupported chains
-      continue;
-    }
-  }
-
-  // Return truncated address if token not found
-  return assetAddress.slice(0, 8) + '...';
+  return findTokenInfo(
+    assetAddress,
+    (symbol) => symbol,
+    assetAddress.slice(0, 8) + '...'
+  );
 }
