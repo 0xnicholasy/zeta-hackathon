@@ -510,6 +510,14 @@ export function LiquidationDialog({ targetAddress, isOpen, onClose }: Liquidatio
                   <div className="text-green-600 dark:text-green-400">
                     <strong>Success!</strong> Liquidation completed. Tx: {transactionHash}
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => void refetchPosition()}
+                  >
+                    Refresh Position
+                  </Button>
                 </Card>
               )}
 
