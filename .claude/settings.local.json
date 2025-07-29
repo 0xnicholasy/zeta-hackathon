@@ -41,7 +41,9 @@
       "Bash(npm run type-check:*)",
       "Bash(npm run build:*)",
       "Bash(cat:*)",
-      "Bash(forge build:*)"
+      "Bash(forge build:*)",
+      "Bash(cargo test)",
+      "Bash(anchor build)"
     ],
     "deny": []
   }
