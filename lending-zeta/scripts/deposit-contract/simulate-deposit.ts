@@ -62,7 +62,7 @@ async function main() {
     // Get USDC contract address from contracts.json
     let usdcAddress: string;
     try {
-      usdcAddress = getNetwork(chainId).tokens["USDC"];
+      usdcAddress = getNetwork(chainId).tokens["USDC"].address;
       if (!usdcAddress || usdcAddress === "0x0000000000000000000000000000000000000000") {
         console.log("❌ USDC not configured for this network");
         return;

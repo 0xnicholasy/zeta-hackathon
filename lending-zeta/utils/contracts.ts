@@ -5,6 +5,11 @@ import * as path from 'path';
 export type Address = `0x${string}`;
 export type ChainId = number;
 
+export interface TokenConfig {
+  address: Address;
+  decimals: number;
+}
+
 export interface NetworkConfig {
   name: string;
   chainId: ChainId;
@@ -12,7 +17,7 @@ export interface NetworkConfig {
   rpc?: string;
   explorer?: string;
   contracts: Record<string, Address>;
-  tokens: Record<string, Address>;
+  tokens: Record<string, TokenConfig>;
   lendingProtocolAddress?: Address;
 }
 
@@ -82,13 +87,25 @@ export function getContractAddress(chainIdOrName: ChainId | string, contractName
 // Get token address
 export function getTokenAddress(chainIdOrName: ChainId | string, tokenSymbol: string): Address {
   const network = getNetwork(chainIdOrName);
-  const address = network.tokens[tokenSymbol];
+  const tokenConfig = network.tokens[tokenSymbol];
 
-  if (!address || address === ZERO_ADDRESS) {
+  if (!tokenConfig || !tokenConfig.address || tokenConfig.address === ZERO_ADDRESS) {
     throw new Error(`Token ${tokenSymbol} not found on ${network.name}`);
   }
 
-  return address;
+  return tokenConfig.address;
+}
+
+// Get token configuration
+export function getTokenConfig(chainIdOrName: ChainId | string, tokenSymbol: string): TokenConfig {
+  const network = getNetwork(chainIdOrName);
+  const tokenConfig = network.tokens[tokenSymbol];
+
+  if (!tokenConfig || !tokenConfig.address || tokenConfig.address === ZERO_ADDRESS) {
+    throw new Error(`Token ${tokenSymbol} not found on ${network.name}`);
+  }
+
+  return tokenConfig;
 }
 
 // Update contract address
@@ -119,7 +136,8 @@ export function updateContractAddress(
 export function updateTokenAddress(
   chainIdOrName: ChainId | string,
   tokenSymbol: string,
-  address: Address
+  address: Address,
+  decimals?: number
 ): void {
   const config = loadContracts();
   const key = typeof chainIdOrName === 'number' ? chainIdOrName.toString() : chainIdOrName;
@@ -128,7 +146,14 @@ export function updateTokenAddress(
     throw new Error(`Network not found: ${chainIdOrName}`);
   }
 
-  config.networks[key].tokens[tokenSymbol] = address;
+  // Preserve existing decimals if not provided
+  const existingDecimals = config.networks[key].tokens[tokenSymbol]?.decimals || 18;
+  
+  config.networks[key].tokens[tokenSymbol] = {
+    address,
+    decimals: decimals !== undefined ? decimals : existingDecimals
+  };
+  
   saveContracts(config);
   console.log(`✅ Updated ${tokenSymbol} address on ${config.networks[key].name}: ${address}`);
 }
@@ -189,9 +214,9 @@ export function getAvailableTokens(chainIdOrName: ChainId | string): Record<stri
   const network = getNetwork(chainIdOrName);
   const available: Record<string, Address> = {};
 
-  for (const [symbol, address] of Object.entries(network.tokens)) {
-    if (address && address !== ZERO_ADDRESS) {
-      available[symbol] = address;
+  for (const [symbol, tokenConfig] of Object.entries(network.tokens)) {
+    if (tokenConfig && tokenConfig.address && tokenConfig.address !== ZERO_ADDRESS) {
+      available[symbol] = tokenConfig.address;
     }
   }
 
@@ -216,8 +241,8 @@ export function validateNetworkDeployment(chainIdOrName: ChainId | string): {
   }
 
   // Check tokens (only non-native tokens need to be deployed)
-  for (const [symbol, address] of Object.entries(network.tokens)) {
-    if (!address || address === ZERO_ADDRESS) {
+  for (const [symbol, tokenConfig] of Object.entries(network.tokens)) {
+    if (!tokenConfig || !tokenConfig.address || tokenConfig.address === ZERO_ADDRESS) {
       missingTokens.push(symbol);
     }
   }
