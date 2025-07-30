@@ -193,6 +193,9 @@ export const SupportedChain = {
   ZETA_TESTNET: 7001,
   ARBITRUM_SEPOLIA: 421614,
   ETHEREUM_SEPOLIA: 11155111,
+  POLYGON_AMOY: 80002,
+  BASE_SEPOLIA: 84532,
+  BSC_TESTNET: 97,
 } as const;
 
 export type SupportedChainId = typeof SupportedChain[keyof typeof SupportedChain];
@@ -213,13 +216,23 @@ export const CONTRACT_NAMES = {
 } as const;
 
 export const TOKEN_SYMBOLS = {
+  // ZRC-20 tokens on ZetaChain
   ETH_ARBI: 'ETH.ARBI',
   USDC_ARBI: 'USDC.ARBI',
   ETH_ETH: 'ETH.ETH',
   USDC_ETH: 'USDC.ETH',
+  USDC_POL: 'USDC.POL',
+  POL_POL: 'POL.POL',
+  USDC_BSC: 'USDC.BSC',
+  BNB_BSC: 'BNB.BSC',
+  ETH_BASE: 'ETH.BASE',
+  USDC_BASE: 'USDC.BASE',
   ZETA: 'ZETA',
+  // Native tokens on external chains
   ETH: 'ETH',
   USDC: 'USDC',
+  POL: 'POL',
+  BNB: 'BNB',
 } as const;
 
 // Helper functions with predefined contract names
@@ -247,6 +260,32 @@ export const getEthEthAddress = (chainId: number) =>
 
 export const getUsdcEthAddress = (chainId: number) =>
   getTokenAddress(TOKEN_SYMBOLS.USDC_ETH, chainId);
+
+// Helper functions for new ZRC-20 tokens
+export const getUsdcPolAddress = (chainId: number) =>
+  getTokenAddress(TOKEN_SYMBOLS.USDC_POL, chainId);
+
+export const getPolPolAddress = (chainId: number) =>
+  getTokenAddress(TOKEN_SYMBOLS.POL_POL, chainId);
+
+export const getUsdcBscAddress = (chainId: number) =>
+  getTokenAddress(TOKEN_SYMBOLS.USDC_BSC, chainId);
+
+export const getBnbBscAddress = (chainId: number) =>
+  getTokenAddress(TOKEN_SYMBOLS.BNB_BSC, chainId);
+
+export const getEthBaseAddress = (chainId: number) =>
+  getTokenAddress(TOKEN_SYMBOLS.ETH_BASE, chainId);
+
+export const getUsdcBaseAddress = (chainId: number) =>
+  getTokenAddress(TOKEN_SYMBOLS.USDC_BASE, chainId);
+
+// Helper functions for native tokens on external chains
+export const getPolAddress = (chainId: number) =>
+  getTokenAddress(TOKEN_SYMBOLS.POL, chainId);
+
+export const getBnbAddress = (chainId: number) =>
+  getTokenAddress(TOKEN_SYMBOLS.BNB, chainId);
 
 /**
  * Helper function to find token information by address across all supported chains
@@ -283,7 +322,12 @@ function findTokenInfo<T>(
 export function getTokenDecimals(assetAddress: EVMAddress): number {
   return findTokenInfo(
     assetAddress,
-    (symbol) => symbol.includes('USDC') ? 6 : 18,
+    (symbol) => {
+      // All USDC variants have 6 decimals
+      if (symbol.includes('USDC')) return 6;
+      // All other tokens (ETH variants, POL, BNB, ZETA) have 18 decimals
+      return 18;
+    },
     18
   );
 }

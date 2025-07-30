@@ -12,6 +12,15 @@ hh run scripts/deposit-contract/simulate-deposit.ts --network arbitrum-sepolia
 PROTOCOL_TYPE=universal hh run scripts/deposit-contract/update-lending-protocol-address.ts --network ethereum-sepolia
 hh run scripts/deposit-contract/simulate-deposit.ts --network ethereum-sepolia
 
+PROTOCOL_TYPE=universal hh run scripts/deposit-contract/update-lending-protocol-address.ts --network polygon-amoy
+hh run scripts/deposit-contract/simulate-deposit.ts --network polygon-amoy
+
+PROTOCOL_TYPE=universal hh run scripts/deposit-contract/update-lending-protocol-address.ts --network base-sepolia
+hh run scripts/deposit-contract/simulate-deposit.ts --network base-sepolia
+
+PROTOCOL_TYPE=universal hh run scripts/deposit-contract/update-lending-protocol-address.ts --network bsc-testnet
+hh run scripts/deposit-contract/simulate-deposit.ts --network bsc-testnet
+
 cd ..
 python3 sync-contracts.py
 cd lending-zeta

@@ -1,7 +1,26 @@
 import { createPublicClient, http, formatUnits, type Address } from 'viem';
-import { SupportedChain, getUniversalLendingProtocolAddress, getTokenAddress, TOKEN_SYMBOLS, getPriceOracleAddress } from '../contracts/deployments';
+import { SupportedChain, getUniversalLendingProtocolAddress, getTokenAddress, getPriceOracleAddress } from '../contracts/deployments';
+import { CHAIN_TOKEN_MAPPINGS } from './chainUtils';
 import { UniversalLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/UniversalLendingProtocol__factory';
 import { ERC20__factory, IPriceOracle__factory } from '../contracts/typechain-types';
+
+// Helper function to get source chain name from chain ID
+function getSourceChainName(chainId: number): string {
+  switch (chainId) {
+    case SupportedChain.ARBITRUM_SEPOLIA:
+      return 'ARBI';
+    case SupportedChain.ETHEREUM_SEPOLIA:
+      return 'ETH';
+    case SupportedChain.POLYGON_AMOY:
+      return 'POL';
+    case SupportedChain.BASE_SEPOLIA:
+      return 'BASE';
+    case SupportedChain.BSC_TESTNET:
+      return 'BSC';
+    default:
+      return 'UNKNOWN';
+  }
+}
 
 const ALCHEMY_API_KEY = import.meta.env['VITE_ALCHEMY_API_KEY'] ?? '';
 if (!ALCHEMY_API_KEY) {
@@ -267,13 +286,19 @@ export async function getProtocolAssetData(): Promise<AssetData[]> {
       return [];
     }
 
-    // Define all available assets from deployment config
-    const allAssets = [
-      { symbol: TOKEN_SYMBOLS.ETH_ARBI, unit: 'ETH', sourceChain: 'ARBI' },
-      { symbol: TOKEN_SYMBOLS.USDC_ARBI, unit: 'USDC', sourceChain: 'ARBI' },
-      { symbol: TOKEN_SYMBOLS.ETH_ETH, unit: 'ETH', sourceChain: 'ETH' },
-      { symbol: TOKEN_SYMBOLS.USDC_ETH, unit: 'USDC', sourceChain: 'ETH' },
-    ];
+    // Generate all available assets from chain token mappings
+    const allAssets = CHAIN_TOKEN_MAPPINGS.flatMap(mapping => [
+      { 
+        symbol: mapping.zetaTokenSymbol, 
+        unit: mapping.nativeToken, 
+        sourceChain: getSourceChainName(mapping.chainId) 
+      },
+      { 
+        symbol: mapping.usdcTokenSymbol, 
+        unit: 'USDC', 
+        sourceChain: getSourceChainName(mapping.chainId) 
+      },
+    ]);
 
     // Get supported assets from protocol
     const supportedAssets = await getAllSupportedAssets();
@@ -406,13 +431,21 @@ export async function getBorrowableAssets(): Promise<BorrowableAssetData[]> {
       return [];
     }
 
-    // Define all available assets from deployment config
-    const allAssets = [
-      { symbol: TOKEN_SYMBOLS.ETH_ARBI, unit: 'ETH', sourceChain: 'ARBI', externalChainId: 421614 },
-      { symbol: TOKEN_SYMBOLS.USDC_ARBI, unit: 'USDC', sourceChain: 'ARBI', externalChainId: 421614 },
-      { symbol: TOKEN_SYMBOLS.ETH_ETH, unit: 'ETH', sourceChain: 'ETH', externalChainId: 11155111 },
-      { symbol: TOKEN_SYMBOLS.USDC_ETH, unit: 'USDC', sourceChain: 'ETH', externalChainId: 11155111 },
-    ];
+    // Generate all available assets from chain token mappings
+    const allAssets = CHAIN_TOKEN_MAPPINGS.flatMap(mapping => [
+      { 
+        symbol: mapping.zetaTokenSymbol, 
+        unit: mapping.nativeToken, 
+        sourceChain: getSourceChainName(mapping.chainId),
+        externalChainId: mapping.chainId 
+      },
+      { 
+        symbol: mapping.usdcTokenSymbol, 
+        unit: 'USDC', 
+        sourceChain: getSourceChainName(mapping.chainId),
+        externalChainId: mapping.chainId 
+      },
+    ]);
 
     // Get supported assets from protocol
     const supportedAssets = await getAllSupportedAssets();

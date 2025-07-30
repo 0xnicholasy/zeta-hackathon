@@ -3,11 +3,30 @@ import { useAccount, useReadContracts } from 'wagmi';
 import { formatUnits } from 'viem';
 import { useContracts } from './useContracts';
 import { useMultiChainBalances } from './useMultiChainBalances';
-import { SupportedChain, TOKEN_SYMBOLS, getTokenAddress } from '../contracts/deployments';
+import { SupportedChain, getTokenAddress } from '../contracts/deployments';
+import { CHAIN_TOKEN_MAPPINGS } from '@/utils/chainUtils';
 import { UniversalLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/UniversalLendingProtocol__factory';
 import type { UserAssetData } from '../components/dashboard/types';
 import { safeEVMAddress, safeEVMAddressOrZeroAddress } from '@/types/address';
 import { ERC20__factory, IPriceOracle__factory } from '@/contracts/typechain-types';
+
+// Helper function to get source chain name from chain ID
+function getSourceChainName(chainId: number): string {
+  switch (chainId) {
+    case SupportedChain.ARBITRUM_SEPOLIA:
+      return 'ARBI';
+    case SupportedChain.ETHEREUM_SEPOLIA:
+      return 'ETH';
+    case SupportedChain.POLYGON_AMOY:
+      return 'POL';
+    case SupportedChain.BASE_SEPOLIA:
+      return 'BASE';
+    case SupportedChain.BSC_TESTNET:
+      return 'BSC';
+    default:
+      return 'UNKNOWN';
+  }
+}
 
 export function useDashboardData() {
     const { isConnected, address } = useAccount();
@@ -22,14 +41,20 @@ export function useDashboardData() {
     // Get multi-chain balances for user wallet balances
     const { balances: externalBalances, isLoading: isLoadingExternalBalances } = useMultiChainBalances();
 
-    // Define all available assets
+    // Define all available assets using chain token mappings
     const allAssets = useMemo(() => {
-        const assets = [
-            { symbol: TOKEN_SYMBOLS.ETH_ARBI, unit: 'ETH', sourceChain: 'ARBI' },
-            { symbol: TOKEN_SYMBOLS.USDC_ARBI, unit: 'USDC', sourceChain: 'ARBI' },
-            { symbol: TOKEN_SYMBOLS.ETH_ETH, unit: 'ETH', sourceChain: 'ETH' },
-            { symbol: TOKEN_SYMBOLS.USDC_ETH, unit: 'USDC', sourceChain: 'ETH' },
-        ];
+        const assets = CHAIN_TOKEN_MAPPINGS.flatMap(mapping => [
+            { 
+                symbol: mapping.zetaTokenSymbol, 
+                unit: mapping.nativeToken, 
+                sourceChain: getSourceChainName(mapping.chainId) 
+            },
+            { 
+                symbol: mapping.usdcTokenSymbol, 
+                unit: 'USDC', 
+                sourceChain: getSourceChainName(mapping.chainId) 
+            },
+        ]);
 
         return assets.map(asset => ({
             ...asset,

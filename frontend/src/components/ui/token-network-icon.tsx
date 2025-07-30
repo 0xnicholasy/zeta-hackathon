@@ -58,6 +58,15 @@ const TokenNetworkIcon = React.forwardRef<HTMLDivElement, TokenNetworkIconProps>
         } else if (sourceChain.toLowerCase().includes("eth")) {
           return <NetworkIcon name="ethereum" className={cn(networkIconSize, "text-zeta-700")} />;
         }
+        else if (sourceChain.toLowerCase().includes("base")) {
+          return <NetworkIcon name="base" className={cn(networkIconSize, "text-zeta-700")} />;
+        }
+        else if (sourceChain.toLowerCase().includes("bsc")) {
+          return <NetworkIcon name="bsc" className={cn(networkIconSize, "text-zeta-700")} />;
+        }
+        else if (sourceChain.toLowerCase().includes("pol")) {
+          return <NetworkIcon name="polygon" className={cn(networkIconSize, "text-zeta-700")} />;
+        }
       }
 
       // Default to ZetaChain icon

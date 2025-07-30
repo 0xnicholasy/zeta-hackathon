@@ -59,14 +59,16 @@ async function main() {
     const isEthSupported = await depositContract.isAssetSupported(ethAsset);
     console.log(`✅ ETH supported: ${isEthSupported}`);
 
-    // Get USDC contract address for this network
+    // Get USDC contract address from contracts.json
     let usdcAddress: string;
-    if (chainId === 421614) { // Arbitrum Sepolia
-      usdcAddress = "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"; // USDC on Arbitrum Sepolia
-    } else if (chainId === 11155111) { // Ethereum Sepolia
-      usdcAddress = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"; // USDC on Ethereum Sepolia
-    } else {
-      console.log("❌ USDC not configured for this network");
+    try {
+      usdcAddress = getNetwork(chainId).tokens["USDC"];
+      if (!usdcAddress || usdcAddress === "0x0000000000000000000000000000000000000000") {
+        console.log("❌ USDC not configured for this network");
+        return;
+      }
+    } catch (error) {
+      console.log("❌ USDC not found in network configuration");
       return;
     }
 

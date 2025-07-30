@@ -178,8 +178,9 @@ export class DeploymentManager {
     const estimatedCosts = {
       "MockZRC20": 800000,
       "SimpleLendingProtocol": 2500000,
-      "LendingProtocol": 3500000,
-      "PriceOracle": 600000,
+      "UniversalLendingProtocol": 3500000,
+      "MockPriceOracle": 600000,
+      "DepositContract": 1200000,
     };
 
     console.log("\nEstimated deployment costs:");

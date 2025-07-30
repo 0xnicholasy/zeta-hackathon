@@ -16,6 +16,10 @@ const CHAIN_ICON_MAP: Record<string, string> = {
     'BASE': 'base',
     'ZETA': 'zetachain',
     'ZETACHAIN': 'zetachain',
+    'POL': 'polygon',
+    'POLYGON': 'polygon',
+    'BSC': 'bsc',
+    'BNB': 'bsc',
 } as const;
 
 // Size configurations for fallback icons

@@ -33,44 +33,47 @@ async function main() {
   const simpleLendingProtocol = SimpleLendingProtocol.attach(simpleLendingAddress);
 
   // Get all ZRC-20 token addresses from centralized config
-  const ethArbiAddress = getTokenAddress(chainId, "ETH.ARBI");
-  const usdcArbiAddress = getTokenAddress(chainId, "USDC.ARBI");
-  const ethEthAddress = getTokenAddress(chainId, "ETH.ETH");
-  const usdcEthAddress = getTokenAddress(chainId, "USDC.ETH");
+  const expectedTokens = [
+    "ETH.ARBI", "USDC.ARBI", "ETH.ETH", "USDC.ETH",
+    "USDC.POL", "POL.POL", "USDC.BSC", "BNB.BSC", 
+    "ETH.BASE", "USDC.BASE"
+  ];
 
+  const tokenAddresses: Record<string, string> = {};
   console.log("\n=== Token Addresses ===");
-  console.log("ETH.ARBI address:", ethArbiAddress);
-  console.log("USDC.ARBI address:", usdcArbiAddress);
-  console.log("ETH.ETH address:", ethEthAddress);
-  console.log("USDC.ETH address:", usdcEthAddress);
+  
+  for (const symbol of expectedTokens) {
+    try {
+      tokenAddresses[symbol] = getTokenAddress(chainId, symbol);
+      console.log(`${symbol} address: ${tokenAddresses[symbol]}`);
+    } catch (error) {
+      console.log(`${symbol}: ⚠️ Not found in network configuration`);
+    }
+  }
 
   // Define borrowing test cases with their destination chains
-  const borrowTests = [
-    { 
-      symbol: "ETH.ARBI", 
-      address: ethArbiAddress, 
-      destinationChain: 421614, // Arbitrum Sepolia
-      borrowAmount: ethers.utils.parseEther("0.001") // 0.001 ETH
-    },
-    { 
-      symbol: "USDC.ARBI", 
-      address: usdcArbiAddress, 
-      destinationChain: 421614, // Arbitrum Sepolia
-      borrowAmount: ethers.utils.parseUnits("1", 6) // 1 USDC
-    },
-    { 
-      symbol: "ETH.ETH", 
-      address: ethEthAddress, 
-      destinationChain: 11155111, // Ethereum Sepolia
-      borrowAmount: ethers.utils.parseEther("0.001") // 0.001 ETH
-    },
-    { 
-      symbol: "USDC.ETH", 
-      address: usdcEthAddress, 
-      destinationChain: 11155111, // Ethereum Sepolia
-      borrowAmount: ethers.utils.parseUnits("1", 6) // 1 USDC
-    }
+  const borrowTestDefinitions = [
+    { symbol: "ETH.ARBI", destinationChain: 421614, borrowAmount: ethers.utils.parseEther("0.001") },
+    { symbol: "USDC.ARBI", destinationChain: 421614, borrowAmount: ethers.utils.parseUnits("1", 6) },
+    { symbol: "ETH.ETH", destinationChain: 11155111, borrowAmount: ethers.utils.parseEther("0.001") },
+    { symbol: "USDC.ETH", destinationChain: 11155111, borrowAmount: ethers.utils.parseUnits("1", 6) },
+    { symbol: "USDC.POL", destinationChain: 80002, borrowAmount: ethers.utils.parseUnits("1", 6) },
+    { symbol: "POL.POL", destinationChain: 80002, borrowAmount: ethers.utils.parseEther("0.5") },
+    { symbol: "USDC.BSC", destinationChain: 97, borrowAmount: ethers.utils.parseUnits("1", 6) },
+    { symbol: "BNB.BSC", destinationChain: 97, borrowAmount: ethers.utils.parseEther("0.001") },
+    { symbol: "ETH.BASE", destinationChain: 84532, borrowAmount: ethers.utils.parseEther("0.001") },
+    { symbol: "USDC.BASE", destinationChain: 84532, borrowAmount: ethers.utils.parseUnits("1", 6) }
   ];
+
+  // Filter to only include tokens that have valid addresses
+  const borrowTests = borrowTestDefinitions
+    .filter(testDef => tokenAddresses[testDef.symbol])
+    .map(testDef => ({
+      symbol: testDef.symbol,
+      address: tokenAddresses[testDef.symbol],
+      destinationChain: testDef.destinationChain,
+      borrowAmount: testDef.borrowAmount
+    }));
 
   console.log("\n=== Checking Current User Position ===");
   
