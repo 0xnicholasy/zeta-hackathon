@@ -28,7 +28,7 @@
       "explorer": "https://athens.explorer.zetachain.com",
       "contracts": {
         "SimpleLendingProtocol": "0xcec503D661A9C56AFa91AcDB4D7A2BFe411a5416",
-        "UniversalLendingProtocol": "0xB1e0478E83Cb7C03154C1343779C6D0744c3B338",
+        "UniversalLendingProtocol": "0x1125c424ef2DAC46f4Aca6AB3062B097D7D6278C",
         "PriceOracle": "0x0000000000000000000000000000000000000000",
         "MockPriceOracle": "0x3611ec20Ab7904E914E1Dbb47F536fE8c54ddC8E",
         "Universal": "0x0000000000000000000000000000000000000000"
@@ -162,7 +162,7 @@
     }
   },
   "deployments": {
-    "lastUpdated": "2025-07-30T04:47:34.031Z",
+    "lastUpdated": "2025-07-30T08:55:50.757Z",
     "deployer": "0xe1C5Bf97A7Ffb50988DeF972E1E242072298a59C"
   }
 }
