@@ -1,0 +1,15 @@
+❯ sui move build --force
+[note] Dependencies on Bridge, MoveStdlib, Sui, and SuiSystem are automatically added, but this feature is disabled for your package because you have explicitly included dependencies on Sui. Consider removing these dependencies from Move.toml.
+UPDATING GIT DEPENDENCY https://github.com/MystenLabs/sui.git
+remote: Enumerating objects: 87, done.
+remote: Counting objects: 100% (77/77), done.
+remote: Compressing objects: 100% (24/24), done.
+remote: Total 87 (delta 53), reused 65 (delta 53), pack-reused 10 (from 2)
+Unpacking objects: 100% (87/87), 97.02 KiB | 1.70 MiB/s, done.
+From https://github.com/MystenLabs/sui
+ + 3b1c4c390c...f5568fbd42 xun/mfp-tx-driver-validator-perf-monitor -> origin/xun/mfp-tx-driver-validator-perf-monitor  (forced update)
+Failed to build Move modules: Failed to resolve dependencies for package 'call'
+
+Caused by:
+    0: Parsing manifest for 'gateway'
+    1: No such file or directory (os error 2).
