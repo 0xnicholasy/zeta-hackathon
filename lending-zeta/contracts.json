@@ -86,7 +86,7 @@
       "type": "testnet",
       "explorer": "https://amoy.polygonscan.com",
       "contracts": {
-        "DepositContract": "0x0000000000000000000000000000000000000000",
+        "DepositContract": "0x55E1Bd43F67BaB1E176E2A65608C151bC0d8F148",
         "Gateway": "0x0c487a766110c85d301d96e33579c5b317fa4995"
       },
       "tokens": {
@@ -162,7 +162,7 @@
     }
   },
   "deployments": {
-    "lastUpdated": "2025-07-30T09:27:14.374Z",
+    "lastUpdated": "2025-08-01T02:40:42.066Z",
     "deployer": "0xe1C5Bf97A7Ffb50988DeF972E1E242072298a59C"
   }
 }

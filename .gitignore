@@ -72,3 +72,6 @@ ignition/deployments/chain-31337
 
 # qwen code files
 **.backup
+
+# solana targets
+**target**
