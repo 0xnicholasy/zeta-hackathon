@@ -12,20 +12,22 @@ import { ERC20__factory, IPriceOracle__factory } from '@/contracts/typechain-typ
 
 // Helper function to get source chain name from chain ID
 function getSourceChainName(chainId: number): string {
-  switch (chainId) {
-    case SupportedChain.ARBITRUM_SEPOLIA:
-      return 'ARBI';
-    case SupportedChain.ETHEREUM_SEPOLIA:
-      return 'ETH';
-    case SupportedChain.POLYGON_AMOY:
-      return 'POL';
-    case SupportedChain.BASE_SEPOLIA:
-      return 'BASE';
-    case SupportedChain.BSC_TESTNET:
-      return 'BSC';
-    default:
-      return 'UNKNOWN';
-  }
+    switch (chainId) {
+        case SupportedChain.ARBITRUM_SEPOLIA:
+            return 'ARBI';
+        case SupportedChain.ETHEREUM_SEPOLIA:
+            return 'ETH';
+        case SupportedChain.POLYGON_AMOY:
+            return 'POL';
+        case SupportedChain.BASE_SEPOLIA:
+            return 'BASE';
+        case SupportedChain.BSC_TESTNET:
+            return 'BSC';
+        case SupportedChain.SOLANA_DEVNET:
+            return 'SOL';
+        default:
+            return 'UNKNOWN';
+    }
 }
 
 export function useDashboardData() {
@@ -44,15 +46,15 @@ export function useDashboardData() {
     // Define all available assets using chain token mappings
     const allAssets = useMemo(() => {
         const assets = CHAIN_TOKEN_MAPPINGS.flatMap(mapping => [
-            { 
-                symbol: mapping.zetaTokenSymbol, 
-                unit: mapping.nativeToken, 
-                sourceChain: getSourceChainName(mapping.chainId) 
+            {
+                symbol: mapping.zetaTokenSymbol,
+                unit: mapping.nativeToken,
+                sourceChain: getSourceChainName(mapping.chainId)
             },
-            { 
-                symbol: mapping.usdcTokenSymbol, 
-                unit: 'USDC', 
-                sourceChain: getSourceChainName(mapping.chainId) 
+            {
+                symbol: mapping.usdcTokenSymbol,
+                unit: 'USDC',
+                sourceChain: getSourceChainName(mapping.chainId)
             },
         ]);
 

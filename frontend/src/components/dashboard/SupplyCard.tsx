@@ -44,19 +44,6 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
     // Check if we're on ZetaChain
     const isOnZetaChain = walletChainId === SupportedChain.ZETA_TESTNET;
 
-    // Helper function to get ZRC-20 token symbol and balance for an asset
-    const getZetaTokenInfo = (asset: UserAssetData) => {
-        // Create ZRC-20 token symbol based on asset's unit and source chain
-        const zrc20Symbol = `${asset.unit}.${asset.sourceChain}`;
-        const zetaBalance = zetaBalances[zrc20Symbol];
-
-        return {
-            zrc20Symbol,
-            zetaBalance: zetaBalance?.formattedBalance ?? '0',
-            zetaUsdValue: zetaBalance?.usdValue ?? '0',
-            hasBalance: zetaBalance && Number(zetaBalance.formattedBalance) > 0
-        };
-    };
 
     // Filter supplied assets based on network
     const suppliedAssets = userAssets.filter(asset => {
@@ -176,22 +163,25 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                     </div>
                 )}
 
-                {/* Supply Existing Assets on Zeta - Show when on ZetaChain */}
-                {isOnZetaChain && suppliedAssets.length > 0 && (
+                {/* Supply Available ZRC-20 Tokens on Zeta - Show when on ZetaChain */}
+                {isOnZetaChain && (
                     <div>
                         <h3 className="text-base font-semibold mb-3 text-muted-foreground">Supply On ZetaChain</h3>
                         <div className="space-y-2">
-                            {suppliedAssets.map((asset) => {
-                                const { zrc20Symbol, zetaBalance, zetaUsdValue } = getZetaTokenInfo(asset);
-                                if (Number(zetaBalance) === 0) {
+                            {Object.entries(zetaBalances).map(([zrc20Symbol, balance]) => {
+                                if (Number(balance.formattedBalance) === 0) {
                                     return null;
                                 }
+                                
+                                // Extract unit and source chain from ZRC-20 symbol (e.g., "ETH.ARBI" -> unit: "ETH", sourceChain: "ARBI")
+                                const [unit, sourceChain] = zrc20Symbol.includes('.') ? zrc20Symbol.split('.') : [zrc20Symbol, ''];
+                                
                                 return (
-                                    <div key={`${asset.address}-zeta-supply`} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border-light dark:border-border-dark hover:border-green-300 dark:hover:border-green-700 cursor-pointer transition-colors">
+                                    <div key={`${zrc20Symbol}-zeta-supply`} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border-light dark:border-border-dark hover:border-green-300 dark:hover:border-green-700 cursor-pointer transition-colors">
                                         <div className="flex items-center space-x-3">
                                             <TokenNetworkIcon
-                                                tokenSymbol={asset.unit}
-                                                sourceChain={asset.sourceChain}
+                                                tokenSymbol={unit ?? 'UNKNOWN'}
+                                                sourceChain={sourceChain ?? 'UNKNOWN'}
                                                 size="sm"
                                                 shadow="sm"
                                             />
@@ -201,16 +191,35 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-sm font-medium">{Number(zetaBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
+                                            <div className="text-sm font-medium">{Number(balance.formattedBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</div>
                                             <div className="text-xs text-muted-foreground">
-                                                {zetaUsdValue !== '0' ? `$${Number(zetaUsdValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
+                                                {balance.usdValue !== '0' ? `$${Number(balance.usdValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
                                             </div>
                                             <Button
                                                 variant="zeta"
                                                 size="sm"
                                                 className="mt-1 h-7 text-xs"
-                                                disabled={Number(zetaBalance) === 0}
-                                                onClick={() => handleZetaSupplyClick(asset)}
+                                                disabled={Number(balance.formattedBalance) === 0}
+                                                onClick={() => {
+                                                    // Create a mock asset for the ZetaSupplyDialog
+                                                    const mockAsset: UserAssetData = {
+                                                        address: balance.tokenAddress,
+                                                        symbol: zrc20Symbol,
+                                                        unit: unit ?? 'UNKNOWN',
+                                                        sourceChain: sourceChain ?? 'UNKNOWN',
+                                                        suppliedBalance: '0',
+                                                        formattedSuppliedBalance: '0',
+                                                        suppliedUsdValue: '$0.00',
+                                                        borrowedBalance: '0',
+                                                        formattedBorrowedBalance: '0',
+                                                        borrowedUsdValue: '$0.00',
+                                                        price: balance.price ?? '0',
+                                                        isSupported: true,
+                                                        externalChainId: 7001,
+                                                        decimals: balance.decimals
+                                                    };
+                                                    handleZetaSupplyClick(mockAsset);
+                                                }}
                                             >
                                                 Zeta Supply
                                             </Button>

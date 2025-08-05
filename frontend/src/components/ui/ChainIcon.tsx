@@ -20,6 +20,8 @@ const CHAIN_ICON_MAP: Record<string, string> = {
     'POLYGON': 'polygon',
     'BSC': 'bsc',
     'BNB': 'bsc',
+    'SOL': 'solana',
+    'SOLANA': 'solana',
 } as const;
 
 // Size configurations for fallback icons
@@ -62,7 +64,7 @@ export function ChainIcon({
     }
 
     // Determine size: explicit prop takes precedence, then detect from className
-    const resolvedSize = size || detectSizeFromClassName(className);
+    const resolvedSize = size ?? detectSizeFromClassName(className);
     const sizeConfig = SIZE_CONFIG[resolvedSize];
 
     return (

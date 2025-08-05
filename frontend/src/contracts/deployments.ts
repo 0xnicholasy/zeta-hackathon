@@ -196,6 +196,7 @@ export const SupportedChain = {
   POLYGON_AMOY: 80002,
   BASE_SEPOLIA: 84532,
   BSC_TESTNET: 97,
+  SOLANA_DEVNET: 0, // Solana does not use chain IDs like EVM chains
 } as const;
 
 export type SupportedChainId = typeof SupportedChain[keyof typeof SupportedChain];
@@ -227,6 +228,8 @@ export const TOKEN_SYMBOLS = {
   BNB_BSC: 'BNB.BSC',
   ETH_BASE: 'ETH.BASE',
   USDC_BASE: 'USDC.BASE',
+  SOL_SOL: 'SOL.SOL',
+  USDC_SOL: 'USDC.SOL',
   ZETA: 'ZETA',
   // Native tokens on external chains
   ETH: 'ETH',
@@ -287,6 +290,8 @@ export const getPolAddress = (chainId: number) =>
 export const getBnbAddress = (chainId: number) =>
   getTokenAddress(TOKEN_SYMBOLS.BNB, chainId);
 
+export const getSolAddress = (chainId: number) =>
+  getTokenAddress(TOKEN_SYMBOLS.SOL_SOL, chainId);
 /**
  * Helper function to find token information by address across all supported chains
  */

@@ -77,6 +77,14 @@
         "USDC.BASE": {
           "address": "0xd0eFed75622e7AA4555EE44F296dA3744E3ceE19",
           "decimals": 6
+        },
+        "SOL.SOL": {
+          "address": "0xADF73ebA3Ebaa7254E859549A44c74eF7cff7501",
+          "decimals": 9
+        },
+        "USDC.SOL": {
+          "address": "0xD10932EB3616a937bd4a2652c87E9FeBbAce53e5",
+          "decimals": 6
         }
       }
     },

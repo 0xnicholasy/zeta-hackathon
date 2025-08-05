@@ -86,6 +86,9 @@ export function useMultiChainBalances() {
           viemChain = bscTestnet;
           rpcUrl = rpcUrl ?? bscTestnet.rpcUrls.default.http[0];
           break;
+        case SupportedChain.SOLANA_DEVNET:
+          // Solana does not use viem chains, so we skip it here
+          break;
         default:
           return;
       }
@@ -344,6 +347,14 @@ export function useZetaChainBalances() {
       { symbol: TOKEN_SYMBOLS.USDC_ARBI, unit: 'USDC', sourceChain: 'ARBI' },
       { symbol: TOKEN_SYMBOLS.ETH_ETH, unit: 'ETH', sourceChain: 'ETH' },
       { symbol: TOKEN_SYMBOLS.USDC_ETH, unit: 'USDC', sourceChain: 'ETH' },
+      { symbol: TOKEN_SYMBOLS.ETH_BASE, unit: 'ETH', sourceChain: 'BASE' },
+      { symbol: TOKEN_SYMBOLS.USDC_BASE, unit: 'USDC', sourceChain: 'BASE' },
+      { symbol: TOKEN_SYMBOLS.POL, unit: 'POL', sourceChain: 'POL' },
+      { symbol: TOKEN_SYMBOLS.USDC_POL, unit: 'USDC', sourceChain: 'POL' },
+      { symbol: TOKEN_SYMBOLS.BNB_BSC, unit: 'BNB', sourceChain: 'BSC' },
+      { symbol: TOKEN_SYMBOLS.USDC_BSC, unit: 'USDC', sourceChain: 'BSC' },
+      { symbol: TOKEN_SYMBOLS.SOL_SOL, unit: 'SOL', sourceChain: 'SOL' },
+      { symbol: TOKEN_SYMBOLS.USDC_SOL, unit: 'USDC', sourceChain: 'SOL' },
     ];
 
     return tokens.map(token => ({

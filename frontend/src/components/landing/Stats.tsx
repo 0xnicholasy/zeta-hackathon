@@ -176,7 +176,7 @@ function AssetDetailsModal({ asset, isOpen, onClose }: AssetDetailsModalProps) {
 export default function Stats() {
   const [stats, setStats] = useState<StatsData>({
     totalValueLocked: '$0',
-    supportedChains: 5, // Fixed: Arbitrum, Ethereum, ZetaChain
+    supportedChains: 6, // Fixed: Arbitrum, Ethereum, ZetaChain
     supportedAssets: 0,
     assets: [],
   });

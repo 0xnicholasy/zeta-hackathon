@@ -282,6 +282,8 @@ export function UniversalLendingProtocolForms({
                           <SelectItem value="11155111">Ethereum Sepolia (11155111)</SelectItem>
                           <SelectItem value="84532">Base Sepolia (84532)</SelectItem>
                           <SelectItem value="80002">Polygon Amoy (80002)</SelectItem>
+                          <SelectItem value="97">BSC Testnet (97)</SelectItem>
+                          <SelectItem value="0">Solana Devnet (0)</SelectItem>
                         </SelectContent>
                       </Select>
                     </FormControl>

@@ -17,6 +17,8 @@ function getSourceChainName(chainId: number): string {
       return 'BASE';
     case SupportedChain.BSC_TESTNET:
       return 'BSC';
+    case SupportedChain.SOLANA_DEVNET:
+      return 'SOL';
     default:
       return 'UNKNOWN';
   }
@@ -196,6 +198,11 @@ export async function getAssetPrice(assetAddress: string): Promise<bigint> {
       console.error('PriceOracle address not found');
       return BigInt(0);
     }
+    if (!assetAddress || Number(assetAddress) === 0) {
+      // eslint-disable-next-line no-console
+      console.error('Asset address is required');
+      return BigInt(0);
+    }
 
     // Call the contract's getAssetPrice function (uses _getValidatedPrice internally) 
     const price = await zetaTestnetClient.readContract({
@@ -288,15 +295,15 @@ export async function getProtocolAssetData(): Promise<AssetData[]> {
 
     // Generate all available assets from chain token mappings
     const allAssets = CHAIN_TOKEN_MAPPINGS.flatMap(mapping => [
-      { 
-        symbol: mapping.zetaTokenSymbol, 
-        unit: mapping.nativeToken, 
-        sourceChain: getSourceChainName(mapping.chainId) 
+      {
+        symbol: mapping.zetaTokenSymbol,
+        unit: mapping.nativeToken,
+        sourceChain: getSourceChainName(mapping.chainId)
       },
-      { 
-        symbol: mapping.usdcTokenSymbol, 
-        unit: 'USDC', 
-        sourceChain: getSourceChainName(mapping.chainId) 
+      {
+        symbol: mapping.usdcTokenSymbol,
+        unit: 'USDC',
+        sourceChain: getSourceChainName(mapping.chainId)
       },
     ]);
 
@@ -433,17 +440,17 @@ export async function getBorrowableAssets(): Promise<BorrowableAssetData[]> {
 
     // Generate all available assets from chain token mappings
     const allAssets = CHAIN_TOKEN_MAPPINGS.flatMap(mapping => [
-      { 
-        symbol: mapping.zetaTokenSymbol, 
-        unit: mapping.nativeToken, 
+      {
+        symbol: mapping.zetaTokenSymbol,
+        unit: mapping.nativeToken,
         sourceChain: getSourceChainName(mapping.chainId),
-        externalChainId: mapping.chainId 
+        externalChainId: mapping.chainId
       },
-      { 
-        symbol: mapping.usdcTokenSymbol, 
-        unit: 'USDC', 
+      {
+        symbol: mapping.usdcTokenSymbol,
+        unit: 'USDC',
         sourceChain: getSourceChainName(mapping.chainId),
-        externalChainId: mapping.chainId 
+        externalChainId: mapping.chainId
       },
     ]);
 

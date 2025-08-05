@@ -73,6 +73,8 @@ export const getChainDisplayNameFromId = (chainId: number): string => {
                 return 'Base Sepolia';
             case SupportedChain.BSC_TESTNET:
                 return 'BSC Testnet';
+            case SupportedChain.SOLANA_DEVNET:
+                return 'Solana Devnet';
             default:
                 return 'Unknown Chain';
         }
@@ -163,6 +165,12 @@ export const CHAIN_TOKEN_MAPPINGS: TokenMapping[] = [
         zetaTokenSymbol: TOKEN_SYMBOLS.BNB_BSC,
         usdcTokenSymbol: TOKEN_SYMBOLS.USDC_BSC,
     },
+    {
+        chainId: SupportedChain.SOLANA_DEVNET,
+        nativeToken: 'SOL',
+        zetaTokenSymbol: TOKEN_SYMBOLS.SOL_SOL,
+        usdcTokenSymbol: TOKEN_SYMBOLS.USDC_SOL,
+    }
 ];
 
 /**
@@ -222,7 +230,7 @@ export const getTokenInfo = (tokenSymbol: string, chainId: number): TokenInfo | 
 
     const chainMapping = CHAIN_TOKEN_MAPPINGS.find(mapping => mapping.chainId === chainId);
     const isNative = chainMapping ? tokenSymbol === chainMapping.nativeToken : false;
-    
+
     // Get decimals based on token type
     let decimals = 18; // Default for most tokens
     if (tokenSymbol === 'USDC') {

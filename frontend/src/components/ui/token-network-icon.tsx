@@ -67,6 +67,9 @@ const TokenNetworkIcon = React.forwardRef<HTMLDivElement, TokenNetworkIconProps>
         else if (sourceChain.toLowerCase().includes("pol")) {
           return <NetworkIcon name="polygon" className={cn(networkIconSize, "text-zeta-700")} />;
         }
+        else if (sourceChain.toLowerCase().includes("sol")) {
+          return <NetworkIcon name="solana" className={cn(networkIconSize, "text-zeta-700")} />;
+        }
       }
 
       // Default to ZetaChain icon
