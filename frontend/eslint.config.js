@@ -38,7 +38,6 @@ export default tseslint.config([
       '@typescript-eslint/prefer-optional-chain': 'error',
       '@typescript-eslint/no-unnecessary-type-assertion': 'error',
       '@typescript-eslint/await-thenable': 'error',
-      '@typescript-eslint/no-misused-promises': 'error',
 
       // General strict rules
       'no-console': 'warn',

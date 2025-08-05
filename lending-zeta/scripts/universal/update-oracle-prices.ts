@@ -26,7 +26,7 @@ async function main() {
 
   // Get existing price oracle from deployment
   let priceOracle;
-  
+
   try {
     priceOracle = await deploymentManager.getContractInstance("MockPriceOracle");
     console.log("Found MockPriceOracle at:", priceOracle.address);
@@ -41,7 +41,12 @@ async function main() {
     { symbol: "ETH.ARBI", chainId: 421614, price: 3000 }, // $3000
     { symbol: "USDC.ARBI", chainId: 421614, price: 1 },   // $1
     { symbol: "ETH.ETH", chainId: 11155111, price: 3000 }, // $3000
-    { symbol: "USDC.ETH", chainId: 11155111, price: 1 }    // $1
+    { symbol: "USDC.POL", chainId: 80002, price: 1 },      // $1
+    { symbol: "POL.POL", chainId: 80002, price: 0.5 },     // $0.5
+    { symbol: "USDC.BSC", chainId: 97, price: 1 },        // $1
+    { symbol: "BNB.BSC", chainId: 97, price: 600 },       // $600
+    { symbol: "ETH.BASE", chainId: 84532, price: 3000 },  // $3000
+    { symbol: "USDC.BASE", chainId: 84532, price: 1 }     // $1
   ];
 
   console.log("\n=== Updating Asset Prices in Oracle ===");
@@ -67,7 +72,7 @@ async function main() {
 
       // Convert price to 18 decimals for oracle (e.g., $3000 -> 3000 * 1e18)
       const priceInWei = ethers.utils.parseEther(asset.price.toString());
-      
+
       // Set the new price
       const tx = await priceOracle.setPrice(tokenAddress, priceInWei);
       await tx.wait();
@@ -75,13 +80,13 @@ async function main() {
       // Verify the price was set correctly
       const storedPrice = await priceOracle.getPrice(tokenAddress);
       const storedPriceFormatted = ethers.utils.formatEther(storedPrice);
-      
+
       if (storedPriceFormatted === asset.price.toString()) {
         console.log(`  ✅ Successfully updated to $${storedPriceFormatted}`);
       } else {
         console.log(`  ⚠️  Warning: Expected $${asset.price}, but got $${storedPriceFormatted}`);
       }
-      
+
       console.log(`  Transaction: ${tx.hash}`);
       console.log("");
 

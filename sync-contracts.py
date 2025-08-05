@@ -73,6 +73,28 @@ class ContractSyncer:
             print(f"   ❌ Error syncing typechains: {e}")
             return False
     
+    def process_contracts_data(self, contracts_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process contracts data to flatten token structure for frontend compatibility"""
+        processed_data = contracts_data.copy()
+        
+        # Process each network to flatten token structure
+        if "networks" in processed_data:
+            for chain_id, network in processed_data["networks"].items():
+                if "tokens" in network:
+                    flattened_tokens = {}
+                    for symbol, token_data in network["tokens"].items():
+                        # If token_data is a dict with address, flatten to just the address
+                        if isinstance(token_data, dict) and "address" in token_data:
+                            flattened_tokens[symbol] = token_data["address"]
+                        else:
+                            # Keep as-is if already a string
+                            flattened_tokens[symbol] = token_data
+                    
+                    # Update the network with flattened tokens
+                    processed_data["networks"][chain_id]["tokens"] = flattened_tokens
+        
+        return processed_data
+    
     def convert_contracts_json_to_data_ts(self) -> bool:
         """Convert contracts.json to contracts-data.ts format"""
         print("🔄 Converting contracts.json to contracts-data.ts...")
@@ -82,8 +104,11 @@ class ContractSyncer:
             with open(self.contracts_json, 'r') as f:
                 contracts_data = json.load(f)
             
-            # Generate TypeScript content for data only (no modifications needed)
-            ts_content = self.generate_contracts_data_ts(contracts_data)
+            # Process contracts data to flatten token structure for frontend compatibility
+            processed_data = self.process_contracts_data(contracts_data)
+            
+            # Generate TypeScript content for data only
+            ts_content = self.generate_contracts_data_ts(processed_data)
             
             # Ensure config directory exists
             config_dir = self.contracts_data_ts.parent
@@ -198,8 +223,16 @@ export const contractsData = {contracts_ts_obj};
                 
                 # Available tokens
                 tokens = network.get("tokens", {})
-                available_tokens = [symbol for symbol, addr in tokens.items() 
-                                  if addr and addr != "0x0"]
+                available_tokens = []
+                for symbol, token_data in tokens.items():
+                    # Handle both old format (string) and new format (object with address)
+                    if isinstance(token_data, dict):
+                        addr = token_data.get("address", "")
+                    else:
+                        addr = token_data
+                    
+                    if addr and addr != "0x0000000000000000000000000000000000000000":
+                        available_tokens.append(symbol)
                 if available_tokens:
                     print(f"   🪙 Available Tokens: {', '.join(available_tokens)}")
 

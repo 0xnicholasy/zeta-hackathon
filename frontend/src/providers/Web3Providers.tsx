@@ -14,7 +14,19 @@ interface Web3ProvidersProps {
   children: React.ReactNode;
 }
 
-const Web3ProvidersInner: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const Web3Providers: React.FC<Web3ProvidersProps> = ({ children }) => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <WagmiProvider config={config}>
+        <RainbowKitThemeWrapper>
+          {children}
+        </RainbowKitThemeWrapper>
+      </WagmiProvider>
+    </QueryClientProvider>
+  );
+};
+
+const RainbowKitThemeWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { theme } = useTheme();
 
   return (
@@ -33,17 +45,5 @@ const Web3ProvidersInner: React.FC<{ children: React.ReactNode }> = ({ children 
     >
       {children}
     </RainbowKitProvider>
-  );
-};
-
-export const Web3Providers: React.FC<Web3ProvidersProps> = ({ children }) => {
-  return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <Web3ProvidersInner>
-          {children}
-        </Web3ProvidersInner>
-      </QueryClientProvider>
-    </WagmiProvider>
   );
 };

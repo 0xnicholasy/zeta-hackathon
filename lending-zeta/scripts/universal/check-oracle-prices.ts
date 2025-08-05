@@ -40,7 +40,12 @@ async function main() {
     { symbol: "ETH.ARBI", chainId: 421614 },
     { symbol: "USDC.ARBI", chainId: 421614 },
     { symbol: "ETH.ETH", chainId: 11155111 },
-    { symbol: "USDC.ETH", chainId: 11155111 }
+    { symbol: "USDC.POL", chainId: 80002 },
+    { symbol: "POL.POL", chainId: 80002 },
+    { symbol: "USDC.BSC", chainId: 97 },
+    { symbol: "BNB.BSC", chainId: 97 },
+    { symbol: "ETH.BASE", chainId: 84532 },
+    { symbol: "USDC.BASE", chainId: 84532 }
   ];
 
   console.log("\n=== Current Asset Prices in Oracle ===");

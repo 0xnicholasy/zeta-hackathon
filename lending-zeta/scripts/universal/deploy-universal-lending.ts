@@ -13,7 +13,12 @@ const assets = [
   { symbol: "ETH.ARBI", chainId: 421614, price: 3000 }, // $3000
   { symbol: "USDC.ARBI", chainId: 421614, price: 1 },   // $1
   { symbol: "ETH.ETH", chainId: 11155111, price: 3000 }, // $3000
-  { symbol: "USDC.ETH", chainId: 11155111, price: 1 }    // $1
+  { symbol: "USDC.POL", chainId: 80002, price: 1 },      // $1
+  { symbol: "POL.POL", chainId: 80002, price: 0.5 },     // $0.5
+  { symbol: "USDC.BSC", chainId: 97, price: 1 },        // $1
+  { symbol: "BNB.BSC", chainId: 97, price: 600 },       // $600
+  { symbol: "ETH.BASE", chainId: 84532, price: 3000 },  // $3000
+  { symbol: "USDC.BASE", chainId: 84532, price: 1 }     // $1
 ];
 
 async function main() {
@@ -125,7 +130,10 @@ async function main() {
   // Set allowed source chains for cross-chain operations
   const allowedChains = [
     { chainId: 421614, name: "Arbitrum Sepolia" },
-    { chainId: 11155111, name: "Ethereum Sepolia" }
+    { chainId: 11155111, name: "Ethereum Sepolia" },
+    { chainId: 80002, name: "Polygon Amoy" },
+    { chainId: 97, name: "BSC Testnet" },
+    { chainId: 84532, name: "Base Sepolia" }
   ];
 
   console.log("Setting allowed source chains...");
@@ -191,6 +199,9 @@ async function main() {
   console.log("1. Deploy DepositContracts on external chains using:");
   console.log("   npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts universal --network arbitrum-sepolia");
   console.log("   npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts universal --network ethereum-sepolia");
+  console.log("   npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts universal --network polygon-amoy");
+  console.log("   npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts universal --network bsc-testnet");
+  console.log("   npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts universal --network base-sepolia");
   console.log("2. Run cross-chain tests:");
   console.log("   npx hardhat run scripts/test-cross-chain-lending.ts --network zeta-testnet");
   console.log("3. Verify deployment:");

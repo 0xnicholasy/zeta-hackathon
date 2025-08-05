@@ -3,7 +3,7 @@ import { useAccount, useReadContracts } from 'wagmi';
 import { formatUnits } from 'viem';
 import { EVMAddress, isZeroAddress, safeEVMAddressOrZeroAddress, ZERO_ADDRESS } from '@/types/address';
 import { createPublicClient, http, type PublicClient, type Chain } from 'viem';
-import { arbitrumSepolia, sepolia } from 'viem/chains';
+import { arbitrumSepolia, sepolia, polygonAmoy, baseSepolia, bscTestnet } from 'viem/chains';
 import {
   SupportedChain,
   TOKEN_SYMBOLS,
@@ -11,6 +11,7 @@ import {
   getSupportedChainIds,
   getNetworkConfig
 } from '../contracts/deployments';
+import { getZetaTokenAddress } from '@/utils/chainUtils';
 import { ERC20__factory } from '@/contracts/typechain-types';
 import { getAssetPrice } from '@/utils/directContractCalls';
 
@@ -73,6 +74,18 @@ export function useMultiChainBalances() {
         case SupportedChain.ZETA_TESTNET:
           // For ZetaChain, we'll use wagmi's default handling
           return;
+        case SupportedChain.POLYGON_AMOY:
+          viemChain = polygonAmoy;
+          rpcUrl = rpcUrl ?? polygonAmoy.rpcUrls.default.http[0];
+          break;
+        case SupportedChain.BASE_SEPOLIA:
+          viemChain = baseSepolia;
+          rpcUrl = rpcUrl ?? baseSepolia.rpcUrls.default.http[0];
+          break;
+        case SupportedChain.BSC_TESTNET:
+          viemChain = bscTestnet;
+          rpcUrl = rpcUrl ?? bscTestnet.rpcUrls.default.http[0];
+          break;
         default:
           return;
       }
@@ -96,26 +109,8 @@ export function useMultiChainBalances() {
     decimals: number
   ): Promise<{ price: string; usdValue: string }> => {
     try {
-      // Map external chain tokens to their ZRC-20 counterparts
-      let zetaTokenSymbol = '';
-
-      if (chainId === SupportedChain.ARBITRUM_SEPOLIA) {
-        if (tokenSymbol === 'ETH') zetaTokenSymbol = TOKEN_SYMBOLS.ETH_ARBI;
-        if (tokenSymbol === 'USDC') zetaTokenSymbol = TOKEN_SYMBOLS.USDC_ARBI;
-      } else if (chainId === SupportedChain.ETHEREUM_SEPOLIA) {
-        if (tokenSymbol === 'ETH') zetaTokenSymbol = TOKEN_SYMBOLS.ETH_ETH;
-        if (tokenSymbol === 'USDC') zetaTokenSymbol = TOKEN_SYMBOLS.USDC_ETH;
-      } else if (chainId === SupportedChain.ZETA_TESTNET) {
-        // For ZetaChain, use the token symbol directly
-        zetaTokenSymbol = tokenSymbol;
-      }
-
-      if (!zetaTokenSymbol) {
-        return { price: '0', usdValue: '0' };
-      }
-
-      // Get ZRC-20 token address for price lookup
-      const zetaTokenAddress = getTokenAddress(zetaTokenSymbol, SupportedChain.ZETA_TESTNET);
+      // Get ZRC-20 token address for price lookup using utility function
+      const zetaTokenAddress = getZetaTokenAddress(tokenSymbol, chainId);
       if (!zetaTokenAddress || isZeroAddress(zetaTokenAddress)) {
         return { price: '0', usdValue: '0' };
       }

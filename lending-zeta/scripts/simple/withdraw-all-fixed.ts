@@ -33,40 +33,46 @@ async function main() {
   const simpleLendingProtocol = SimpleLendingProtocol.attach(simpleLendingAddress);
 
   // Get all ZRC-20 token addresses from centralized config
-  const ethArbiAddress = getTokenAddress(chainId, "ETH.ARBI");
-  const usdcArbiAddress = getTokenAddress(chainId, "USDC.ARBI");
-  const ethEthAddress = getTokenAddress(chainId, "ETH.ETH");
-  const usdcEthAddress = getTokenAddress(chainId, "USDC.ETH");
+  const expectedTokens = [
+    "ETH.ARBI", "USDC.ARBI", "ETH.ETH", "USDC.ETH",
+    "USDC.POL", "POL.POL", "USDC.BSC", "BNB.BSC", 
+    "ETH.BASE", "USDC.BASE"
+  ];
 
+  const tokenAddresses: Record<string, string> = {};
   console.log("\n=== Token Addresses ===");
-  console.log("ETH.ARBI address:", ethArbiAddress);
-  console.log("USDC.ARBI address:", usdcArbiAddress);
-  console.log("ETH.ETH address:", ethEthAddress);
-  console.log("USDC.ETH address:", usdcEthAddress);
+  
+  for (const symbol of expectedTokens) {
+    try {
+      tokenAddresses[symbol] = getTokenAddress(chainId, symbol);
+      console.log(`${symbol} address: ${tokenAddresses[symbol]}`);
+    } catch (error) {
+      console.log(`${symbol}: ⚠️ Not found in network configuration`);
+    }
+  }
 
   // Define supported assets with their destination chains
-  const assets = [
-    { 
-      symbol: "ETH.ARBI", 
-      address: ethArbiAddress, 
-      destinationChain: 421614 // Arbitrum Sepolia
-    },
-    { 
-      symbol: "USDC.ARBI", 
-      address: usdcArbiAddress, 
-      destinationChain: 421614 // Arbitrum Sepolia
-    },
-    { 
-      symbol: "ETH.ETH", 
-      address: ethEthAddress, 
-      destinationChain: 11155111 // Ethereum Sepolia
-    },
-    { 
-      symbol: "USDC.ETH", 
-      address: usdcEthAddress, 
-      destinationChain: 11155111 // Ethereum Sepolia
-    }
+  const assetDefinitions = [
+    { symbol: "ETH.ARBI", destinationChain: 421614 },    // Arbitrum Sepolia
+    { symbol: "USDC.ARBI", destinationChain: 421614 },   // Arbitrum Sepolia
+    { symbol: "ETH.ETH", destinationChain: 11155111 },   // Ethereum Sepolia
+    { symbol: "USDC.ETH", destinationChain: 11155111 },  // Ethereum Sepolia
+    { symbol: "USDC.POL", destinationChain: 80002 },     // Polygon Amoy
+    { symbol: "POL.POL", destinationChain: 80002 },      // Polygon Amoy
+    { symbol: "USDC.BSC", destinationChain: 97 },        // BSC Testnet
+    { symbol: "BNB.BSC", destinationChain: 97 },         // BSC Testnet
+    { symbol: "ETH.BASE", destinationChain: 84532 },     // Base Sepolia
+    { symbol: "USDC.BASE", destinationChain: 84532 }     // Base Sepolia
   ];
+
+  // Filter to only tokens that have valid addresses
+  const assets = assetDefinitions
+    .filter(assetDef => tokenAddresses[assetDef.symbol])
+    .map(assetDef => ({
+      symbol: assetDef.symbol,
+      address: tokenAddresses[assetDef.symbol],
+      destinationChain: assetDef.destinationChain
+    }));
 
   console.log("\n=== Checking User Supply Balances ===");
   

@@ -76,20 +76,21 @@ async function main() {
   if (networkTokens && Object.keys(networkTokens).length > 0) {
     console.log("Adding supported assets...");
 
-    for (const [symbol, address] of Object.entries(networkTokens)) {
+    for (const [symbol, tokenConfig] of Object.entries(networkTokens)) {
       // Skip ZRC-20 tokens (with dots in symbol) - only add native tokens
       if (symbol.includes('.')) {
         continue;
       }
 
-      const isNative = symbol === "ETH";
-      const decimals = symbol === "USDC" ? 6 : 18;
+      const tokenAddress = (tokenConfig as any).address;
+      const tokenDecimals = (tokenConfig as any).decimals;
+      const isNative = symbol === "ETH" || symbol === "BNB" || symbol === "POL";
 
-      console.log(`Adding ${symbol} (${address}) with ${decimals} decimals, native: ${isNative}`);
+      console.log(`Adding ${symbol} (${tokenAddress}) with ${tokenDecimals} decimals, native: ${isNative}`);
 
       const tx = await depositContract.addSupportedAsset(
-        address,
-        decimals,
+        tokenAddress,
+        tokenDecimals,
         isNative
       );
       await tx.wait();
@@ -102,14 +103,15 @@ async function main() {
 
   // Verify deployment
   console.log("\n📋 Verifying Asset Support:");
-  for (const [symbol, address] of Object.entries(networkTokens)) {
+  for (const [symbol, tokenConfig] of Object.entries(networkTokens)) {
     // Skip ZRC-20 tokens (with dots in symbol)
     if (symbol.includes('.')) {
       continue;
     }
 
-    const isSupported = await depositContract.isAssetSupported(address);
-    console.log(`  ${symbol} (${address}): ${isSupported ? "✅" : "❌"}`);
+    const tokenAddress = (tokenConfig as any).address;
+    const isSupported = await depositContract.isAssetSupported(tokenAddress);
+    console.log(`  ${symbol} (${tokenAddress}): ${isSupported ? "✅" : "❌"}`);
   }
 
   console.log("\n📊 Deployment Summary:");

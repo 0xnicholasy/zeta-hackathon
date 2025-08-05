@@ -33,63 +33,55 @@ async function main() {
   const universalLendingProtocol = UniversalLendingProtocol.attach(universalLendingAddress);
 
   // Get all ZRC-20 token addresses from centralized config
-  // Get all ZRC-20 token addresses from centralized config
-  const ethArbiAddress = getTokenAddress(chainId, "ETH.ARBI");
-  const usdcArbiAddress = getTokenAddress(chainId, "USDC.ARBI");
-  const ethEthAddress = getTokenAddress(chainId, "ETH.ETH");
-  const usdcEthAddress = getTokenAddress(chainId, "USDC.ETH");
+  const expectedTokens = [
+    "ETH.ARBI", "USDC.ARBI", "ETH.ETH", "USDC.ETH",
+    "USDC.POL", "POL.POL", "USDC.BSC", "BNB.BSC", 
+    "ETH.BASE", "USDC.BASE"
+  ];
 
-  // Validate token addresses
-  const tokenAddresses = {
-    "ETH.ARBI": ethArbiAddress,
-    "USDC.ARBI": usdcArbiAddress,
-    "ETH.ETH": ethEthAddress,
-    "USDC.ETH": usdcEthAddress
-  };
-
-  for (const [symbol, address] of Object.entries(tokenAddresses)) {
-    if (!address || address === ethers.constants.AddressZero) {
-      console.warn(`Warning: ${symbol} not available on this network`);
+  const tokenAddresses: Record<string, string> = {};
+  console.log("\n=== Token Addresses ===");
+  
+  for (const symbol of expectedTokens) {
+    try {
+      tokenAddresses[symbol] = getTokenAddress(chainId, symbol);
+      console.log(`${symbol} address: ${tokenAddresses[symbol]}`);
+    } catch (error) {
+      console.log(`${symbol}: ⚠️ Not found in network configuration`);
     }
   }
-  console.log("\n=== Token Addresses ===");
-  console.log("ETH.ARBI address:", ethArbiAddress);
-  console.log("USDC.ARBI address:", usdcArbiAddress);
-  console.log("ETH.ETH address:", ethEthAddress);
-  console.log("USDC.ETH address:", usdcEthAddress);
 
 
   // Define chain constants
   const ARBITRUM_SEPOLIA_CHAIN_ID = 421614;
   const ETHEREUM_SEPOLIA_CHAIN_ID = 11155111;
+  const POLYGON_AMOY_CHAIN_ID = 80002;
+  const BSC_TESTNET_CHAIN_ID = 97;
+  const BASE_SEPOLIA_CHAIN_ID = 84532;
 
   // Define supported assets with their destination chains
-  const assets = [
-    {
-      symbol: "ETH.ARBI",
-      address: ethArbiAddress,
-      destinationChain: ARBITRUM_SEPOLIA_CHAIN_ID,
-      decimals: 18
-    },
-    {
-      symbol: "USDC.ARBI",
-      address: usdcArbiAddress,
-      destinationChain: ARBITRUM_SEPOLIA_CHAIN_ID,
-      decimals: 6
-    },
-    {
-      symbol: "ETH.ETH",
-      address: ethEthAddress,
-      destinationChain: ETHEREUM_SEPOLIA_CHAIN_ID,
-      decimals: 18
-    },
-    {
-      symbol: "USDC.ETH",
-      address: usdcEthAddress,
-      destinationChain: ETHEREUM_SEPOLIA_CHAIN_ID,
-      decimals: 6
-    }
-  ].filter(asset => asset.address && asset.address !== ethers.constants.AddressZero);
+  const assetDefinitions = [
+    { symbol: "ETH.ARBI", destinationChain: ARBITRUM_SEPOLIA_CHAIN_ID, decimals: 18 },
+    { symbol: "USDC.ARBI", destinationChain: ARBITRUM_SEPOLIA_CHAIN_ID, decimals: 6 },
+    { symbol: "ETH.ETH", destinationChain: ETHEREUM_SEPOLIA_CHAIN_ID, decimals: 18 },
+    { symbol: "USDC.ETH", destinationChain: ETHEREUM_SEPOLIA_CHAIN_ID, decimals: 6 },
+    { symbol: "USDC.POL", destinationChain: POLYGON_AMOY_CHAIN_ID, decimals: 6 },
+    { symbol: "POL.POL", destinationChain: POLYGON_AMOY_CHAIN_ID, decimals: 18 },
+    { symbol: "USDC.BSC", destinationChain: BSC_TESTNET_CHAIN_ID, decimals: 6 },
+    { symbol: "BNB.BSC", destinationChain: BSC_TESTNET_CHAIN_ID, decimals: 18 },
+    { symbol: "ETH.BASE", destinationChain: BASE_SEPOLIA_CHAIN_ID, decimals: 18 },
+    { symbol: "USDC.BASE", destinationChain: BASE_SEPOLIA_CHAIN_ID, decimals: 6 }
+  ];
+
+  // Build assets array with only tokens that have valid addresses
+  const assets = assetDefinitions
+    .filter(assetDef => tokenAddresses[assetDef.symbol])
+    .map(assetDef => ({
+      symbol: assetDef.symbol,
+      address: tokenAddresses[assetDef.symbol],
+      destinationChain: assetDef.destinationChain,
+      decimals: assetDef.decimals
+    }));
 
   if (assets.length === 0) {
     console.log("No valid assets found on this network");

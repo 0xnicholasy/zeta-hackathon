@@ -24,17 +24,24 @@ async function main() {
 
   console.log("SimpleLendingProtocol:", simpleLendingProtocolAddress);
 
-  // Get expected token addresses
-  const ethArbiAddress = getTokenAddress(chainId, "ETH.ARBI");
-  const usdcArbiAddress = getTokenAddress(chainId, "USDC.ARBI");
-  const ethEthAddress = getTokenAddress(chainId, "ETH.ETH");
-  const usdcEthAddress = getTokenAddress(chainId, "USDC.ETH");
+  // Get all expected token addresses from contracts.json
+  const expectedTokens = [
+    "ETH.ARBI", "USDC.ARBI", "ETH.ETH", "USDC.ETH", 
+    "USDC.POL", "POL.POL", "USDC.BSC", "BNB.BSC", 
+    "ETH.BASE", "USDC.BASE"
+  ];
 
+  const tokenAddresses: Record<string, string> = {};
   console.log("\n📋 Expected ZRC-20 addresses:");
-  console.log("ETH.ARBI:", ethArbiAddress);
-  console.log("USDC.ARBI:", usdcArbiAddress);
-  console.log("ETH.ETH:", ethEthAddress);
-  console.log("USDC.ETH:", usdcEthAddress);
+  
+  for (const symbol of expectedTokens) {
+    try {
+      tokenAddresses[symbol] = getTokenAddress(chainId, symbol);
+      console.log(`${symbol}: ${tokenAddresses[symbol]}`);
+    } catch (error) {
+      console.log(`${symbol}: ⚠️ Not found in network configuration`);
+    }
+  }
 
   // Check current assets
   console.log("\n🔍 Current assets in SimpleLendingProtocol:");
@@ -55,31 +62,35 @@ async function main() {
     console.log(`  Price: $${ethers.utils.formatUnits(assetInfo.price, 18)}`);
     
     // Check if it matches expected addresses
-    if (asset.toLowerCase() === ethArbiAddress.toLowerCase()) {
-      console.log("  ✅ This is ETH.ARBI");
-    } else if (asset.toLowerCase() === usdcArbiAddress.toLowerCase()) {
-      console.log("  ✅ This is USDC.ARBI");
-    } else if (asset.toLowerCase() === ethEthAddress.toLowerCase()) {
-      console.log("  ✅ This is ETH.ETH");
-    } else if (asset.toLowerCase() === usdcEthAddress.toLowerCase()) {
-      console.log("  ✅ This is USDC.ETH");
-    } else {
+    let matchFound = false;
+    for (const [symbol, address] of Object.entries(tokenAddresses)) {
+      if (asset.toLowerCase() === address.toLowerCase()) {
+        console.log(`  ✅ This is ${symbol}`);
+        matchFound = true;
+        break;
+      }
+    }
+    if (!matchFound) {
       console.log("  ⚠️  Unknown asset - might be wrong address");
     }
   }
 
-  // Specifically check ETH.ARBI (the one failing)
-  console.log("\n🎯 Checking ETH.ARBI specifically:");
-  const ethArbiInfo = await simpleLendingProtocol.assets(ethArbiAddress);
-  console.log("ETH.ARBI address:", ethArbiAddress);
-  console.log("Is supported:", ethArbiInfo.isSupported);
-  console.log("Price:", ethers.utils.formatUnits(ethArbiInfo.price, 18));
+  // Check a few key assets specifically
+  const keyAssets = ["ETH.ARBI", "USDC.ARBI", "ETH.ETH", "USDC.ETH"];
+  for (const symbol of keyAssets) {
+    if (tokenAddresses[symbol]) {
+      console.log(`\n🎯 Checking ${symbol} specifically:`);
+      const assetInfo = await simpleLendingProtocol.assets(tokenAddresses[symbol]);
+      console.log(`${symbol} address: ${tokenAddresses[symbol]}`);
+      console.log(`Is supported: ${assetInfo.isSupported}`);
+      console.log(`Price: ${ethers.utils.formatUnits(assetInfo.price, 18)}`);
 
-  if (!ethArbiInfo.isSupported) {
-    console.log("❌ ETH.ARBI is NOT supported - this is the problem!");
-    console.log("🔧 Run: npx hardhat run scripts/initialize-simple.ts --network zeta_testnet");
-  } else {
-    console.log("✅ ETH.ARBI is supported - something else is wrong");
+      if (!assetInfo.isSupported) {
+        console.log(`❌ ${symbol} is NOT supported - this could be a problem!`);
+      } else {
+        console.log(`✅ ${symbol} is supported`);
+      }
+    }
   }
 }
 

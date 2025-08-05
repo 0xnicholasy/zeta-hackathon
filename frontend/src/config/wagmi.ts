@@ -4,6 +4,12 @@ import {
   sepolia,
   mainnet,
   arbitrum,
+  polygonAmoy,
+  baseSepolia,
+  bscTestnet,
+  polygon,
+  base,
+  bsc,
 } from 'wagmi/chains';
 
 // ZetaChain testnet configuration
@@ -58,12 +64,18 @@ export const config = getDefaultConfig({
         zetaChainTestnet,
         arbitrumSepolia,
         sepolia,
+        polygonAmoy,
+        baseSepolia,
+        bscTestnet,
       ]
     : [
         // Production networks
         zetaChainMainnet,
         arbitrum,
         mainnet,
+        polygon,
+        base,
+        bsc,
       ],
   ssr: false, // If your dApp uses server side rendering (SSR)
 });
@@ -71,8 +83,18 @@ export const config = getDefaultConfig({
 // Export chain configurations for use in components
 export { zetaChainTestnet, zetaChainMainnet };
 
+// Export additional chain configurations from wagmi/chains
+export { 
+  polygonAmoy, 
+  baseSepolia, 
+  bscTestnet,
+  polygon,
+  base,
+  bsc 
+};
+
 // Export current environment info
 export const isTestnetMode = useTestnets;
 export const activeChains = useTestnets 
-  ? [zetaChainTestnet, arbitrumSepolia, sepolia]
-  : [zetaChainMainnet, arbitrum, mainnet];
+  ? [zetaChainTestnet, arbitrumSepolia, sepolia, polygonAmoy, baseSepolia, bscTestnet]
+  : [zetaChainMainnet, arbitrum, mainnet, polygon, base, bsc];

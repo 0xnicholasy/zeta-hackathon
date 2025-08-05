@@ -46,30 +46,40 @@ async function main() {
 
   console.log("\n=== Starting Protocol Initialization ===");
 
-  // Get all ZRC-20 token addresses from centralized config
-  const ethArbiAddress = getTokenAddress(chainId, "ETH.ARBI");
-  const usdcArbiAddress = getTokenAddress(chainId, "USDC.ARBI");
-  const ethEthAddress = getTokenAddress(chainId, "ETH.ETH");
-  const usdcEthAddress = getTokenAddress(chainId, "USDC.ETH");
-
-  console.log("ETH.ARBI address:", ethArbiAddress);
-  console.log("USDC.ARBI address:", usdcArbiAddress);
-  console.log("ETH.ETH address:", ethEthAddress);
-  console.log("USDC.ETH address:", usdcEthAddress);
-
   console.log("\n=== Setting up Simple Lending Protocol ===");
 
-  // Add all supported assets to simple lending protocol
+  // Get all ZRC-20 token addresses from centralized config and build assets array
   const assets = [
-    { symbol: "ETH.ARBI", address: ethArbiAddress, price: 2000 },
-    { symbol: "USDC.ARBI", address: usdcArbiAddress, price: 1 },
-    { symbol: "ETH.ETH", address: ethEthAddress, price: 2000 },
-    { symbol: "USDC.ETH", address: usdcEthAddress, price: 1 }
+    { symbol: "ETH.ARBI", price: 3000 },
+    { symbol: "USDC.ARBI", price: 1 },
+    { symbol: "ETH.ETH", price: 3000 },
+    { symbol: "USDC.ETH", price: 1 },
+    { symbol: "USDC.POL", price: 1 },
+    { symbol: "POL.POL", price: 0.5 },
+    { symbol: "USDC.BSC", price: 1 },
+    { symbol: "BNB.BSC", price: 600 },
+    { symbol: "ETH.BASE", price: 3000 },
+    { symbol: "USDC.BASE", price: 1 }
   ];
 
+  // Get token addresses and log them
+  const tokenAddresses: Record<string, string> = {};
   for (const asset of assets) {
+    try {
+      tokenAddresses[asset.symbol] = getTokenAddress(chainId, asset.symbol);
+      console.log(`${asset.symbol} address:`, tokenAddresses[asset.symbol]);
+    } catch (error) {
+      console.log(`⚠️  ${asset.symbol} not found in network configuration, skipping...`);
+    }
+  }
+
+  // Filter assets to only include those with valid addresses
+  const validAssets = assets.filter(asset => tokenAddresses[asset.symbol]);
+  console.log(`\nFound ${validAssets.length} valid assets out of ${assets.length} total`);
+
+  for (const asset of validAssets) {
     console.log(`Adding ${asset.symbol} to simple lending protocol...`);
-    await simpleLendingProtocol.addAsset(asset.address, asset.price);
+    await simpleLendingProtocol.addAsset(tokenAddresses[asset.symbol], asset.price);
     console.log(`${asset.symbol} added successfully`);
   }
 
@@ -85,10 +95,12 @@ async function main() {
 
     // Map address to symbol
     let assetSymbol = "Unknown";
-    if (asset === ethArbiAddress) assetSymbol = "ETH.ARBI";
-    else if (asset === usdcArbiAddress) assetSymbol = "USDC.ARBI";
-    else if (asset === ethEthAddress) assetSymbol = "ETH.ETH";
-    else if (asset === usdcEthAddress) assetSymbol = "USDC.ETH";
+    for (const [symbol, address] of Object.entries(tokenAddresses)) {
+      if (asset.toLowerCase() === address.toLowerCase()) {
+        assetSymbol = symbol;
+        break;
+      }
+    }
 
     console.log(
       `Asset ${i}: ${asset} (${assetSymbol}) - Supported: ${assetInfo.isSupported}, Price: $${utils.formatUnits(assetInfo.price, 18)}`
@@ -106,6 +118,9 @@ async function main() {
   console.log("🎯 Cross-chain deposits are now supported from:");
   console.log("   • Arbitrum Sepolia → ETH.ARBI & USDC.ARBI");
   console.log("   • Ethereum Sepolia → ETH.ETH & USDC.ETH");
+  console.log("   • Polygon Amoy → USDC.POL & POL.POL");
+  console.log("   • BSC Testnet → USDC.BSC & BNB.BSC");
+  console.log("   • Base Sepolia → ETH.BASE & USDC.BASE");
 }
 
 main()

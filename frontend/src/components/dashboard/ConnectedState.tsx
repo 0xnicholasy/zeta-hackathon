@@ -1,22 +1,18 @@
 import { useChainId } from 'wagmi';
-import { useChainModal } from '@rainbow-me/rainbowkit';
-import { NetworkIcon } from '@web3icons/react';
-import { Button } from '../ui/button';
 import { SupportedChain, isSupportedChain } from '../../contracts/deployments';
 import { QuickActions } from './QuickActions';
 import { AccountHealth } from './AccountHealth';
 import { SupplyCard } from './SupplyCard';
 import { BorrowCard } from './BorrowCard';
 import { useDashboardData } from '../../hooks/useDashboardData';
-import { FaChevronDown } from 'react-icons/fa';
+import { NetworkSelector } from '../admin/NetworkSelector';
 
 export function ConnectedState() {
     const walletChainId = useChainId();
-    const { openChainModal } = useChainModal();
 
     // Determine the selected chain directly from wallet chain ID
     // Default to Arbitrum Sepolia if wallet is on ZetaChain or unsupported chain
-    const selectedChain = (walletChainId === SupportedChain.ARBITRUM_SEPOLIA || walletChainId === SupportedChain.ETHEREUM_SEPOLIA)
+    const selectedChain = (walletChainId === SupportedChain.ARBITRUM_SEPOLIA || walletChainId === SupportedChain.ETHEREUM_SEPOLIA || walletChainId === SupportedChain.POLYGON_AMOY || walletChainId === SupportedChain.BASE_SEPOLIA || walletChainId === SupportedChain.BSC_TESTNET)
         ? walletChainId.toString()
         : SupportedChain.ARBITRUM_SEPOLIA.toString();
 
@@ -29,6 +25,12 @@ export function ConnectedState() {
                 return { name: 'Ethereum Sepolia', icon: 'ethereum' };
             case SupportedChain.ZETA_TESTNET:
                 return { name: 'ZetaChain Testnet', icon: 'zeta-chain' };
+            case SupportedChain.POLYGON_AMOY:
+                return { name: 'Polygon Amoy', icon: 'polygon' };
+            case SupportedChain.BASE_SEPOLIA:
+                return { name: 'Base Sepolia', icon: 'base' };
+            case SupportedChain.BSC_TESTNET:
+                return { name: 'BSC Testnet', icon: 'bsc' };
             default:
                 return { name: 'Unknown Network', icon: 'ethereum' };
         }
@@ -69,17 +71,9 @@ export function ConnectedState() {
                     </div>
 
                     {/* RainbowKit Network Selector */}
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={openChainModal}
-                        disabled={!openChainModal}
-                        className="flex items-center gap-2 min-w-48"
-                    >
-                        <NetworkIcon name={currentChain.icon} className="w-4 h-4" />
-                        <span>{currentChain.name}</span>
-                        <FaChevronDown className="w-4 h-4 ml-auto" />
-                    </Button>
+                    <NetworkSelector
+                        currentChain={currentChain}
+                    />
                 </div>
 
                 {/* Network Status Info */}

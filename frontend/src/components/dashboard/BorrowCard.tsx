@@ -52,6 +52,8 @@ export function BorrowCard({ userAssets, refetchUserData }: BorrowCardProps) {
                     setLoadingBorrowable(true);
                 }
                 const assets = await getBorrowableAssets();
+                assets.sort((_a, b) => b.isAvailableToBorrow ? 1 : -1);
+                assets.filter(asset => asset.isAvailableToBorrow);
                 setBorrowableAssets(assets);
             } catch (error) {
                 // eslint-disable-next-line no-console
@@ -222,7 +224,7 @@ export function BorrowCard({ userAssets, refetchUserData }: BorrowCardProps) {
                     {loadingBorrowable ? (
                         <div className="space-y-2">
                             {/* Loading skeleton */}
-                            {Array.from({ length: 4 }, (_, i) => (
+                            {Array.from({ length: 10 }, (_, i) => (
                                 <div key={i} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border-light dark:border-border-dark">
                                     <div className="flex items-center space-x-3">
                                         <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
