@@ -42,8 +42,15 @@
       "Bash(npm run build:*)",
       "Bash(cat:*)",
       "Bash(forge build:*)",
-      "Bash(cargo test)",
-      "Bash(anchor build)"
+      "Bash(anchor build)",
+      "Bash(cargo:*)",
+      "Bash(rustc --version)",
+      "Bash(CARGO_RESOLVER_VERSION=2 cargo generate-lockfile)",
+      "Bash(anchor:*)",
+      "Bash(rustup:*)",
+      "Bash(solana:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(ts-node:*)"
     ],
     "deny": []
   }

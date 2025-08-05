@@ -1,12 +1,12 @@
 [package]
-name = "connected"
+name = "deposit-contract"
 version = "0.1.0"
-description = "Test program used for testing withdraw and call feature"
+description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "connected"
+name = "deposit_contract"
 
 [features]
 default = []
@@ -16,6 +16,9 @@ no-idl = []
 no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
+
 [dependencies]
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
+hex = { workspace = true }
+

@@ -1,0 +1,9 @@
+{
+	"servers": {
+		"solana-mcp-server": {
+			"url": "https://mcp.solana.com/",
+			"type": "http"
+		}
+	},
+	"inputs": []
+}

@@ -139,6 +139,49 @@ export class DeploymentManager {
     return await ethers.getContractAt(contractName, address);
   }
 
+  async getTokenAddress(tokenSymbol: string): Promise<string> {
+    const deployment = await this.loadDeployment();
+
+    if (!deployment) {
+      throw new Error("No deployment found");
+    }
+
+    if (!deployment.contracts.tokens || !deployment.contracts.tokens[tokenSymbol]) {
+      throw new Error(`Token ${tokenSymbol} not found in deployment`);
+    }
+
+    const address = deployment.contracts.tokens[tokenSymbol];
+    if (!address || address === "0x0000000000000000000000000000000000000000") {
+      throw new Error(`Token ${tokenSymbol} has zero address`);
+    }
+
+    return address;
+  }
+
+  async getSolanaTokens(): Promise<{ symbol: string; address: string; chainId: number }[]> {
+    const deployment = await this.loadDeployment();
+
+    if (!deployment) {
+      throw new Error("No deployment found");
+    }
+
+    const solanaTokens: { symbol: string; address: string; chainId: number }[] = [];
+    
+    if (deployment.contracts.tokens) {
+      for (const [symbol, address] of Object.entries(deployment.contracts.tokens)) {
+        if (typeof address === 'string' && symbol.includes('.SOL') && address !== "0x0000000000000000000000000000000000000000") {
+          solanaTokens.push({
+            symbol,
+            address,
+            chainId: 0 // Solana chain ID - can be updated based on your requirements
+          });
+        }
+      }
+    }
+
+    return solanaTokens;
+  }
+
   async printDeploymentSummary(): Promise<void> {
     const deployment = await this.loadDeployment();
 

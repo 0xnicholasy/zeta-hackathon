@@ -4,15 +4,19 @@
 resolution = true
 skip-lint = false
 
+[programs.devnet]
+connected = "2g2QbdzV9raDR9k5PGwSyCRGxmNC7RXdvqQf4npjvxz4"
+
 [programs.localnet]
-connected = "9BjVGjn28E58LgSi547JYEpqpgRoo1TErkbyXiRSNDQy"
+connected = "BpwoHauFe6mkFLdFc5hnxdx3aT1qS6CWxWz4gQGZWgHH"
+deposit-contract = "GcMxmSpPFZqWnFxv1HamYwiq5JAuDmuA2akFiAwu5S2d"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
-wallet = "~/.config/solana/id.json"
+cluster = "localnet"
+wallet = "~/Desktop/zeta-hackathon/call/solana/imported_keypair.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

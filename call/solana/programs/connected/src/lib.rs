@@ -1,15 +1,15 @@
 use anchor_lang::prelude::*;
-use std::mem::size_of;
 use anchor_spl::token::{Mint, Token, TokenAccount};
+use std::mem::size_of;
 
-declare_id!("9BjVGjn28E58LgSi547JYEpqpgRoo1TErkbyXiRSNDQy");
+declare_id!("2g2QbdzV9raDR9k5PGwSyCRGxmNC7RXdvqQf4npjvxz4");
 
 // NOTE: this is just example contract that can be called from gateway in execute function for testing withdraw and call
 #[program]
 pub mod connected {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+    pub fn initialize(_ctx: Context<Initialize>) -> Result<()> {
         Ok(())
     }
 
