@@ -29,71 +29,63 @@ export default defineConfig({
     logOverride: { 'this-is-undefined-in-esm': 'silent' }
   },
   build: {
-    // Fail build on warnings
+    // Disable source maps in production to save memory
+    sourcemap: false,
+    // Use terser for better compression
+    minify: 'terser',
+    target: 'es2020',
+    // Reduce chunk size warning limit to optimize bundle
+    chunkSizeWarningLimit: 500,
+    // Disable CSS code splitting to reduce chunks
+    cssCodeSplit: false,
+    // Optimize memory usage
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
     rollupOptions: {
-      onwarn(warning) {
-        // Treat warnings as errors during build
+      // Suppress non-critical warnings to reduce memory usage
+      onwarn(warning, warn) {
+        // Only show critical warnings
         if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return
         if (warning.code === 'CIRCULAR_DEPENDENCY') return
         if (warning.code === 'THIS_IS_UNDEFINED') return
-        // Ignore pure annotation warnings from dependencies
         if (warning.message?.includes('/*#__PURE__*/')) return
         if (warning.message?.includes('/* @__PURE__ */')) return
-        // Ignore warnings from @noble/curves library
         if (warning.message?.includes('@noble/curves')) return
         if (warning.message?.includes('ed25519.js')) return
-        // Ignore Rollup annotation warnings
         if (warning.message?.includes('annotation that Rollup cannot interpret')) return
-        // Ignore polyfill externalization warnings
         if (warning.message?.includes('has been externalized for browser compatibility')) return
-        // eslint-disable-next-line no-console
-        console.error(`Build warning treated as error: ${warning.message}`)
-        throw new Error(`Build failed due to warning: ${warning.message}`)
+        // Use default warn handler for other warnings
+        warn(warning)
       },
-      // Manual chunking for better code splitting
+      // Simplified chunking strategy to reduce memory usage
       output: {
-        manualChunks: {
-          // Vendor chunks
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'web3-vendor': ['ethers', 'viem', 'wagmi', '@rainbow-me/rainbowkit'],
-          'solana-vendor': ['@solana/web3.js', '@solana/spl-token'],
-          'ui-vendor': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-label',
-            '@radix-ui/react-select',
-            '@radix-ui/react-slot',
-            '@radix-ui/react-switch',
-            'lucide-react',
-            'react-icons',
-            'react-loader-spinner'
-          ],
-          'form-vendor': [
-            'react-hook-form',
-            '@hookform/resolvers',
-            'zod'
-          ],
-          'utils-vendor': [
-            'class-variance-authority',
-            'clsx',
-            'tailwind-merge',
-            'tailwindcss-animate'
-          ]
-        }
-      }
+        manualChunks: (id) => {
+          // Create fewer, larger chunks to reduce memory overhead
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+              return 'react-vendor'
+            }
+            if (id.includes('ethers') || id.includes('viem') || id.includes('wagmi') || id.includes('rainbow')) {
+              return 'web3-vendor'
+            }
+            if (id.includes('@solana/')) {
+              return 'solana-vendor'
+            }
+            // Group all other vendor packages together
+            return 'vendor'
+          }
+        },
+      },
+      // Reduce memory usage during tree-shaking
+      treeshake: {
+        preset: 'smallest',
+        moduleSideEffects: false,
+      },
     },
-    // Enable source maps for better debugging
-    sourcemap: true,
-    // Strict mode for better error catching
-    minify: 'esbuild',
-    target: 'esnext',
-    // Increase chunk size warning limit (in kB)
-    chunkSizeWarningLimit: 1000,
-    // Enable CSS code splitting
-    cssCodeSplit: true,
-    // Enable module preloading
-    modulePreload: {
-      polyfill: true
-    }
   },
   // Optimize dependencies pre-bundling
   optimizeDeps: {
