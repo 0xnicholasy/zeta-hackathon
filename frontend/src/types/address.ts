@@ -1,6 +1,7 @@
 // Branded types for better type safety
 export type EVMAddress = `0x${string}` & { readonly __brand: 'EVMAddress' };
 export type EVMTransactionHash = `0x${string}` & { readonly __brand: 'EVMTransactionHash' };
+export type SolanaTransactionHash = string & { readonly __brand: 'SolanaTransactionHash' };
 export const ZERO_ADDRESS: EVMAddress = '0x0000000000000000000000000000000000000000' as EVMAddress;
 export const ZERO_TRANSACTION_HASH: EVMTransactionHash = '0x0000000000000000000000000000000000000000000000000000000000000000' as EVMTransactionHash;
 
@@ -27,6 +28,17 @@ export function isEVMTransactionHash(value: string): value is EVMTransactionHash
     return isValidHexString(value);
 }
 
+export function isSolanaTransactionHash(value: string): value is SolanaTransactionHash {
+    // Solana transaction hashes are base58 encoded strings, typically 86-88 characters
+    if (!value || typeof value !== 'string') {
+        return false;
+    }
+    
+    // Base58 character set: 123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz
+    const base58Regex = /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{80,90}$/;
+    return base58Regex.test(value);
+}
+
 // Validation and conversion utilities
 export function validateEVMAddress(value: string): EVMAddress {
     if (!isEVMAddress(value)) {
@@ -38,6 +50,13 @@ export function validateEVMAddress(value: string): EVMAddress {
 export function validateEVMTransactionHash(value: string): EVMTransactionHash {
     if (!isEVMTransactionHash(value)) {
         throw new Error(`Invalid EVM transaction hash: ${value}. Expected format: 0x followed by 64 hex characters.`);
+    }
+    return value;
+}
+
+export function validateSolanaTransactionHash(value: string): SolanaTransactionHash {
+    if (!isSolanaTransactionHash(value)) {
+        throw new Error(`Invalid Solana transaction hash: ${value}. Expected base58 encoded string.`);
     }
     return value;
 }
@@ -59,6 +78,16 @@ export function safeEVMTransactionHash<T>(value: string | null | undefined, fall
             return fallback;
         }
         throw new Error(`Invalid EVM transaction hash: ${value}. Expected format: 0x followed by 64 hex characters.`);
+    }
+    return value;
+}
+
+export function safeSolanaTransactionHash<T>(value: string | null | undefined, fallback?: T): SolanaTransactionHash | T {
+    if (!value || !isSolanaTransactionHash(value)) {
+        if (fallback) {
+            return fallback;
+        }
+        throw new Error(`Invalid Solana transaction hash: ${value}. Expected base58 encoded string.`);
     }
     return value;
 }

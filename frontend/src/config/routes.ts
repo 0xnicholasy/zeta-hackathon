@@ -9,6 +9,7 @@ const DebuggingPage = React.lazy(() => import('../pages/DebuggingPage'));
 const NotFoundPage = React.lazy(() => import('../pages/NotFoundPage'));
 const AdminPage = React.lazy(() => import('../pages/AdminPage'));
 const LiquidationPage = React.lazy(() => import('../pages/LiquidationPage'));
+const DashBoardSolanaPage = React.lazy(() => import('../pages/DashBoardSolanaPage'));
 
 export interface AppRoute {
   path: string;
@@ -21,6 +22,7 @@ export interface AppRoute {
 export const ROUTES = {
   HOME: '/',
   DASHBOARD: '/dashboard',
+  DASHBOARD_SOLANA: '/dashboard-solana',
   LIQUIDATION: '/liquidation',
   DEBUGGING: '/debugging',
   ADMIN: '/admin',
@@ -41,6 +43,13 @@ export const appRoutes: AppRoute[] = [
     element: DashBoardPage,
     isPublic: false,
     description: 'Main lending and borrowing interface',
+  },
+  {
+    path: ROUTES.DASHBOARD_SOLANA,
+    name: 'Dashboard Solana',
+    element: DashBoardSolanaPage,
+    isPublic: false,
+    description: 'Main lending and borrowing interface for Solana',
   },
   {
     path: ROUTES.LIQUIDATION,

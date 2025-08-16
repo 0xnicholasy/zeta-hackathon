@@ -1,12 +1,44 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, Keypair, PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
+import { AbiCoder } from "ethers";
+import { createHash } from "crypto";
 import fs from "fs";
+import { config } from "./config";
 
-// Gateway program ID on Solana devnet
-const GATEWAY_PROGRAM_ID = new PublicKey(
-    "ZETAjseVjuFsxdRxo6MmTCvqFwb3ZHUx56Co3vCmGis"
-);
-const DESTINATION_ADDRESS = "0xe1C5Bf97A7Ffb50988DeF972E1E242072298a59C";
+// Configuration-based constants
+const ON_BEHALF_OF = "0xe1C5Bf97A7Ffb50988DeF972E1E242072298a59C";
+
+// Function to calculate Anchor discriminator for deposit_and_call
+function calculateDiscriminator(functionName: string): Buffer {
+    const hash = createHash('sha256').update(`global:${functionName}`).digest();
+    return hash.subarray(0, 8);
+}
+
+// Function to encode message for UniversalLendingProtocol.onCall()
+function encodeSupplyMessage(onBehalfOf: string): Buffer {
+    // ABI encode ("supply", onBehalfOf) - matches Solidity abi.encode("supply", onBehalfOf)
+    const abiCoder = new AbiCoder();
+    const encoded = abiCoder.encode(["string", "address"], ["supply", onBehalfOf]);
+    
+    // Convert hex string to buffer - this should be exactly what abi.decode expects
+    const encodedBuffer = Buffer.from(encoded.slice(2), "hex");
+    
+    // The contract expects exactly 128 bytes, but abi.encode already creates the correct format
+    // Let's verify the length and pad with zeros if needed, but preserve the ABI structure
+    console.log("ABI encoded length:", encodedBuffer.length);
+    
+    if (encodedBuffer.length === 128) {
+        // Perfect, already 128 bytes
+        return encodedBuffer;
+    } else if (encodedBuffer.length < 128) {
+        // Pad with zeros at the end to reach 128 bytes
+        const padding = Buffer.alloc(128 - encodedBuffer.length, 0);
+        return Buffer.concat([encodedBuffer, padding]);
+    } else {
+        // This shouldn't happen with (string, address) encoding, but handle it
+        throw new Error(`ABI encoded message too long: ${encodedBuffer.length} bytes, expected max 128`);
+    }
+}
 
 async function main() {
     try {
@@ -25,46 +57,56 @@ async function main() {
 
         console.log("Wallet address:", keypair.publicKey.toString());
 
-        // Connect to Solana devnet
+        // Get configuration values
+        const solanaConfig = config.getSolanaConfig();
+        const gatewayProgramId = config.getGatewayProgramId();
+        const destinationAddress = config.getUniversalLendingProtocolAddress();
+        const transactionConfig = config.getTransactionConfig();
+        
+        // Connect to Solana network
         const connection = new Connection(
-            "https://api.devnet.solana.com",
-            "confirmed"
+            solanaConfig.rpcUrl,
+            solanaConfig.commitment as anchor.web3.Commitment
         );
 
         // Check wallet balance
         const balance = await connection.getBalance(keypair.publicKey);
         console.log("Wallet SOL balance:", balance / anchor.web3.LAMPORTS_PER_SOL);
+        console.log("Network:", config.getNetwork());
 
-        if (balance < 0.05 * anchor.web3.LAMPORTS_PER_SOL) {
-            throw new Error("Insufficient SOL balance for transaction (need at least 0.05 SOL including fees)");
+        const minBalanceInLamports = transactionConfig.minBalance * anchor.web3.LAMPORTS_PER_SOL;
+        if (balance < minBalanceInLamports) {
+            throw new Error(`Insufficient SOL balance for transaction (need at least ${transactionConfig.minBalance} SOL including fees)`);
         }
 
         // Get PDA (Program Derived Address)
-        const [pda] = PublicKey.findProgramAddressSync(
-            [Buffer.from("meta", "utf8")],
-            GATEWAY_PROGRAM_ID
-        );
+        const pda = config.getGatewayPDA();
 
-        // Amount to deposit (0.01 SOL = 10,000,000 lamports) + 0.002 SOL fee
-        const depositAmount = new anchor.BN(10_000_000); // 0.01 SOL
-        const feeAmount = new anchor.BN(2_000_000);      // 0.002 SOL fee
-        const totalAmount = depositAmount.add(feeAmount); // Total: 0.012 SOL
+        // Amount to deposit from configuration
+        const depositAmount = new anchor.BN(transactionConfig.solDepositAmount * anchor.web3.LAMPORTS_PER_SOL);
+        const feeAmount = new anchor.BN(transactionConfig.solFeeAmount * anchor.web3.LAMPORTS_PER_SOL);
+        const totalAmount = depositAmount.add(feeAmount);
 
-        console.log(`Depositing ${depositAmount.toNumber() / anchor.web3.LAMPORTS_PER_SOL} SOL + ${feeAmount.toNumber() / anchor.web3.LAMPORTS_PER_SOL} SOL fee`);
+        console.log(`Depositing ${transactionConfig.solDepositAmount} SOL + ${transactionConfig.solFeeAmount} SOL fee`);
         console.log(`Total amount: ${totalAmount.toNumber() / anchor.web3.LAMPORTS_PER_SOL} SOL`);
 
         // Convert destination address to bytes (exactly 20 bytes)
-        const destinationBuffer = Buffer.from(DESTINATION_ADDRESS.slice(2), "hex");
+        const destinationBuffer = Buffer.from(destinationAddress.slice(2), "hex");
         if (destinationBuffer.length !== 20) {
             throw new Error(`Invalid destination address length: expected 20 bytes, got ${destinationBuffer.length}`);
         }
 
-        console.log("Destination address:", DESTINATION_ADDRESS);
+        console.log("Destination address:", destinationAddress);
+        console.log("On behalf of:", ON_BEHALF_OF);
         console.log("Gateway PDA:", pda.toString());
 
-        // Construct deposit instruction
-        // Deposit discriminator: [242, 35, 198, 137, 82, 225, 242, 182]
-        const discriminator = Buffer.from([242, 35, 198, 137, 82, 225, 242, 182]);
+        // Encode message for lending protocol onCall function
+        const message = encodeSupplyMessage(ON_BEHALF_OF);
+        console.log("Message length:", message.length, "bytes");
+
+        // Construct deposit_and_call instruction
+        // Calculate deposit_and_call discriminator
+        const discriminator = calculateDiscriminator("deposit_and_call");
         
         // Serialize amount as u64 (8 bytes, little endian)
         const amountBuffer = Buffer.allocUnsafe(8);
@@ -74,16 +116,25 @@ async function main() {
         // Destination is 20 bytes (fixed array [u8; 20])
         const receiverBuffer = destinationBuffer;
         
+        // Message as Vec<u8> (length prefix + data)
+        const messageLengthBuffer = Buffer.allocUnsafe(4);
+        messageLengthBuffer.writeUInt32LE(message.length, 0);
+        const messageBuffer = Buffer.concat([messageLengthBuffer, message]);
+        
         // RevertOptions as Option<RevertOptions> - None = 0x00
         const revertOptionsBuffer = Buffer.from([0x00]);
         
-        // Combine instruction data
+        // Combine instruction data for deposit_and_call
         const instructionData = Buffer.concat([
             discriminator,        // 8 bytes
             amountBuffer,         // 8 bytes  
             receiverBuffer,       // 20 bytes
+            messageBuffer,        // 4 bytes length + 128 bytes message = 132 bytes
             revertOptionsBuffer   // 1 byte
         ]);
+        
+        console.log("Discriminator:", discriminator.toString('hex'));
+        console.log("Total instruction data length:", instructionData.length, "bytes");
 
         // Create instruction
         const instruction = new TransactionInstruction({
@@ -92,7 +143,7 @@ async function main() {
                 { pubkey: pda, isSigner: false, isWritable: true },               // pda
                 { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
             ],
-            programId: GATEWAY_PROGRAM_ID,
+            programId: gatewayProgramId,
             data: instructionData,
         });
 
@@ -109,9 +160,11 @@ async function main() {
 
         console.log("✅ Transaction successful!");
         console.log("Transaction signature:", signature);
-        console.log(`Deposited ${depositAmount.toNumber() / anchor.web3.LAMPORTS_PER_SOL} SOL to ${DESTINATION_ADDRESS} on ZetaChain`);
-        console.log(`Transaction URL: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
-        
+        console.log(`Deposited ${depositAmount.toNumber() / anchor.web3.LAMPORTS_PER_SOL} SOL to lending protocol at ${destinationAddress} on ZetaChain`);
+        console.log(`Supply action triggered for address: ${ON_BEHALF_OF}`);
+        console.log(`Transaction URL: ${config.getSolanaExplorerUrl(signature)}`);
+        console.log(`Cross-chain transaction URL: ${config.getZetaChainCCTXUrl(signature)}`);
+
     } catch (error) {
         console.error("❌ Error:", error);
     }

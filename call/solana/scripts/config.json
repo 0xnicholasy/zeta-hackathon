@@ -1,0 +1,92 @@
+{
+  "networks": {
+    "devnet": {
+      "solana": {
+        "rpcUrl": "https://api.devnet.solana.com",
+        "commitment": "confirmed"
+      },
+      "zetachain": {
+        "chainId": 7001,
+        "blockpiUrl": "https://zetachain-athens.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData",
+        "explorerUrl": "https://athens.explorer.zetachain.com"
+      }
+    },
+    "mainnet": {
+      "solana": {
+        "rpcUrl": "https://api.mainnet-beta.solana.com",
+        "commitment": "confirmed"
+      },
+      "zetachain": {
+        "chainId": 7000,
+        "blockpiUrl": "https://zetachain.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData",
+        "explorerUrl": "https://explorer.zetachain.com"
+      }
+    }
+  },
+  "contracts": {
+    "devnet": {
+      "gateway": {
+        "programId": "ZETAjseVjuFsxdRxo6MmTCvqFwb3ZHUx56Co3vCmGis",
+        "pdaSeeds": ["meta"]
+      },
+      "zetachain": {
+        "universalLendingProtocol": "0x32aBC46abc5bC818fF4DB0C0e75ea2dDbb2D9a13"
+      }
+    },
+    "mainnet": {
+      "gateway": {
+        "programId": "ZETAjseVjuFsxdRxo6MmTCvqFwb3ZHUx56Co3vCmGis",
+        "pdaSeeds": ["meta"]
+      },
+      "zetachain": {
+        "universalLendingProtocol": "0x1234567890123456789012345678901234567890"
+      }
+    }
+  },
+  "tokens": {
+    "devnet": {
+      "usdc": {
+        "mint": "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr",
+        "decimals": 6,
+        "symbol": "USDC"
+      },
+      "sol": {
+        "symbol": "SOL",
+        "decimals": 9
+      }
+    },
+    "mainnet": {
+      "usdc": {
+        "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "decimals": 6,
+        "symbol": "USDC"
+      },
+      "sol": {
+        "symbol": "SOL",
+        "decimals": 9
+      }
+    }
+  },
+  "transaction": {
+    "devnet": {
+      "minBalance": 0.05,
+      "solDepositAmount": 0.01,
+      "solFeeAmount": 0.002,
+      "usdcDepositAmount": 1.0
+    },
+    "mainnet": {
+      "minBalance": 0.1,
+      "solDepositAmount": 0.01,
+      "solFeeAmount": 0.002,
+      "usdcDepositAmount": 1.0
+    }
+  },
+  "explorer": {
+    "devnet": {
+      "solana": "https://explorer.solana.com/tx/{signature}?cluster=devnet"
+    },
+    "mainnet": {
+      "solana": "https://explorer.solana.com/tx/{signature}"
+    }
+  }
+}

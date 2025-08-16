@@ -1,9 +1,22 @@
 import path from "path"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
+import { nodePolyfills } from "vite-plugin-node-polyfills"
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    nodePolyfills({
+      // Whether to polyfill specific globals.
+      globals: {
+        Buffer: true, // can also be 'build', 'dev', or false
+        global: true,
+        process: true,
+      },
+      // Whether to polyfill `node:` protocol imports.
+      protocolImports: true,
+    }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -23,6 +36,12 @@ export default defineConfig({
         if (warning.code === 'THIS_IS_UNDEFINED') return
         // Ignore pure annotation warnings from dependencies
         if (warning.message?.includes('/*#__PURE__*/')) return
+        if (warning.message?.includes('/* @__PURE__ */')) return
+        // Ignore warnings from @noble/curves library
+        if (warning.message?.includes('@noble/curves')) return
+        if (warning.message?.includes('ed25519.js')) return
+        // Ignore Rollup annotation warnings
+        if (warning.message?.includes('annotation that Rollup cannot interpret')) return
         // eslint-disable-next-line no-console
         console.error(`Build warning treated as error: ${warning.message}`)
         throw new Error(`Build failed due to warning: ${warning.message}`)
@@ -33,6 +52,7 @@ export default defineConfig({
           // Vendor chunks
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'web3-vendor': ['ethers', 'viem', 'wagmi', '@rainbow-me/rainbowkit'],
+          'solana-vendor': ['@solana/web3.js', '@solana/spl-token'],
           'ui-vendor': [
             '@radix-ui/react-dialog',
             '@radix-ui/react-label',
@@ -85,6 +105,8 @@ export default defineConfig({
       'viem',
       'wagmi',
       '@rainbow-me/rainbowkit',
+      '@solana/web3.js',
+      '@solana/spl-token',
       'react-hook-form',
       'zod'
     ]

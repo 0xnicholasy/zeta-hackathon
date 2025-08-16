@@ -1,12 +1,19 @@
 import { useState, useCallback, useRef } from 'react';
-import { EVMTransactionHash, safeEVMTransactionHash, ZERO_TRANSACTION_HASH } from '@/types/address';
+import { 
+  EVMTransactionHash, 
+  SolanaTransactionHash,
+  safeEVMTransactionHash, 
+  safeSolanaTransactionHash,
+  isEVMTransactionHash,
+  isSolanaTransactionHash
+} from '@/types/address';
 
 export type CrossChainStatus = 'idle' | 'submitted' | 'pending' | 'success' | 'failed';
 
 interface CrossChainTrackingResult {
   status: CrossChainStatus;
-  txHash: EVMTransactionHash | null;
-  startTracking: (txHash: EVMTransactionHash | string) => void;
+  txHash: EVMTransactionHash | SolanaTransactionHash | null;
+  startTracking: (txHash: EVMTransactionHash | SolanaTransactionHash | string) => void;
   reset: () => void;
 }
 
@@ -91,15 +98,22 @@ export interface RevertOptions {
 
 export function useCrossChainTracking(): CrossChainTrackingResult {
   const [status, setStatus] = useState<CrossChainStatus>('idle');
-  const [txHash, setTxHash] = useState<EVMTransactionHash | null>(null);
+  const [txHash, setTxHash] = useState<EVMTransactionHash | SolanaTransactionHash | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTrackingRef = useRef(false);
 
-  const startTracking = useCallback((transactionHash: EVMTransactionHash | string) => {
+  const startTracking = useCallback((transactionHash: EVMTransactionHash | SolanaTransactionHash | string) => {
     if (!transactionHash || isTrackingRef.current) return;
 
-    // Validate and convert transaction hash
-    const validTxHash = safeEVMTransactionHash(transactionHash, ZERO_TRANSACTION_HASH);
+    // Validate and convert transaction hash - support both EVM and Solana
+    let validTxHash: EVMTransactionHash | SolanaTransactionHash | null = null;
+    
+    if (isEVMTransactionHash(transactionHash)) {
+      validTxHash = safeEVMTransactionHash(transactionHash, null);
+    } else if (isSolanaTransactionHash(transactionHash)) {
+      validTxHash = safeSolanaTransactionHash(transactionHash, null);
+    }
+    
     if (!validTxHash) {
       return;
     }
@@ -114,9 +128,11 @@ export function useCrossChainTracking(): CrossChainTrackingResult {
     setTxHash(validTxHash);
     setStatus('submitted');
 
-    const maxRetries = 30; // 2.5 minutes with 10 second intervals
-    const retryInterval = 5000; // 5 seconds
+    const maxRetries = 30; // Total attempts over ~2.5 minutes
+    const initialDelay = 10000; // 10 seconds initial delay
+    const retryInterval = 5000; // 5 seconds between retries
     let retries = 0;
+    let hasInitialDelayPassed = false;
 
     const checkTransaction = async () => {
       if (!isTrackingRef.current) return; // Stop if tracking was reset
@@ -130,8 +146,11 @@ export function useCrossChainTracking(): CrossChainTrackingResult {
 
         const data: ResponseJson = await response.json();
 
-        // Validate response structure using the defined interfaces
-        if (data?.CrossChainTxs?.length > 0) {
+        // Handle initial "not found" response gracefully during first 10 seconds
+        if (!hasInitialDelayPassed && (!data?.CrossChainTxs || data.CrossChainTxs.length === 0)) {
+          // Transaction not indexed yet, this is expected during initial delay
+          setStatus('submitted');
+        } else if (data?.CrossChainTxs?.length > 0) {
           const cctxData = data.CrossChainTxs[0];
           if (!cctxData) {
             throw new Error('Invalid response structure from cross-chain API');
@@ -151,10 +170,17 @@ export function useCrossChainTracking(): CrossChainTrackingResult {
           }
           // Still pending - continue checking
         } else {
-          setStatus('idle');
+          // No cross-chain transactions found after initial delay
+          if (hasInitialDelayPassed) {
+            setStatus('idle');
+          } else {
+            setStatus('submitted');
+          }
         }
 
         retries++;
+        hasInitialDelayPassed = true;
+        
         if (retries < maxRetries && isTrackingRef.current) {
           timeoutRef.current = setTimeout(() => {
             void checkTransaction();
@@ -164,8 +190,8 @@ export function useCrossChainTracking(): CrossChainTrackingResult {
           setStatus('success');
           isTrackingRef.current = false;
         }
-      } catch (error) {
-        console.error('Failed to check cross-chain transaction:', error);
+      } catch {
+        // Silently handle API errors during retry
         retries++;
         if (retries < maxRetries && isTrackingRef.current) {
           timeoutRef.current = setTimeout(() => {
@@ -178,10 +204,10 @@ export function useCrossChainTracking(): CrossChainTrackingResult {
       }
     };
 
-    // Start checking after a short delay
+    // Start checking after the initial delay
     timeoutRef.current = setTimeout(() => {
       void checkTransaction();
-    }, 5000);
+    }, initialDelay);
   }, []);
 
   const reset = useCallback(() => {

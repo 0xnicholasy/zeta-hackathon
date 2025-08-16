@@ -24,6 +24,11 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     isPrivate: true,
   },
   {
+    label: 'DashboardSolana',
+    path: ROUTES.DASHBOARD_SOLANA,
+    isPrivate: true,
+  },
+  {
     label: 'Liquidation',
     path: ROUTES.LIQUIDATION,
     isPrivate: true,
