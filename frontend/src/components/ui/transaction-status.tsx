@@ -3,7 +3,7 @@ import { HourglassLoader } from './hourglass-loader';
 import { getTransactionUrl, SupportedChain } from '../../contracts/deployments';
 import { formatHexString } from '../../utils/formatHexString';
 import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
-import { EVMTransactionHash } from '@/types/address';
+import { EVMTransactionHash, isEVMTransactionHash, isSolanaTransactionHash } from '@/types/address';
 import type { StepsForTransactionType, TransactionType } from '../../types/transactions';
 import { getChainDisplayNameFromId } from '../../utils/chainUtils';
 
@@ -203,7 +203,8 @@ export function TransactionStatus<T extends TransactionType = TransactionType>({
                             rel="noopener noreferrer"
                             className="ml-1 text-primary hover:text-primary/80 underline flex-shrink-0"
                         >
-                            {formatHexString(crossChain.txHash)}
+                            {isEVMTransactionHash(crossChain.txHash) && formatHexString(crossChain.txHash)}
+                            {isSolanaTransactionHash(crossChain.txHash) && crossChain.txHash}
                         </a>
                         {crossChain.status === 'pending' && <FaClock className="ml-2 w-3 h-3 text-muted-foreground flex-shrink-0" />}
                         {crossChain.status === 'success' && <FaCheck className="ml-2 w-3 h-3 text-text-success-light dark:text-text-success-dark flex-shrink-0" />}

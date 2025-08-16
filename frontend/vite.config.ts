@@ -1,26 +1,23 @@
 import path from "path"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
-import { nodePolyfills } from "vite-plugin-node-polyfills"
 
 export default defineConfig({
   plugins: [
     react(),
-    nodePolyfills({
-      // Whether to polyfill specific globals.
-      globals: {
-        Buffer: true, // can also be 'build', 'dev', or false
-        global: true,
-        process: true,
-      },
-      // Whether to polyfill `node:` protocol imports.
-      protocolImports: true,
-    }),
   ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      buffer: "buffer",
+      crypto: "crypto-browserify",
+      stream: "stream-browserify",
+      util: "util",
     },
+  },
+  define: {
+    global: "globalThis",
+    __DEV__: JSON.stringify(process.env.NODE_ENV === 'development')
   },
   esbuild: {
     // Make TypeScript errors fail the build
@@ -42,6 +39,8 @@ export default defineConfig({
         if (warning.message?.includes('ed25519.js')) return
         // Ignore Rollup annotation warnings
         if (warning.message?.includes('annotation that Rollup cannot interpret')) return
+        // Ignore polyfill externalization warnings
+        if (warning.message?.includes('has been externalized for browser compatibility')) return
         // eslint-disable-next-line no-console
         console.error(`Build warning treated as error: ${warning.message}`)
         throw new Error(`Build failed due to warning: ${warning.message}`)
@@ -91,10 +90,6 @@ export default defineConfig({
       polyfill: true
     }
   },
-  // Enable strict mode in development
-  define: {
-    __DEV__: JSON.stringify(process.env.NODE_ENV === 'development')
-  },
   // Optimize dependencies pre-bundling
   optimizeDeps: {
     include: [
@@ -110,5 +105,7 @@ export default defineConfig({
       'react-hook-form',
       'zod'
     ]
-  }
+  },
 })
+
+ 
