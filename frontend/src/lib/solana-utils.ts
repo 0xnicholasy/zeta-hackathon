@@ -22,7 +22,7 @@ export async function getSOLBalance(publicKey: string): Promise<number> {
     try {
         const connection = createSolanaConnection();
         const pubKey = new PublicKey(publicKey);
-        
+
         const balance = await connection.getBalance(pubKey);
         return balance / LAMPORTS_PER_SOL;
     } catch (error) {
@@ -39,26 +39,26 @@ export async function getUSDCBalance(publicKey: string): Promise<number> {
         const connection = createSolanaConnection();
         const pubKey = new PublicKey(publicKey);
         const usdcMint = new PublicKey(DEVNET_USDC_MINT);
-        
+
         // Get the associated token account address for USDC
         const associatedTokenAccount = await getAssociatedTokenAddress(
             usdcMint,
             pubKey
         );
-        
+
         try {
             // Get the token account info
             const tokenAccount = await getAccount(
                 connection,
                 associatedTokenAccount
             );
-            
+
             // USDC has 6 decimals
             const balance = Number(tokenAccount.amount) / Math.pow(10, 6);
             return balance;
         } catch (accountError) {
             // Account doesn't exist or has no USDC
-            console.log('USDC token account not found or empty for address:', publicKey);
+            console.log('USDC token account not found or empty for address:', publicKey, accountError);
             return 0;
         }
     } catch (error) {
@@ -77,7 +77,7 @@ export async function fetchSolanaTokenBalances(publicKey: string): Promise<Solan
             getSOLBalance(publicKey),
             getUSDCBalance(publicKey)
         ]);
-        
+
         const tokens: SolanaToken[] = [
             {
                 symbol: 'SOL',
@@ -95,7 +95,7 @@ export async function fetchSolanaTokenBalances(publicKey: string): Promise<Solan
                 isNative: false
             }
         ];
-        
+
         return tokens;
     } catch (error) {
         console.error('Error fetching Solana token balances:', error);
@@ -135,10 +135,10 @@ export function isValidSolanaAddress(address: string): boolean {
 /**
  * Formats a Solana token balance for display
  */
-export function formatTokenBalance(balance: number, decimals: number = 2): string {
+export function formatTokenBalance(balance: number, decimals = 2): string {
     if (balance === 0) return '0';
     if (balance < 0.000001) return '< 0.000001';
-    
+
     return balance.toLocaleString('en-US', {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals

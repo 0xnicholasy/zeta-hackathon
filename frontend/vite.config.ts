@@ -3,6 +3,11 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
 export default defineConfig({
+  server: {
+    watch: {
+      usePolling: false, // Use native file watching
+    }
+  },
   plugins: [
     react(),
   ],
@@ -108,4 +113,3 @@ export default defineConfig({
   },
 })
 
- 
