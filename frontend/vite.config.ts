@@ -31,20 +31,20 @@ export default defineConfig({
   build: {
     // Disable source maps in production to save memory
     sourcemap: false,
-    // Use terser for better compression
-    minify: 'terser',
+    // Use esbuild to avoid rare Terser/rollup reorder bugs
+    minify: 'esbuild',
     target: 'es2020',
     // Reduce chunk size warning limit to optimize bundle
     chunkSizeWarningLimit: 500,
     // Disable CSS code splitting to reduce chunks
     cssCodeSplit: false,
-    // Optimize memory usage
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-      },
-    },
+    // Optimize memory usage (only used if minify: 'terser')
+    // terserOptions: {
+    //   compress: {
+    //     drop_console: true,
+    //     drop_debugger: true,
+    //   },
+    // },
     rollupOptions: {
       // Suppress non-critical warnings to reduce memory usage
       onwarn(warning, warn) {
@@ -61,25 +61,10 @@ export default defineConfig({
         // Use default warn handler for other warnings
         warn(warning)
       },
-      // Simplified chunking strategy to reduce memory usage
-      output: {
-        manualChunks: (id) => {
-          // Create fewer, larger chunks to reduce memory overhead
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-              return 'react-vendor'
-            }
-            if (id.includes('ethers') || id.includes('viem') || id.includes('wagmi') || id.includes('rainbow')) {
-              return 'web3-vendor'
-            }
-            if (id.includes('@solana/')) {
-              return 'solana-vendor'
-            }
-            // Group all other vendor packages together
-            return 'vendor'
-          }
-        },
-      },
+      // Let Vite decide optimal vendor chunking to avoid reorder issues
+      // output: {
+      //   manualChunks: undefined,
+      // },
       // Reduce memory usage during tree-shaking
       treeshake: {
         preset: 'smallest',
@@ -98,7 +83,6 @@ export default defineConfig({
       'wagmi',
       '@rainbow-me/rainbowkit',
       '@solana/web3.js',
-      '@solana/spl-token',
       'react-hook-form',
       'zod'
     ]

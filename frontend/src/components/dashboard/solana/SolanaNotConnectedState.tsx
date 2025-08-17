@@ -1,13 +1,10 @@
 import { FaWallet } from 'react-icons/fa';
 import { NetworkIcon, NetworkSolana, TokenUSDC } from '@web3icons/react';
 import { SolanaWalletButton } from '../../wallet/SolanaWalletButton';
-import { useWallet } from '@solana/wallet-adapter-react';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export function SolanaNotConnectedState() {
-  const { wallets } = useWallet();
-
-  // Check if no wallets are available at all
-  const hasWallets = wallets && wallets.length > 0;
+  const hasWallets = typeof window !== 'undefined' && Boolean((window as any).solana || (window as any).phantom?.solana);
 
   if (!hasWallets) {
     return (

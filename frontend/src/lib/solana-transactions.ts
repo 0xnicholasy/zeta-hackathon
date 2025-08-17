@@ -11,7 +11,7 @@ import {
   getAssociatedTokenAddress
 } from '@solana/spl-token';
 import { createHash } from 'crypto';
-import { AbiCoder } from 'ethers/lib/utils';
+import { utils } from 'ethers';
 
 export interface SolanaTransactionParams {
   connection: Connection;
@@ -34,8 +34,7 @@ function calculateDiscriminator(functionName: string): Buffer {
 // Function to encode message for UniversalLendingProtocol.onCall()
 function encodeSupplyMessage(onBehalfOf: string): Buffer {
   // ABI encode ("supply", onBehalfOf) - matches Solidity abi.encode("supply", onBehalfOf)
-  const abiCoder = new AbiCoder();
-  const encoded = abiCoder.encode(["string", "address"], ["supply", onBehalfOf]);
+  const encoded = utils.defaultAbiCoder.encode(["string", "address"], ["supply", onBehalfOf]);
   
   // Convert hex string to buffer - this should be exactly what abi.decode expects
   const encodedBuffer = Buffer.from(encoded.slice(2), "hex");

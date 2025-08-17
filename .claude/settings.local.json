@@ -50,7 +50,9 @@
       "Bash(rustup:*)",
       "Bash(solana:*)",
       "Bash(npx ts-node:*)",
-      "Bash(ts-node:*)"
+      "Bash(ts-node:*)",
+      "Bash(curl:*)",
+      "Bash(git restore:*)"
     ],
     "deny": []
   }

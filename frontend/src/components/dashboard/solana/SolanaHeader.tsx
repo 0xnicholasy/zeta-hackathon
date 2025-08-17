@@ -4,9 +4,11 @@ import { ROUTES } from '@/config/routes';
 import zetaLendLogo from '@/assets/zetalend-logo.png';
 import { SolanaWalletButton } from '../../wallet/SolanaWalletButton';
 import { SolanaDisconnectButton } from '../../wallet/SolanaDisconnectButton';
+import { usePhantomWallet } from '@/hooks/usePhantomWallet';
 
 export function SolanaHeader() {
   const navigate = useNavigateTo();
+  const { isConnected } = usePhantomWallet();
 
   const handleLogoClick = () => {
     navigate(ROUTES.HOME);
@@ -31,7 +33,7 @@ export function SolanaHeader() {
             <ThemeToggle />
           </div>
           <SolanaWalletButton />
-          <SolanaDisconnectButton />
+          {isConnected && <SolanaDisconnectButton />}
         </div>
       </div>
     </header>

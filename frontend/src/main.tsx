@@ -1,3 +1,15 @@
+// Polyfills for Solana and crypto libraries
+import { Buffer } from 'buffer';
+(globalThis as any).Buffer = Buffer;
+
+// Process polyfill
+(globalThis as any).process = {
+  env: {},
+  nextTick: (fn: () => void) => setTimeout(fn, 0),
+  version: '',
+  browser: true,
+};
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
