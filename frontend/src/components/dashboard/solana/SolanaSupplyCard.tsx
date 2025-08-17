@@ -3,10 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Button } from '../../ui/button';
 import { TokenNetworkIcon } from '../../ui/token-network-icon';
 import { Spinner } from '../../ui/spinner';
-import { FaPlus } from 'react-icons/fa';
+import { FaPlus, FaArrowLeft } from 'react-icons/fa';
 import { SolanaSupplyDialog, type SolanaToken } from './SolanaSupplyDialog';
-import { Alert, AlertDescription } from '../../ui/alert';
-import { FaExclamationTriangle } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 
 interface SolanaSupplyCardProps {
   isPhantomConnected: boolean;
@@ -20,7 +19,6 @@ interface SolanaSupplyCardProps {
 export function SolanaSupplyCard({
   isPhantomConnected,
   phantomPublicKey,
-  onConnectPhantom,
   onSupply,
   solanaTokens,
   isLoadingTokens
@@ -44,45 +42,28 @@ export function SolanaSupplyCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-            <FaPlus className="text-purple-600 dark:text-purple-400 text-xs" />
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                <FaPlus className="text-purple-600 dark:text-purple-400 text-xs" />
+              </div>
+              Supply from Solana
+            </CardTitle>
+            <CardDescription>
+              Supply SOL and USDC from Solana to ZetaChain lending protocol
+            </CardDescription>
           </div>
-          Supply from Solana
-        </CardTitle>
-        <CardDescription>
-          Supply SOL and USDC from Solana to ZetaChain lending protocol
-        </CardDescription>
+          <Link 
+            to="/dashboard" 
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+          >
+            <FaArrowLeft className="text-xs" />
+            Back to Dashboard
+          </Link>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Phantom Wallet Connection */}
-        {!isPhantomConnected ? (
-          <div className="space-y-4">
-            <Alert className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
-              <FaExclamationTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Connect your Phantom wallet to supply Solana tokens to the lending protocol.
-              </AlertDescription>
-            </Alert>
-            <Button
-              onClick={onConnectPhantom}
-              className="w-full"
-              variant="zeta"
-            >
-              Connect Phantom Wallet
-            </Button>
-          </div>
-        ) : (
-          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-            <div className="text-sm font-medium text-green-800 dark:text-green-200">
-              Phantom Wallet Connected
-            </div>
-            <div className="text-xs text-green-600 dark:text-green-400 mt-1 break-all">
-              {phantomPublicKey}
-            </div>
-          </div>
-        )}
-
         {/* Available Tokens */}
         {isPhantomConnected && (
           <div>

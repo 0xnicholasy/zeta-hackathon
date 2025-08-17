@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import { TokenNetworkIcon } from '../ui/token-network-icon';
 import { Spinner } from '../ui/spinner';
 import { FaPlus } from 'react-icons/fa';
+import { SiSolana } from 'react-icons/si';
 import { isSupportedChain, SupportedChain } from '../../contracts/deployments';
 import { SupplyDialog } from './SupplyDialog';
 import { WithdrawDialog } from './WithdrawDialog';
@@ -12,6 +13,7 @@ import { ZetaWithdrawDialog } from './ZetaWithdrawDialog';
 import type { UserAssetData } from './types';
 import type { TokenBalance } from '../../hooks/useMultiChainBalances';
 import { useZetaChainBalances } from '../../hooks/useMultiChainBalances';
+import { Link } from 'react-router-dom';
 
 interface SupplyCardProps {
     userAssets: UserAssetData[];
@@ -85,15 +87,26 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                    <div className="w-6 h-6 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                        <FaPlus className="text-green-600 dark:text-green-400 text-xs" />
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <div className="w-6 h-6 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                                <FaPlus className="text-green-600 dark:text-green-400 text-xs" />
+                            </div>
+                            Supply
+                        </CardTitle>
+                        <CardDescription>
+                            Your supplies and assets available to supply
+                        </CardDescription>
                     </div>
-                    Supply
-                </CardTitle>
-                <CardDescription>
-                    Your supplies and assets available to supply
-                </CardDescription>
+                    <Link 
+                        to="/dashboard-solana" 
+                        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                    >
+                        <SiSolana className="text-xs" />
+                        Solana Dashboard
+                    </Link>
+                </div>
             </CardHeader>
             <CardContent className="space-y-6">
                 {/* Your Supplies - Show on ZetaChain or when user has supplied assets on other chains */}

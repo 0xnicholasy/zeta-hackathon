@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SolanaWalletProvider } from '../components/wallet/SolanaWalletProvider';
 import { SolanaWalletManager } from '../components/wallet/SolanaWalletManager';
-import { WalletDebugInfo } from '../components/wallet/WalletDebugInfo';
 import {
     createSOLSupplyTransaction,
     createUSDCSupplyTransaction,
@@ -129,11 +128,6 @@ function DashBoardSolanaPageContent() {
         <div className="min-h-screen bg-gradient-to-br from-zeta-50 to-zeta-100 dark:from-background dark:to-secondary">
             <SolanaHeader />
             <div className="container mx-auto px-4 py-8">
-                {/* Debug Info - Remove this in production */}
-                <div className="mb-8">
-                    <WalletDebugInfo />
-                </div>
-
                 {!isConnected ? (
                     <SolanaNotConnectedState />
                 ) : (

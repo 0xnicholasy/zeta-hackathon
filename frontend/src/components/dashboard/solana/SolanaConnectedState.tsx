@@ -20,28 +20,6 @@ export function SolanaConnectedState({
 }: SolanaConnectedStateProps) {
   return (
     <div className="space-y-8">
-      {/* Quick Info Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-6 rounded-xl border border-purple-200 dark:border-purple-800">
-          <div className="text-purple-600 dark:text-purple-400 text-sm font-medium mb-1">Network</div>
-          <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">Solana</div>
-        </div>
-        
-        <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-6 rounded-xl border border-green-200 dark:border-green-800">
-          <div className="text-green-600 dark:text-green-400 text-sm font-medium mb-1">Wallet Status</div>
-          <div className="text-2xl font-bold text-green-900 dark:text-green-100">
-            {isPhantomConnected ? 'Connected' : 'Not Connected'}
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
-          <div className="text-blue-600 dark:text-blue-400 text-sm font-medium mb-1">Available Tokens</div>
-          <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-            {solanaTokens.filter(token => token.balance > 0).length}
-          </div>
-        </div>
-      </div>
-
       {/* Supply Section */}
       <div className="grid grid-cols-1 gap-6">
         <SolanaSupplyCard
