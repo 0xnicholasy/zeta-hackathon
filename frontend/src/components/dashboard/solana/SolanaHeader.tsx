@@ -2,13 +2,10 @@ import ThemeToggle from '../../ThemeToggle';
 import { useNavigateTo } from '@/types/routes';
 import { ROUTES } from '@/config/routes';
 import zetaLendLogo from '@/assets/zetalend-logo.png';
-import { SolanaWalletButton } from '../../wallet/SolanaWalletButton';
-import { SolanaDisconnectButton } from '../../wallet/SolanaDisconnectButton';
-import { usePhantomWallet } from '@/hooks/usePhantomWallet';
+import { PhantomConnectButton } from './PhantomConnectButton';
 
 export function SolanaHeader() {
   const navigate = useNavigateTo();
-  const { isConnected } = usePhantomWallet();
 
   const handleLogoClick = () => {
     navigate(ROUTES.HOME);
@@ -32,8 +29,7 @@ export function SolanaHeader() {
           <div className='hidden md:block'>
             <ThemeToggle />
           </div>
-          <SolanaWalletButton />
-          {isConnected && <SolanaDisconnectButton />}
+          <PhantomConnectButton />
         </div>
       </div>
     </header>

@@ -9,7 +9,7 @@ export function SolanaWalletButton() {
       window.open('https://phantom.app/', '_blank');
       return;
     }
-    await connect(false);
+    await connect();
   }, [isAvailable, connect]);
 
   return (

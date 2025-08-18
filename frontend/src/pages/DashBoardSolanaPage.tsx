@@ -11,44 +11,23 @@ import { SolanaNotConnectedState } from '../components/dashboard/solana/SolanaNo
 import { SolanaConnectedState } from '../components/dashboard/solana/SolanaConnectedState';
 import { type SolanaToken } from '../components/dashboard/solana/SolanaSupplyDialog';
 import { fetchSolanaTokenBalances, isValidSolanaAddress, createSolanaConnection } from '../lib/solana-utils';
-import type { PublicKey } from '@solana/web3.js';
 import { usePhantomWallet } from '@/hooks/usePhantomWallet';
 
 function DashBoardSolanaPageContent() {
-    const { provider, isConnected, publicKey: publicKeyStringFromHook, connect, signAndSendTransaction } = usePhantomWallet();
-    const [publicKey, setPublicKey] = useState<PublicKey | null>(null);
+    const { isConnected, publicKey: publicKeyString, walletPublicKey, connect, signAndSendTransaction } = usePhantomWallet();
     const connection = createSolanaConnection();
-
-    useEffect(() => {
-        if (!provider?.on) return;
-        const handleConnect = (pk?: PublicKey) => {
-            setPublicKey(pk ?? provider.publicKey ?? null);
-        };
-        const handleDisconnect = () => {
-            setPublicKey(null);
-        };
-        provider.on('connect', handleConnect);
-        provider.on('disconnect', handleDisconnect);
-        return () => {
-            provider.removeListener?.('connect', handleConnect);
-            provider.removeListener?.('disconnect', handleDisconnect);
-        };
-    }, [provider]);
 
     // Solana tokens state
     const [solanaTokens, setSolanaTokens] = useState<SolanaToken[]>([]);
     const [isLoadingTokens, setIsLoadingTokens] = useState(false);
 
-    const publicKeyString = publicKey?.toString() ?? publicKeyStringFromHook ?? null;
-
     const ensureConnected = useCallback(async () => {
-        if (!provider) throw new Error('Phantom wallet not found');
         if (!isConnected) {
-            await connect(true);
+            await connect();
         }
-        if (!provider.publicKey) throw new Error('Wallet not connected');
-        return provider.publicKey;
-    }, [provider, isConnected, connect]);
+        if (!walletPublicKey) throw new Error('Wallet not connected');
+        return walletPublicKey;
+    }, [isConnected, connect, walletPublicKey]);
 
     // Fetch actual Solana token balances from devnet
     const fetchTokenBalances = useCallback(async () => {
