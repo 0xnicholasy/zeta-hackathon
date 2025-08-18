@@ -143,7 +143,7 @@ async function main() {
               asset.address,
               supplyBalance,
               asset.destinationChain,
-              user.address,
+              ethers.utils.solidityPack(["address"], [user.address]),
               { gasLimit: 800000 }
             );
             

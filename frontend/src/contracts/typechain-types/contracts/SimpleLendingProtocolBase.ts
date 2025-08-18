@@ -64,12 +64,13 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
     "addAsset(address)": FunctionFragment;
     "assets(address)": FunctionFragment;
     "borrow(address,uint256,address)": FunctionFragment;
-    "borrowCrossChain(address,uint256,uint256,address)": FunctionFragment;
+    "borrowCrossChain(address,uint256,uint256,bytes)": FunctionFragment;
     "canBorrow(address,address,uint256)": FunctionFragment;
     "canWithdraw(address,address,uint256)": FunctionFragment;
     "gateway()": FunctionFragment;
     "getAssetConfig(address)": FunctionFragment;
     "getAssetPrice(address)": FunctionFragment;
+    "getAssetsAndPrices()": FunctionFragment;
     "getBorrowBalance(address,address)": FunctionFragment;
     "getCollateralValue(address,address)": FunctionFragment;
     "getDebtValue(address,address)": FunctionFragment;
@@ -102,7 +103,7 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
     "userBorrows(address,address)": FunctionFragment;
     "userSupplies(address,address)": FunctionFragment;
     "withdraw(address,uint256,address)": FunctionFragment;
-    "withdrawCrossChain(address,uint256,uint256,address)": FunctionFragment;
+    "withdrawCrossChain(address,uint256,uint256,bytes)": FunctionFragment;
   };
 
   getFunction(
@@ -116,6 +117,7 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
       | "gateway"
       | "getAssetConfig"
       | "getAssetPrice"
+      | "getAssetsAndPrices"
       | "getBorrowBalance"
       | "getCollateralValue"
       | "getDebtValue"
@@ -173,7 +175,7 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
       PromiseOrValue<string>,
       PromiseOrValue<BigNumberish>,
       PromiseOrValue<BigNumberish>,
-      PromiseOrValue<string>
+      PromiseOrValue<BytesLike>
     ]
   ): string;
   encodeFunctionData(
@@ -200,6 +202,10 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
   encodeFunctionData(
     functionFragment: "getAssetPrice",
     values: [PromiseOrValue<string>]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getAssetsAndPrices",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "getBorrowBalance",
@@ -366,7 +372,7 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
       PromiseOrValue<string>,
       PromiseOrValue<BigNumberish>,
       PromiseOrValue<BigNumberish>,
-      PromiseOrValue<string>
+      PromiseOrValue<BytesLike>
     ]
   ): string;
 
@@ -389,6 +395,10 @@ export interface SimpleLendingProtocolBaseInterface extends utils.Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "getAssetPrice",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getAssetsAndPrices",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -643,7 +653,7 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<string>,
+      recipient: PromiseOrValue<BytesLike>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
@@ -672,6 +682,16 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<[BigNumber] & { price: BigNumber }>;
+
+    getAssetsAndPrices(
+      overrides?: CallOverrides
+    ): Promise<
+      [string[], BigNumber[], BigNumber[]] & {
+        assetAddresses: string[];
+        prices: BigNumber[];
+        borrowableAmounts: BigNumber[];
+      }
+    >;
 
     getBorrowBalance(
       user: PromiseOrValue<string>,
@@ -878,7 +898,7 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<string>,
+      recipient: PromiseOrValue<BytesLike>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
   };
@@ -904,7 +924,7 @@ export interface SimpleLendingProtocolBase extends BaseContract {
     asset: PromiseOrValue<string>,
     amount: PromiseOrValue<BigNumberish>,
     destinationChain: PromiseOrValue<BigNumberish>,
-    recipient: PromiseOrValue<string>,
+    recipient: PromiseOrValue<BytesLike>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
@@ -933,6 +953,16 @@ export interface SimpleLendingProtocolBase extends BaseContract {
     asset: PromiseOrValue<string>,
     overrides?: CallOverrides
   ): Promise<BigNumber>;
+
+  getAssetsAndPrices(
+    overrides?: CallOverrides
+  ): Promise<
+    [string[], BigNumber[], BigNumber[]] & {
+      assetAddresses: string[];
+      prices: BigNumber[];
+      borrowableAmounts: BigNumber[];
+    }
+  >;
 
   getBorrowBalance(
     user: PromiseOrValue<string>,
@@ -1139,7 +1169,7 @@ export interface SimpleLendingProtocolBase extends BaseContract {
     asset: PromiseOrValue<string>,
     amount: PromiseOrValue<BigNumberish>,
     destinationChain: PromiseOrValue<BigNumberish>,
-    recipient: PromiseOrValue<string>,
+    recipient: PromiseOrValue<BytesLike>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
@@ -1165,7 +1195,7 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<string>,
+      recipient: PromiseOrValue<BytesLike>,
       overrides?: CallOverrides
     ): Promise<void>;
 
@@ -1194,6 +1224,16 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
+
+    getAssetsAndPrices(
+      overrides?: CallOverrides
+    ): Promise<
+      [string[], BigNumber[], BigNumber[]] & {
+        assetAddresses: string[];
+        prices: BigNumber[];
+        borrowableAmounts: BigNumber[];
+      }
+    >;
 
     getBorrowBalance(
       user: PromiseOrValue<string>,
@@ -1398,7 +1438,7 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<string>,
+      recipient: PromiseOrValue<BytesLike>,
       overrides?: CallOverrides
     ): Promise<void>;
   };
@@ -1497,7 +1537,7 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<string>,
+      recipient: PromiseOrValue<BytesLike>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
@@ -1526,6 +1566,8 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
+
+    getAssetsAndPrices(overrides?: CallOverrides): Promise<BigNumber>;
 
     getBorrowBalance(
       user: PromiseOrValue<string>,
@@ -1706,7 +1748,7 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<string>,
+      recipient: PromiseOrValue<BytesLike>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
   };
@@ -1733,7 +1775,7 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<string>,
+      recipient: PromiseOrValue<BytesLike>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 
@@ -1760,6 +1802,10 @@ export interface SimpleLendingProtocolBase extends BaseContract {
 
     getAssetPrice(
       asset: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    getAssetsAndPrices(
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
@@ -1944,7 +1990,7 @@ export interface SimpleLendingProtocolBase extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<string>,
+      recipient: PromiseOrValue<BytesLike>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
   };

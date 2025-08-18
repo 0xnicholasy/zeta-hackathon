@@ -468,9 +468,9 @@ const _abi = [
         type: "uint256",
       },
       {
-        internalType: "address",
+        internalType: "bytes",
         name: "recipient",
-        type: "address",
+        type: "bytes",
       },
     ],
     name: "borrowCrossChain",
@@ -576,6 +576,29 @@ const _abi = [
         internalType: "uint256",
         name: "",
         type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getAssetsAndPrices",
+    outputs: [
+      {
+        internalType: "address[]",
+        name: "assetAddresses",
+        type: "address[]",
+      },
+      {
+        internalType: "uint256[]",
+        name: "prices",
+        type: "uint256[]",
+      },
+      {
+        internalType: "uint256[]",
+        name: "borrowableAmounts",
+        type: "uint256[]",
       },
     ],
     stateMutability: "view",
@@ -1317,9 +1340,9 @@ const _abi = [
         type: "uint256",
       },
       {
-        internalType: "address",
+        internalType: "bytes",
         name: "recipient",
-        type: "address",
+        type: "bytes",
       },
     ],
     name: "withdrawCrossChain",

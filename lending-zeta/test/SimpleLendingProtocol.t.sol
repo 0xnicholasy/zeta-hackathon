@@ -620,7 +620,7 @@ contract SimpleLendingProtocolTest is Test {
             address(usdcToken),
             smallUsdcAmount,
             1,
-            user1
+            abi.encodePacked(user1)
         );
         vm.stopPrank();
     }
@@ -724,5 +724,85 @@ contract SimpleLendingProtocolTest is Test {
             lendingProtocol.userSupplies(user1, address(ethToken)),
             ethSupply - ethWithdraw
         );
+    }
+
+    function testGetAssetsAndPrices() public {
+        // Assets are already added in setUp(), so test with existing assets
+        (
+            address[] memory assets,
+            uint256[] memory prices,
+            uint256[] memory borrowableAmounts
+        ) = lendingProtocol.getAssetsAndPrices();
+        
+        assertEq(assets.length, 2, "Should have 2 assets from setup");
+        assertEq(prices.length, 2, "Should have 2 prices from setup");
+        assertEq(borrowableAmounts.length, 2, "Should have 2 borrowable amounts from setup");
+
+        // Supply some liquidity to make assets borrowable
+        vm.startPrank(user1);
+        ethToken.approve(address(lendingProtocol), 10 * 10 ** 18);
+        usdcToken.approve(address(lendingProtocol), 10000 * 10 ** 6);
+        lendingProtocol.supply(address(ethToken), 10 * 10 ** 18, user1);
+        lendingProtocol.supply(address(usdcToken), 10000 * 10 ** 6, user1);
+        vm.stopPrank();
+
+        // Test the function returns correct data after supplying liquidity
+        (assets, prices, borrowableAmounts) = lendingProtocol.getAssetsAndPrices();
+        
+        assertEq(assets.length, 2, "Should have 2 assets");
+        assertEq(prices.length, 2, "Should have 2 prices");
+        assertEq(borrowableAmounts.length, 2, "Should have 2 borrowable amounts");
+
+        // Check asset addresses are correct
+        bool foundEth = false;
+        bool foundUsdc = false;
+        for (uint256 i = 0; i < assets.length; i++) {
+            if (assets[i] == address(ethToken)) {
+                foundEth = true;
+                assertEq(prices[i], ETH_PRICE * 10 ** 18, "ETH price should be correct");
+                // Contract had initial balance + supplied amount
+                assertEq(borrowableAmounts[i], 110 * 10 ** 18, "ETH borrowable amount should be correct");
+            } else if (assets[i] == address(usdcToken)) {
+                foundUsdc = true;
+                assertEq(prices[i], USDC_PRICE * 10 ** 18, "USDC price should be correct");
+                // Contract had initial balance + supplied amount
+                assertEq(borrowableAmounts[i], 210000 * 10 ** 6, "USDC borrowable amount should be correct");
+            }
+        }
+        
+        assertTrue(foundEth, "Should find ETH token in results");
+        assertTrue(foundUsdc, "Should find USDC token in results");
+    }
+
+    function testGetAssetsAndPricesWithFailedPriceFetch() public {
+        // Assets are already added in setUp(), so use existing ETH asset
+        // Set an invalid price that will cause the oracle to revert
+        vm.startPrank(owner);
+        priceOracle.setPrice(address(ethToken), 0); // This should cause getAssetPrice to revert
+        vm.stopPrank();
+
+        // The function should still return data, but with price = 0 for failed fetches
+        (
+            address[] memory assets,
+            uint256[] memory prices,
+            uint256[] memory borrowableAmounts
+        ) = lendingProtocol.getAssetsAndPrices();
+        
+        assertEq(assets.length, 2, "Should have 2 assets from setup");
+        assertEq(prices.length, 2, "Should have 2 prices from setup");
+        assertEq(borrowableAmounts.length, 2, "Should have 2 borrowable amounts from setup");
+        
+        // Find ETH token in the results and check it has price = 0
+        bool foundEthWithFailedPrice = false;
+        for (uint256 i = 0; i < assets.length; i++) {
+            if (assets[i] == address(ethToken)) {
+                foundEthWithFailedPrice = true;
+                assertEq(prices[i], 0, "Should return 0 for failed price fetch");
+                // borrowableAmounts should still be the balance of the contract
+                assertTrue(borrowableAmounts[i] > 0, "Should return contract balance for borrowable amount");
+            }
+        }
+        
+        assertTrue(foundEthWithFailedPrice, "Should find ETH token with failed price fetch");
     }
 }

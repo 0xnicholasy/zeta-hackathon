@@ -12,6 +12,7 @@ import {
 } from '@solana/spl-token';
 import { createHash } from 'crypto';
 import { utils } from 'ethers';
+import { getUniversalLendingProtocolAddress, SupportedChain } from '@/contracts/deployments';
 
 export interface SolanaTransactionParams {
   connection: Connection;
@@ -23,7 +24,7 @@ export interface SolanaTransactionParams {
 
 // ZetaChain Gateway configuration (from config.json)
 const GATEWAY_PROGRAM_ID = new PublicKey('ZETAjseVjuFsxdRxo6MmTCvqFwb3ZHUx56Co3vCmGis');
-const UNIVERSAL_LENDING_PROTOCOL_ADDRESS = '0x32aBC46abc5bC818fF4DB0C0e75ea2dDbb2D9a13';
+const UNIVERSAL_LENDING_PROTOCOL_ADDRESS = getUniversalLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
 
 // Function to calculate Anchor discriminator
 function calculateDiscriminator(functionName: string): Buffer {

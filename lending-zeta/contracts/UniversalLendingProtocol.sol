@@ -166,7 +166,7 @@ contract UniversalLendingProtocol is
                     operationAmount,
                     user,
                     destinationChain,
-                    recipient
+                    abi.encodePacked(recipient)
                 );
                 return;
             } else if (
@@ -178,7 +178,7 @@ contract UniversalLendingProtocol is
                     operationAmount,
                     user,
                     destinationChain,
-                    recipient
+                    abi.encodePacked(recipient)
                 );
                 return;
             }

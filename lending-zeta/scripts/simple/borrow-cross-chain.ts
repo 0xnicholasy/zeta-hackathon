@@ -189,7 +189,7 @@ async function main() {
           borrowTest.address,
           borrowTest.borrowAmount,
           borrowTest.destinationChain,
-          user.address,
+          ethers.utils.solidityPack(["address"], [user.address]),
           { gasLimit: 800000 }
         );
         

@@ -72,7 +72,7 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         address asset,
         uint256 amount,
         uint256 /* destinationChain */,
-        address recipient
+        bytes memory recipient
     ) external nonReentrant {
         if (!assets[asset].isSupported) revert AssetNotSupported(asset);
         if (amount == 0) revert InvalidAmount();
@@ -117,7 +117,7 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         }
 
         gateway.withdraw(
-            abi.encodePacked(recipient),
+            recipient,
             withdrawalAmount,
             asset,
             RevertOptions({
@@ -152,7 +152,7 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         address asset,
         uint256 amount,
         uint256 /* destinationChain */,
-        address recipient
+        bytes memory recipient
     ) external nonReentrant {
         if (!assets[asset].isSupported) revert AssetNotSupported(asset);
         if (amount == 0) revert InvalidAmount();
@@ -191,7 +191,7 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
         }
 
         gateway.withdraw(
-            abi.encodePacked(recipient),
+            recipient,
             withdrawalAmount,
             asset,
             RevertOptions({

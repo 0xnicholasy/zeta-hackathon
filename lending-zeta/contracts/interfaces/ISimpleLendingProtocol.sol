@@ -42,7 +42,7 @@ interface ISimpleLendingProtocol {
         address asset,
         uint256 amount,
         uint256 destinationChain,
-        address recipient
+        bytes memory recipient
     ) external;
 
     function repay(address asset, uint256 amount, address onBehalfOf) external;
@@ -53,7 +53,7 @@ interface ISimpleLendingProtocol {
         address asset,
         uint256 amount,
         uint256 destinationChain,
-        address recipient
+        bytes memory recipient
     ) external;
 
     function liquidate(
@@ -132,6 +132,16 @@ interface ISimpleLendingProtocol {
 
     // Add oracle functions to interface
     function getAssetPrice(address asset) external view returns (uint256);
+
+    // High level function for getting all assets and their prices, borrowable amount
+    function getAssetsAndPrices()
+        external
+        view
+        returns (
+            address[] memory assetAddresses,
+            uint256[] memory prices,
+            uint256[] memory borrowableAmounts
+        );
 
     // ============ Health Factor Preview Functions ============
 

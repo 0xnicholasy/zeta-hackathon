@@ -60,24 +60,26 @@ async function main() {
     console.log(`✅ ETH supported: ${isEthSupported}`);
 
     // Get USDC contract address from contracts.json
-    let usdcAddress: string;
+    let usdcAddress: string = "";
+    let isUsdcSupported = false;
+    let usdcAvailable = false;
+    
     try {
       usdcAddress = getNetwork(chainId).tokens["USDC"].address;
-      if (!usdcAddress || usdcAddress === "0x0000000000000000000000000000000000000000") {
-        console.log("❌ USDC not configured for this network");
-        return;
+      if (usdcAddress && usdcAddress !== "0x0000000000000000000000000000000000000000") {
+        // Check if USDC is supported
+        isUsdcSupported = await depositContract.isAssetSupported(usdcAddress);
+        usdcAvailable = true;
+        console.log(`✅ USDC supported: ${isUsdcSupported}`);
+      } else {
+        console.log("⚠️  USDC not configured for this network");
       }
     } catch (error) {
-      console.log("❌ USDC not found in network configuration");
-      return;
+      console.log("⚠️  USDC not found in network configuration");
     }
 
-    // Check if USDC is supported
-    const isUsdcSupported = await depositContract.isAssetSupported(usdcAddress);
-    console.log(`✅ USDC supported: ${isUsdcSupported}`);
-
-    if (!isEthSupported || !isUsdcSupported) {
-      console.log("❌ One or more assets not supported on this DepositContract");
+    if (!isEthSupported && (!usdcAvailable || !isUsdcSupported)) {
+      console.log("❌ No supported assets found on this DepositContract");
       return;
     }
 
@@ -90,50 +92,74 @@ async function main() {
     console.log(`Lending Protocol: ${lendingProtocolAddress}`);
     console.log(`ZetaChain ID: ${zetaChainId}`);
 
-    // Get USDC contract instance
-    const usdcContract = await ethers.getContractAt("IERC20", usdcAddress);
-    const usdcBalance = await usdcContract.balanceOf(deployer.address);
-    console.log(`USDC Balance: ${utils.formatUnits(usdcBalance, 6)} USDC`);
+    // Check individual token balances and availability
+    let ethCanDeposit = false;
+    let usdcCanDeposit = false;
+    let usdcContract: any;
+    let usdcBalance = ethers.BigNumber.from(0);
 
-    // Check if user has enough ETH
-    if (userBalance.lt(ethDepositAmount)) {
-      console.log(`❌ Insufficient ETH balance. Need: ${utils.formatEther(ethDepositAmount)}, Have: ${utils.formatEther(userBalance)}`);
+    // Check ETH availability
+    if (isEthSupported) {
+      if (userBalance.gte(ethDepositAmount)) {
+        ethCanDeposit = true;
+        console.log(`✅ ETH deposit possible: ${utils.formatEther(ethDepositAmount)} ETH`);
+      } else {
+        console.log(`⚠️  Insufficient ETH balance. Need: ${utils.formatEther(ethDepositAmount)}, Have: ${utils.formatEther(userBalance)}`);
+      }
+    }
+
+    // Check USDC availability
+    if (usdcAvailable && isUsdcSupported) {
+      usdcContract = await ethers.getContractAt("IERC20", usdcAddress);
+      usdcBalance = await usdcContract.balanceOf(deployer.address);
+      console.log(`USDC Balance: ${utils.formatUnits(usdcBalance, 6)} USDC`);
+
+      if (usdcBalance.gte(usdcDepositAmount)) {
+        usdcCanDeposit = true;
+        console.log(`✅ USDC deposit possible: ${utils.formatUnits(usdcDepositAmount, 6)} USDC`);
+      } else {
+        console.log(`⚠️  Insufficient USDC balance. Need: ${utils.formatUnits(usdcDepositAmount, 6)}, Have: ${utils.formatUnits(usdcBalance, 6)}`);
+      }
+    }
+
+    if (!ethCanDeposit && !usdcCanDeposit) {
+      console.log("❌ No deposits possible - insufficient balances or unsupported assets");
       return;
     }
 
-    // Check if user has enough USDC
-    if (usdcBalance.lt(usdcDepositAmount)) {
-      console.log(`❌ Insufficient USDC balance. Need: ${utils.formatUnits(usdcDepositAmount, 6)}, Have: ${utils.formatUnits(usdcBalance, 6)}`);
-      return;
-    }
+    console.log(`\n📊 Deposits to execute:`);
+    console.log(`ETH: ${ethCanDeposit ? '✅ Yes' : '❌ No'}`);
+    console.log(`USDC: ${usdcCanDeposit ? '✅ Yes' : '❌ No'}`);
 
-    // Estimate gas for ETH deposit
-    console.log(`\n⛽ Estimating gas for ETH deposit...`);
-    const ethGasEstimate = await depositContract.estimateGas.depositEth(onBehalfOf, {
-      value: ethDepositAmount
-    });
-    console.log(`ETH Gas estimate: ${ethGasEstimate.toString()}`);
-
-    // Estimate gas for USDC deposit (need approval first)
-    console.log(`\n⛽ Estimating gas for USDC deposit...`);
-
-    // Check current USDC allowance
-    const currentAllowance = await usdcContract.allowance(deployer.address, depositContractAddress);
-    console.log(`Current USDC allowance: ${utils.formatUnits(currentAllowance, 6)}`);
-
+    // Gas estimation
+    let ethGasEstimate = ethers.BigNumber.from(0);
+    let usdcGasEstimate = ethers.BigNumber.from(0);
     let approvalGasEstimate = ethers.BigNumber.from(0);
-    if (currentAllowance.lt(usdcDepositAmount)) {
-      approvalGasEstimate = await usdcContract.estimateGas.approve(depositContractAddress, usdcDepositAmount);
-      console.log(`USDC Approval gas estimate: ${approvalGasEstimate.toString()}`);
-      const approvalTx = await usdcContract.approve(depositContractAddress, usdcDepositAmount, {
-        gasLimit: approvalGasEstimate.mul(120).div(100)
+    let currentAllowance = ethers.BigNumber.from(0);
+
+    if (ethCanDeposit) {
+      console.log(`\n⛽ Estimating gas for ETH deposit...`);
+      ethGasEstimate = await depositContract.estimateGas.depositEth(onBehalfOf, {
+        value: ethDepositAmount
       });
-      await approvalTx.wait();
-      console.log("✅ USDC approved");
+      console.log(`ETH Gas estimate: ${ethGasEstimate.toString()}`);
     }
 
-    const usdcGasEstimate = await depositContract.estimateGas.depositToken(usdcAddress, usdcDepositAmount, onBehalfOf);
-    console.log(`USDC Deposit gas estimate: ${usdcGasEstimate.toString()}`);
+    if (usdcCanDeposit) {
+      console.log(`\n⛽ Estimating gas for USDC deposit...`);
+
+      // Check current USDC allowance
+      currentAllowance = await usdcContract.allowance(deployer.address, depositContractAddress);
+      console.log(`Current USDC allowance: ${utils.formatUnits(currentAllowance, 6)}`);
+
+      if (currentAllowance.lt(usdcDepositAmount)) {
+        approvalGasEstimate = await usdcContract.estimateGas.approve(depositContractAddress, usdcDepositAmount);
+        console.log(`USDC Approval gas estimate: ${approvalGasEstimate.toString()}`);
+      }
+
+      usdcGasEstimate = await depositContract.estimateGas.depositToken(usdcAddress, usdcDepositAmount, onBehalfOf);
+      console.log(`USDC Deposit gas estimate: ${usdcGasEstimate.toString()}`);
+    }
 
     try {
       // Calculate total gas cost
@@ -143,9 +169,12 @@ async function main() {
       console.log(`Estimated total gas cost: ${utils.formatEther(totalGasCost)} ETH`);
 
       // Check if user has enough for gas + ETH deposit
-      const totalEthRequired = ethDepositAmount.add(totalGasCost.mul(2)); // 2x gas for safety
-      if (userBalance.lt(totalEthRequired)) {
-        console.log(`⚠️  Warning: Low ETH balance. Total needed: ${utils.formatEther(totalEthRequired)}`);
+      if (ethCanDeposit) {
+        const totalEthRequired = ethDepositAmount.add(totalGasCost.mul(2)); // 2x gas for safety
+        if (userBalance.lt(totalEthRequired)) {
+          console.log(`⚠️  Warning: Low ETH balance for ETH deposit. Total needed: ${utils.formatEther(totalEthRequired)}`);
+          ethCanDeposit = false; // Disable ETH deposit if insufficient balance for gas
+        }
       }
 
     } catch (gasError: any) {
@@ -163,67 +192,87 @@ async function main() {
     }
 
     // Execute the deposits
-    console.log(`\n🚀 Executing deposit transactions...`);
+    console.log(`\n🚀 Executing available deposit transactions...`);
 
-    // Execute ETH deposit first
-    console.log("\n📈 Executing ETH deposit...");
-    const ethTx = await depositContract.depositEth(onBehalfOf, {
-      value: ethDepositAmount,
-      gasLimit: ethGasEstimate.mul(120).div(100) // 20% buffer
-    });
+    const executedTxs: string[] = [];
+    const txReceipts: any[] = [];
 
-    console.log(`📄 ETH Transaction hash: ${ethTx.hash}`);
-    console.log("⏳ Waiting for ETH confirmation...");
-
-    const ethReceipt = await ethTx.wait();
-    console.log(`✅ ETH Transaction confirmed in block: ${ethReceipt.blockNumber}`);
-    console.log(`⛽ ETH Gas used: ${ethReceipt.gasUsed.toString()}`);
-
-    // Execute USDC deposit
-    console.log("\n💰 Executing USDC deposit...");
-
-    // Approve USDC if needed
-    if (currentAllowance.lt(usdcDepositAmount)) {
-      console.log("📝 Approving USDC...");
-      const approvalTx = await usdcContract.approve(depositContractAddress, usdcDepositAmount, {
-        gasLimit: approvalGasEstimate.mul(120).div(100)
+    // Execute ETH deposit if possible
+    if (ethCanDeposit) {
+      console.log("\n📈 Executing ETH deposit...");
+      const ethTx = await depositContract.depositEth(onBehalfOf, {
+        value: ethDepositAmount,
+        gasLimit: ethGasEstimate.mul(120).div(100) // 20% buffer
       });
-      await approvalTx.wait();
-      console.log("✅ USDC approved");
+
+      console.log(`📄 ETH Transaction hash: ${ethTx.hash}`);
+      console.log("⏳ Waiting for ETH confirmation...");
+
+      const ethReceipt = await ethTx.wait();
+      console.log(`✅ ETH Transaction confirmed in block: ${ethReceipt.blockNumber}`);
+      console.log(`⛽ ETH Gas used: ${ethReceipt.gasUsed.toString()}`);
+      
+      executedTxs.push(`ETH: ${ethTx.hash}`);
+      txReceipts.push({ type: 'ETH', receipt: ethReceipt });
+    } else {
+      console.log("\n❌ Skipping ETH deposit (not available)");
     }
 
-    const usdcTx = await depositContract.depositToken(usdcAddress, usdcDepositAmount, onBehalfOf, {
-      gasLimit: usdcGasEstimate.mul(120).div(100) // 20% buffer
-    });
+    // Execute USDC deposit if possible
+    if (usdcCanDeposit) {
+      console.log("\n💰 Executing USDC deposit...");
 
-    console.log(`📄 USDC Transaction hash: ${usdcTx.hash}`);
-    console.log("⏳ Waiting for USDC confirmation...");
-
-    const usdcReceipt = await usdcTx.wait();
-    console.log(`✅ USDC Transaction confirmed in block: ${usdcReceipt.blockNumber}`);
-    console.log(`⛽ USDC Gas used: ${usdcReceipt.gasUsed.toString()}`);
-
-    // Check for events in both transactions
-    console.log("\n📋 Transaction Events:");
-    if (ethReceipt.events && ethReceipt.events.length > 0) {
-      console.log("ETH Deposit Events:");
-      for (const event of ethReceipt.events) {
-        console.log(`- ${event.event}: ${JSON.stringify(event.args)}`);
+      // Approve USDC if needed
+      if (currentAllowance.lt(usdcDepositAmount)) {
+        console.log("📝 Approving USDC...");
+        const approvalTx = await usdcContract.approve(depositContractAddress, usdcDepositAmount, {
+          gasLimit: approvalGasEstimate.mul(120).div(100)
+        });
+        await approvalTx.wait();
+        console.log("✅ USDC approved");
       }
+
+      const usdcTx = await depositContract.depositToken(usdcAddress, usdcDepositAmount, onBehalfOf, {
+        gasLimit: usdcGasEstimate.mul(120).div(100) // 20% buffer
+      });
+
+      console.log(`📄 USDC Transaction hash: ${usdcTx.hash}`);
+      console.log("⏳ Waiting for USDC confirmation...");
+
+      const usdcReceipt = await usdcTx.wait();
+      console.log(`✅ USDC Transaction confirmed in block: ${usdcReceipt.blockNumber}`);
+      console.log(`⛽ USDC Gas used: ${usdcReceipt.gasUsed.toString()}`);
+      
+      executedTxs.push(`USDC: ${usdcTx.hash}`);
+      txReceipts.push({ type: 'USDC', receipt: usdcReceipt });
+    } else {
+      console.log("\n❌ Skipping USDC deposit (not available)");
     }
 
-    if (usdcReceipt.events && usdcReceipt.events.length > 0) {
-      console.log("USDC Deposit Events:");
-      for (const event of usdcReceipt.events) {
-        console.log(`- ${event.event}: ${JSON.stringify(event.args)}`);
+    if (executedTxs.length === 0) {
+      console.log("\n❌ No deposits were executed");
+      return;
+    }
+
+    // Check for events in all transactions
+    console.log("\n📋 Transaction Events:");
+    for (const { type, receipt } of txReceipts) {
+      if (receipt.events && receipt.events.length > 0) {
+        console.log(`${type} Deposit Events:`);
+        for (const event of receipt.events) {
+          console.log(`- ${event.event}: ${JSON.stringify(event.args)}`);
+        }
       }
     }
 
     console.log("\n🎯 Cross-chain transactions initiated!");
     console.log("Check ZetaChain explorer for the cross-chain transaction status:");
     console.log(`https://athens.explorer.zetachain.com/`);
-    console.log(`ETH: https://zetachain-athens.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData/${ethTx.hash}`);
-    console.log(`USDC: https://zetachain-athens.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData/${usdcTx.hash}`);
+    
+    for (const tx of executedTxs) {
+      const [type, hash] = tx.split(': ');
+      console.log(`${type}: https://zetachain-athens.blockpi.network/lcd/v1/public/zeta-chain/crosschain/inboundHashToCctxData/${hash}`);
+    }
 
   } catch (error: any) {
     console.error("❌ Deposit execution failed:", error.reason || error.message);
@@ -237,11 +286,20 @@ async function main() {
     }
   }
 
-  console.log("\n📊 Current Status Summary:");
+  console.log("\n📊 Final Status Summary:");
   console.log(`Network: ${getNetwork(chainId).name}`);
   console.log(`DepositContract: ${depositContractAddress}`);
   console.log(`User: ${deployer.address}`);
   console.log(`ETH Balance: ${utils.formatEther(userBalance)}`);
+  
+  try {
+    if (usdcAvailable && usdcContract) {
+      const finalUsdcBalance = await usdcContract.balanceOf(deployer.address);
+      console.log(`USDC Balance: ${utils.formatUnits(finalUsdcBalance, 6)}`);
+    }
+  } catch (error) {
+    // Ignore balance check errors
+  }
 }
 
 main()

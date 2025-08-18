@@ -13,6 +13,7 @@ async function main() {
   const chainId = network.chainId;
   const networkString = getNetwork(chainId).name;
 
+  console.log("RPC URL:", ethers.provider.connection.url);
   console.log("Withdrawing for account:", user.address);
   console.log("Network:", networkString);
   const balance = await ethers.provider.getBalance(user.address);

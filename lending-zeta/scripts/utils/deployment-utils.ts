@@ -150,7 +150,11 @@ export class DeploymentManager {
       throw new Error(`Token ${tokenSymbol} not found in deployment`);
     }
 
-    const address = deployment.contracts.tokens[tokenSymbol];
+    const tokenConfig = deployment.contracts.tokens[tokenSymbol];
+    
+    // Handle both string format and object format
+    const address = typeof tokenConfig === 'string' ? tokenConfig : (tokenConfig as any).address;
+    
     if (!address || address === "0x0000000000000000000000000000000000000000") {
       throw new Error(`Token ${tokenSymbol} has zero address`);
     }

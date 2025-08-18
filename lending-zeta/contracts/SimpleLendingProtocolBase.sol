@@ -75,6 +75,40 @@ abstract contract SimpleLendingProtocolBase is
         return _getValidatedPrice(asset);
     }
 
+    /**
+     * @dev Get all supported assets with their prices and available borrowable amounts
+     * @return assetAddresses Array of supported asset addresses
+     * @return prices Array of asset prices in USD (18 decimals)
+     * @return borrowableAmounts Array of available amounts for borrowing
+     */
+    function getAssetsAndPrices()
+        external
+        view
+        returns (
+            address[] memory assetAddresses,
+            uint256[] memory prices,
+            uint256[] memory borrowableAmounts
+        )
+    {
+        uint256 assetsCount = supportedAssets.length;
+        assetAddresses = new address[](assetsCount);
+        prices = new uint256[](assetsCount);
+        borrowableAmounts = new uint256[](assetsCount);
+
+        for (uint256 i = 0; i < assetsCount; i++) {
+            address asset = supportedAssets[i];
+            assetAddresses[i] = asset;
+            
+            try this.getAssetPrice(asset) returns (uint256 price) {
+                prices[i] = price;
+            } catch {
+                prices[i] = 0; // Return 0 if price fetch fails
+            }
+            
+            borrowableAmounts[i] = maxAvailableAmount(asset);
+        }
+    }
+
     // Virtual functions for extension
     function _supply(
         address asset,
@@ -721,7 +755,7 @@ abstract contract SimpleLendingProtocolBase is
                     operationAmount,
                     user,
                     destinationChain,
-                    recipient
+                    abi.encodePacked(recipient)
                 );
                 return;
             } else if (
@@ -733,7 +767,7 @@ abstract contract SimpleLendingProtocolBase is
                     operationAmount,
                     user,
                     destinationChain,
-                    recipient
+                    abi.encodePacked(recipient)
                 );
                 return;
             }
@@ -755,7 +789,7 @@ abstract contract SimpleLendingProtocolBase is
         uint256 amount,
         address user,
         uint256 destinationChain,
-        address recipient
+        bytes memory recipient
     ) internal virtual {
         if (!assets[asset].isSupported) revert AssetNotSupported(asset);
         if (amount == 0) revert InvalidAmount();
@@ -798,7 +832,7 @@ abstract contract SimpleLendingProtocolBase is
         }
 
         gateway.withdraw(
-            abi.encodePacked(recipient),
+            recipient,
             withdrawalAmount,
             asset,
             RevertOptions({
@@ -818,7 +852,7 @@ abstract contract SimpleLendingProtocolBase is
         uint256 amount,
         address user,
         uint256 destinationChain,
-        address recipient
+        bytes memory recipient
     ) internal virtual {
         if (!assets[asset].isSupported) revert AssetNotSupported(asset);
         if (amount == 0) revert InvalidAmount();
@@ -860,7 +894,7 @@ abstract contract SimpleLendingProtocolBase is
         }
 
         gateway.withdraw(
-            abi.encodePacked(recipient),
+            recipient,
             withdrawalAmount,
             asset,
             RevertOptions({
