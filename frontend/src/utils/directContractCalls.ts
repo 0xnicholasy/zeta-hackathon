@@ -282,7 +282,7 @@ export async function getAllSupportedAssets(): Promise<string[]> {
 }
 
 /**
- * Get comprehensive asset data for the protocol
+ * Get comprehensive asset data for the protocol using the optimized getAssetsAndPrices function
  */
 export async function getProtocolAssetData(): Promise<AssetData[]> {
   try {
@@ -293,37 +293,50 @@ export async function getProtocolAssetData(): Promise<AssetData[]> {
       return [];
     }
 
-    // Generate all available assets from chain token mappings
+    // Use the optimized getAssetsAndPrices function to get all asset data in one call
+    const result = await zetaTestnetClient.readContract({
+      address: protocolAddress as Address,
+      abi: UniversalLendingProtocol__factory.abi,
+      functionName: 'getAssetsAndPrices',
+    });
+
+    const [assetAddresses, prices, ] = result as [string[], bigint[], bigint[]];
+
+    // Generate mapping from asset addresses to asset metadata
     const allAssets = CHAIN_TOKEN_MAPPINGS.flatMap(mapping => [
       {
         symbol: mapping.zetaTokenSymbol,
         unit: mapping.nativeToken,
-        sourceChain: getSourceChainName(mapping.chainId)
+        sourceChain: getSourceChainName(mapping.chainId),
+        address: getTokenAddress(mapping.zetaTokenSymbol, SupportedChain.ZETA_TESTNET)
       },
       {
         symbol: mapping.usdcTokenSymbol,
         unit: 'USDC',
-        sourceChain: getSourceChainName(mapping.chainId)
+        sourceChain: getSourceChainName(mapping.chainId),
+        address: getTokenAddress(mapping.usdcTokenSymbol, SupportedChain.ZETA_TESTNET)
       },
-    ]);
-
-    // Get supported assets from protocol
-    const supportedAssets = await getAllSupportedAssets();
+    ]).filter(asset => asset.address);
 
     const assetsData: AssetData[] = [];
 
-    for (const asset of allAssets) {
-      const address = getTokenAddress(asset.symbol, SupportedChain.ZETA_TESTNET);
-      if (!address) continue;
+    // Process each supported asset from the contract
+    for (let i = 0; i < assetAddresses.length; i++) {
+      const address = assetAddresses[i];
+      const price = prices[i];
+      
+      // Skip if address or price is undefined
+      if (!address || price === undefined) continue;
+      
+      // Find asset metadata
+      const assetMeta = allAssets.find(asset => asset.address?.toLowerCase() === address.toLowerCase());
+      if (!assetMeta) continue;
 
-      const isSupported = supportedAssets.includes(address);
-
-      // Get asset data in parallel
-      const [config, balance, decimals, price] = await Promise.all([
+      // Get additional asset data in parallel
+      const [config, balance, decimals] = await Promise.all([
         getAssetConfig(address),
         getTokenBalance(address, protocolAddress),
         getTokenDecimals(address),
-        getAssetPrice(address),
       ]);
 
       // Calculate values
@@ -342,12 +355,11 @@ export async function getProtocolAssetData(): Promise<AssetData[]> {
       const formattedBalance = Number(formatUnits(balance, decimals));
       const priceInUSD = Number(formatUnits(price, 18));
 
-
       assetsData.push({
         address,
-        symbol: asset.symbol,
-        unit: asset.unit,
-        sourceChain: asset.sourceChain,
+        symbol: assetMeta.symbol,
+        unit: assetMeta.unit,
+        sourceChain: assetMeta.sourceChain,
         balance: balance.toString(),
         formattedBalance: formattedBalance.toLocaleString('en-US', {
           minimumFractionDigits: 2,
@@ -365,7 +377,7 @@ export async function getProtocolAssetData(): Promise<AssetData[]> {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         }),
-        isSupported,
+        isSupported: true, // All assets returned by getAssetsAndPrices are supported
         decimals,
         config,
       });
@@ -427,7 +439,7 @@ export interface BorrowableAssetData extends AssetData {
 }
 
 /**
- * Get all borrowable assets with their availability
+ * Get all borrowable assets with their availability using the optimized getAssetsAndPrices function
  */
 export async function getBorrowableAssets(): Promise<BorrowableAssetData[]> {
   try {
@@ -438,43 +450,53 @@ export async function getBorrowableAssets(): Promise<BorrowableAssetData[]> {
       return [];
     }
 
-    // Generate all available assets from chain token mappings
+    // Use the optimized getAssetsAndPrices function to get all asset data in one call
+    const result = await zetaTestnetClient.readContract({
+      address: protocolAddress as Address,
+      abi: UniversalLendingProtocol__factory.abi,
+      functionName: 'getAssetsAndPrices',
+    });
+
+    const [assetAddresses, prices, borrowableAmounts] = result as [string[], bigint[], bigint[]];
+
+    // Generate mapping from asset addresses to asset metadata
     const allAssets = CHAIN_TOKEN_MAPPINGS.flatMap(mapping => [
       {
         symbol: mapping.zetaTokenSymbol,
         unit: mapping.nativeToken,
         sourceChain: getSourceChainName(mapping.chainId),
-        externalChainId: mapping.chainId
+        externalChainId: mapping.chainId,
+        address: getTokenAddress(mapping.zetaTokenSymbol, SupportedChain.ZETA_TESTNET)
       },
       {
         symbol: mapping.usdcTokenSymbol,
         unit: 'USDC',
         sourceChain: getSourceChainName(mapping.chainId),
-        externalChainId: mapping.chainId
+        externalChainId: mapping.chainId,
+        address: getTokenAddress(mapping.usdcTokenSymbol, SupportedChain.ZETA_TESTNET)
       },
-    ]);
-
-    // Get supported assets from protocol
-    const supportedAssets = await getAllSupportedAssets();
+    ]).filter(asset => asset.address);
 
     const borrowableAssets: BorrowableAssetData[] = [];
 
-    for (const asset of allAssets) {
-      const address = getTokenAddress(asset.symbol, SupportedChain.ZETA_TESTNET);
-      if (!address) continue;
+    // Process each supported asset from the contract
+    for (let i = 0; i < assetAddresses.length; i++) {
+      const address = assetAddresses[i];
+      const price = prices[i];
+      const maxAvailable = borrowableAmounts[i];
+      
+      // Skip if address, price, or maxAvailable is undefined
+      if (!address || price === undefined || maxAvailable === undefined) continue;
+      
+      // Find asset metadata
+      const assetMeta = allAssets.find(asset => asset.address?.toLowerCase() === address.toLowerCase());
+      if (!assetMeta) continue;
 
-      const isSupported = supportedAssets.includes(address);
-      if (!isSupported) continue; // Only include supported assets for borrowing
-
-      // Get asset data in parallel
-      const [config, decimals, maxAvailable] = await Promise.all([
+      // Get additional asset data in parallel
+      const [config, decimals] = await Promise.all([
         getAssetConfig(address),
         getTokenDecimals(address),
-        getMaxAvailableAmount(address),
       ]);
-
-      // Calculate values
-      const price = await getAssetPrice(address);
 
       // Format available amount for display
       const formattedMaxAvailable = Number(formatUnits(maxAvailable, decimals));
@@ -483,9 +505,9 @@ export async function getBorrowableAssets(): Promise<BorrowableAssetData[]> {
 
       borrowableAssets.push({
         address,
-        symbol: asset.symbol,
-        unit: asset.unit,
-        sourceChain: asset.sourceChain,
+        symbol: assetMeta.symbol,
+        unit: assetMeta.unit,
+        sourceChain: assetMeta.sourceChain,
         balance: '0', // Not relevant for borrowing
         formattedBalance: '0',
         usdValue: '$0',
@@ -495,7 +517,7 @@ export async function getBorrowableAssets(): Promise<BorrowableAssetData[]> {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         }),
-        isSupported,
+        isSupported: true, // All assets returned by getAssetsAndPrices are supported
         decimals,
         config,
         maxAvailableAmount: maxAvailable.toString(),
@@ -504,7 +526,7 @@ export async function getBorrowableAssets(): Promise<BorrowableAssetData[]> {
           maximumFractionDigits: 6,
         }),
         isAvailableToBorrow,
-        externalChainId: asset.externalChainId,
+        externalChainId: assetMeta.externalChainId,
       });
     }
 

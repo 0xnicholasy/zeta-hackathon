@@ -28,7 +28,7 @@
       "explorer": "https://athens.explorer.zetachain.com",
       "contracts": {
         "SimpleLendingProtocol": "0xcec503D661A9C56AFa91AcDB4D7A2BFe411a5416",
-        "UniversalLendingProtocol": "0xb9D919365422f765eE34c396223AD2B3D2a04d0b",
+        "UniversalLendingProtocol": "0xb44df318e14d3a162589f76fbc7642a589879e4b",
         "PriceOracle": "0x0000000000000000000000000000000000000000",
         "MockPriceOracle": "0x3611ec20Ab7904E914E1Dbb47F536fE8c54ddC8E",
         "Universal": "0x0000000000000000000000000000000000000000"

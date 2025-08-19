@@ -188,6 +188,7 @@ contract SimpleLendingProtocol is SimpleLendingProtocolBase {
                 )
             ) revert InsufficientGasFee(gasZRC20, gasFee, userGasBalance);
             IERC20(gasZRC20).safeIncreaseAllowance(address(gateway), gasFee);
+            IERC20(asset).approve(address(gateway), amount);
         }
 
         gateway.withdraw(
