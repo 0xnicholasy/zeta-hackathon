@@ -196,7 +196,7 @@ export const SupportedChain = {
   POLYGON_AMOY: 80002,
   BASE_SEPOLIA: 84532,
   BSC_TESTNET: 97,
-  SOLANA_DEVNET: 0, // Solana does not use chain IDs like EVM chains
+  SOLANA_DEVNET: 901, // Solana devnet chain ID for ZetaChain gateway
 } as const;
 
 export type SupportedChainId = typeof SupportedChain[keyof typeof SupportedChain];

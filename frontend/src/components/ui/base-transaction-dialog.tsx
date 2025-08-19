@@ -92,6 +92,24 @@ export function BaseTransactionDialog({
             );
         }
 
+        if (currentStep === 'withdraw') {
+            return (
+                <>
+                    <Button variant="outline" onClick={onClose}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="zeta"
+                        onClick={onSubmit}
+                        disabled={!isValidAmount || isSubmitting || !isConnected}
+                    >
+                        {isSubmitting && <Spinner variant="white" size="xs" className="mr-2" />}
+                        {isSubmitting ? 'Processing...' : submitButtonText}
+                    </Button>
+                </>
+            );
+        }
+
         if (currentStep === 'failed') {
             return (
                 <>

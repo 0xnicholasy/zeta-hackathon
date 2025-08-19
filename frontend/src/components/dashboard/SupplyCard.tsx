@@ -99,8 +99,8 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                             Your supplies and assets available to supply
                         </CardDescription>
                     </div>
-                    <Link 
-                        to="/dashboard-solana" 
+                    <Link
+                        to="/dashboard-solana"
                         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
                     >
                         <SiSolana className="text-xs" />
@@ -185,10 +185,10 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                                 if (Number(balance.formattedBalance) === 0) {
                                     return null;
                                 }
-                                
+
                                 // Extract unit and source chain from ZRC-20 symbol (e.g., "ETH.ARBI" -> unit: "ETH", sourceChain: "ARBI")
                                 const [unit, sourceChain] = zrc20Symbol.includes('.') ? zrc20Symbol.split('.') : [zrc20Symbol, ''];
-                                
+
                                 return (
                                     <div key={`${zrc20Symbol}-zeta-supply`} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border-light dark:border-border-dark hover:border-green-300 dark:hover:border-green-700 cursor-pointer transition-colors">
                                         <div className="flex items-center space-x-3">

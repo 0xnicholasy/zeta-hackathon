@@ -122,6 +122,18 @@ export function useWithdrawValidation({
         },
     });
 
+    // Get withdrawal token allowance - protocol needs this for transferFrom
+    const { data: withdrawalTokenAllowance, error: withdrawalTokenAllowanceError } = useReadContract({
+        address: selectedAsset?.address ?? ZERO_ADDRESS,
+        abi: ERC20__factory.abi,
+        functionName: 'allowance',
+        args: [userAddress, universalLendingProtocol],
+        query: {
+            enabled: Boolean(selectedAsset && !isZeroAddress(selectedAsset.address)),
+            refetchInterval: 10000,
+        },
+    });
+
     // Get gas token allowance only if gas token is different from asset
     const { data: gasTokenAllowance, error: gasTokenAllowanceError } = useReadContract({
         address: gasTokenAddress,
@@ -145,7 +157,7 @@ export function useWithdrawValidation({
         }
 
         // Check for data loading errors
-        if (canWithdrawError || gasFeeError || gasTokenBalanceError || gasTokenAllowanceError) {
+        if (canWithdrawError || gasFeeError || gasTokenBalanceError || gasTokenAllowanceError || withdrawalTokenAllowanceError) {
             setValidationResult({
                 ...DEFAULT_VALIDATION_FAILED_RESULT,
                 error: 'Error loading data',
@@ -200,8 +212,8 @@ export function useWithdrawValidation({
         let needsApproval = false;
         let currentGasTokenInfo = EMPTY_GAS_TOKEN_INFO;
 
-        // For gas tokens: check if user has enough tokens for withdrawal amount + gas fee
         if (isGasToken) {
+            // For gas tokens: check if user has enough tokens for withdrawal amount (gas is paid from withdrawal amount)
             const totalNeeded = amountBigInt;
             const availableBalance = parseUnits(maxAmount, selectedAsset.decimals);
 
@@ -213,24 +225,25 @@ export function useWithdrawValidation({
                 isValid = false;
             }
         } else {
-            // For non-gas tokens: check separate gas token balance
+            // For non-gas tokens: check gas token balance and approval only
             const safeGasTokenBalance = gasTokenBalance ?? BigInt(0);
 
             if (safeGasTokenBalance < gasFeeAmount) {
                 error = `Insufficient ${gasTokenSymbol} in wallet for gas fees. Need ${formatUnits(gasFeeAmount, gasTokenDecimals)} ${gasTokenSymbol} but have ${formatUnits(safeGasTokenBalance, gasTokenDecimals)} ${gasTokenSymbol}. Please get more ${gasTokenSymbol} in your wallet before proceeding.`;
                 isValid = false;
             } else {
-                // Check allowance for separate gas token
+                // Check allowance for gas token
                 const safeGasTokenAllowance = gasTokenAllowance ?? BigInt(0);
 
                 if (safeGasTokenAllowance < gasFeeAmount) {
+                    error = `Please approve ${gasTokenSymbol} spending for gas fees. The protocol needs permission to pay gas fees for your cross-chain withdrawal.`;
+                    needsApproval = true;
                     currentGasTokenInfo = {
                         address: gasTokenAddress,
                         amount: gasFeeAmount,
                         needsApproval: true,
                     };
-                    needsApproval = true;
-                    isValid = false; // Need approval first
+                    isValid = true; // Keep true so approval button shows
                 }
             }
         }
@@ -244,7 +257,7 @@ export function useWithdrawValidation({
             formattedReceiveAmount,
         });
 
-    }, [selectedAsset, amount, canWithdraw, gasFeeData, gasTokenAddress, gasFeeAmount, gasTokenBalance, gasTokenAllowance, gasTokenSymbol, gasTokenDecimals, isGasToken, receiveAmount, formattedReceiveAmount, maxAmount, amountBigInt, canWithdrawError, gasFeeError, gasTokenBalanceError, gasTokenAllowanceError]);
+    }, [selectedAsset, amount, canWithdraw, gasFeeData, gasTokenAddress, gasFeeAmount, gasTokenBalance, gasTokenAllowance, withdrawalTokenAllowance, gasTokenSymbol, gasTokenDecimals, isGasToken, receiveAmount, formattedReceiveAmount, maxAmount, amountBigInt, canWithdrawError, gasFeeError, gasTokenBalanceError, gasTokenAllowanceError, withdrawalTokenAllowanceError]);
 
     // Run validation when dependencies change
     useEffect(() => {

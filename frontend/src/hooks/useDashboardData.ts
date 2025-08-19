@@ -230,6 +230,10 @@ export function useDashboardData() {
                         externalBalance = balance.balance;
                         formattedExternalBalance = balance.formattedBalance;
                     }
+                } else if (asset.sourceChain === 'SOL') {
+                    externalChainId = SupportedChain.SOLANA_DEVNET;
+                    // Note: Solana balances are handled separately via Solana wallet connection
+                    // and are not part of the externalBalances from EVM chains
                 }
 
                 // Convert balances to normalized amounts (18 decimals)

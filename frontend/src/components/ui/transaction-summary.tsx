@@ -1,5 +1,4 @@
 import { formatUnits } from 'viem';
-import { formatHexString } from '../../utils/formatHexString';
 import { TransactionType } from '../../types/transactions';
 import { EVMAddress } from '@/types/address';
 
@@ -8,7 +7,7 @@ interface TransactionSummaryProps {
     amount: string;
     tokenSymbol: string;
     destinationChain?: string;
-    recipientAddress?: EVMAddress;
+    recipientAddress?: EVMAddress | string;
     isGasToken?: boolean;
     formattedReceiveAmount?: string;
     className?: string;
@@ -77,7 +76,7 @@ export function TransactionSummary({
 
             {recipientAddress && (
                 <div className="text-muted-foreground text-xs mt-2">
-                    Recipient: {formatHexString(recipientAddress)}
+                    Recipient: {`${recipientAddress.slice(0, 6)}...${recipientAddress.slice(-4)}`}
                 </div>
             )}
             {isCrossChain ? (

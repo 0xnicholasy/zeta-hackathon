@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, } from 'wagmi';
 import { parseUnits } from 'viem';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -11,11 +11,14 @@ import { useContracts } from '../../hooks/useContracts';
 import { useTransactionFlow } from '../../hooks/useTransactionFlow';
 import { useWithdrawValidation } from '../../hooks/useWithdrawValidation';
 import { SupportedChain } from '../../contracts/deployments';
-import { getChainDisplayName } from '../../utils/chainUtils';
+import { getChainDisplayName, getGasTokenSymbol, getGasTokenDecimals } from '../../utils/chainUtils';
 import { safeEVMAddressOrZeroAddress } from '@/types/address';
 import { type UserAssetData } from './types';
 import { ERC20__factory, UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
-import { formatHexString } from '@/utils/formatHexString';
+import { utils } from 'ethers';
+import { isAddress } from 'viem';
+import { isValidSolanaAddress } from '../../lib/solana-utils';
+
 
 interface WithdrawDialogProps {
     isOpen: boolean;
@@ -29,12 +32,14 @@ const lendingProtocolAbi = UniversalLendingProtocol__factory.abi;
 const erc20Abi = ERC20__factory.abi;
 
 export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialogProps) {
+    const { address } = useAccount();
     const [amount, setAmount] = useState('');
+    const isDestinationSolana = selectedAsset.sourceChain === 'SOL';
+    const [recipientAddress, setRecipientAddress] = useState<string>(address ?? "");
 
     // Custom hooks
     const crossChain = useCrossChainTracking();
     const transactionFlow = useTransactionFlow();
-    const { address } = useAccount();
     const safeAddress = safeEVMAddressOrZeroAddress(address);
     const { universalLendingProtocol } = useContracts(SupportedChain.ZETA_TESTNET);
 
@@ -46,18 +51,42 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
         userAddress: safeAddress,
     });
 
+    // Address validation
+    const isValidRecipientAddress = useCallback(() => {
+        if (!recipientAddress.trim()) return false;
+
+        if (isDestinationSolana) {
+            return isValidSolanaAddress(recipientAddress);
+        } else {
+            return isAddress(recipientAddress);
+        }
+    }, [recipientAddress, isDestinationSolana]);
+
     // Computed values
     const maxAmount = selectedAsset?.formattedSuppliedBalance || '0';
     const destinationChainName = selectedAsset ? getChainDisplayName(selectedAsset.sourceChain) : 'Unknown';
     const amountBigInt = amount && selectedAsset ? parseUnits(amount, selectedAsset.decimals) : BigInt(0);
     const isValidAmount = amount && parseFloat(amount) > 0 && parseFloat(amount) <= parseFloat(maxAmount);
+    const isValidRecipient = isValidRecipientAddress();
+
+    // Check if selected asset is a gas token based on validation results
+    const isGasToken = validation.gasTokenInfo.address && selectedAsset &&
+        validation.gasTokenInfo.address.toLowerCase() === selectedAsset.address.toLowerCase();
+
+    // Calculate gas fee amount for display
+    const gasFeeAmount = isGasToken && amount && validation.formattedReceiveAmount ?
+        parseFloat(amount) - parseFloat(validation.formattedReceiveAmount) : 0;
+
+    // Get gas token info for display
+    const gasTokenSymbol = selectedAsset?.sourceChain ? getGasTokenSymbol(selectedAsset.sourceChain) : '';
+    const gasTokenDecimals = selectedAsset?.sourceChain ? getGasTokenDecimals(selectedAsset.sourceChain) : 18;
 
     // Destructure transaction flow state
     const { state: txState, actions: txActions, contractState } = transactionFlow;
 
 
-    // Handle gas token approval
-    const handleApproveGasToken = useCallback(() => {
+    // Handle token approval (withdrawal token or gas token)
+    const handleApproveToken = useCallback(() => {
         if (!validation.gasTokenInfo.needsApproval || !universalLendingProtocol) return;
 
         txActions.setCurrentStep('approving');
@@ -69,42 +98,6 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
         });
     }, [validation.gasTokenInfo, universalLendingProtocol, txActions]);
 
-    // Main submit handler
-    const handleSubmit = useCallback(async () => {
-        if (!amount || !selectedAsset || !amountBigInt || !universalLendingProtocol) return;
-
-        txActions.setIsSubmitting(true);
-        txActions.resetContract();
-
-        // Step 1: Check validation
-        txActions.setCurrentStep('checkWithdraw');
-        txActions.setCurrentStep('checkGas');
-
-        if (!validation.isValid) {
-            if (validation.needsApproval) {
-                txActions.setCurrentStep('approve');
-            } else {
-                txActions.setCurrentStep('input');
-            }
-            txActions.setIsSubmitting(false);
-            return;
-        }
-
-        // Step 2: Proceed with withdrawal
-        txActions.setCurrentStep('withdraw');
-        txActions.writeContract({
-            address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
-            abi: lendingProtocolAbi,
-            functionName: 'withdrawCrossChain',
-            args: [
-                selectedAsset.address,
-                amountBigInt,
-                BigInt(SupportedChain.ARBITRUM_SEPOLIA), // Using default for now
-                safeAddress,
-            ],
-        });
-    }, [amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, validation, safeAddress]);
-
     // Handle max click
     const handleMaxClick = useCallback(() => {
         if (selectedAsset) {
@@ -115,10 +108,11 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     // Handle close
     const handleClose = useCallback(() => {
         setAmount('');
+        setRecipientAddress(address ?? '');
         txActions.reset();
         crossChain.reset();
         onClose();
-    }, [onClose, txActions, crossChain]);
+    }, [onClose, txActions, crossChain, address]);
 
     // Get step text
     const getStepText = useCallback(() => {
@@ -128,11 +122,11 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
             case 'checkGas':
                 return 'Checking gas token requirements...';
             case 'approve':
-                return 'Gas token approval required';
+                return `Approve ${gasTokenSymbol || 'gas token'} spending for withdrawal fees`;
             case 'approving':
-                return 'Waiting for gas token approval...';
+                return 'Waiting for token approval...';
             case 'withdraw':
-                return 'Sign transaction to withdraw from protocol';
+                return 'Click to withdraw from protocol';
             case 'withdrawing':
                 return 'Waiting for withdrawal confirmation...';
             case 'success':
@@ -148,21 +142,91 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
             default:
                 return `Enter amount to withdraw to ${destinationChainName}`;
         }
-    }, [txState.currentStep, destinationChainName, crossChain.status]);
+    }, [txState.currentStep, gasTokenSymbol, crossChain.status, destinationChainName]);
 
     // Handle amount change
     const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         setAmount(e.target.value);
     }, []);
 
-    // Handle approve success -> retry withdrawal
+    // Handle recipient address change
+    const handleRecipientAddressChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setRecipientAddress(e.target.value);
+    }, []);
+
+    // Handle withdrawal function
+    const handleWithdraw = useCallback(async () => {
+        if (!amount || !selectedAsset || !amountBigInt || !universalLendingProtocol || !isValidRecipient) return;
+
+        try {
+            txActions.setCurrentStep('withdraw');
+
+            // Convert recipient address to hex bytes for contract call
+            let recipientBytes: `0x${string}`;
+            if (isDestinationSolana) {
+                // For Solana addresses, convert to UTF-8 bytes (as per withdraw-all-sol-crosschain.ts:172)
+                recipientBytes = utils.hexlify(utils.toUtf8Bytes(recipientAddress)) as `0x${string}`;
+            } else {
+                // For EVM addresses, hexlify directly 
+                recipientBytes = utils.hexlify(recipientAddress) as `0x${string}`;
+            }
+
+            txActions.writeContract({
+                address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
+                abi: lendingProtocolAbi,
+                functionName: 'withdrawCrossChain',
+                args: [
+                    selectedAsset.address,
+                    amountBigInt,
+                    BigInt(selectedAsset.externalChainId),
+                    recipientBytes,
+                ],
+            });
+        } catch (error) {
+            console.error('Withdrawal failed:', error);
+            txActions.setIsSubmitting(false);
+            txActions.setCurrentStep('input');
+        }
+    }, [amount, selectedAsset, amountBigInt, universalLendingProtocol, isValidRecipient, txActions, isDestinationSolana, recipientAddress]);
+
+    // Main submit handler
+    const handleSubmit = useCallback(async () => {
+        if (!amount || !selectedAsset || !amountBigInt || !universalLendingProtocol || !isValidRecipient) return;
+
+        txActions.setIsSubmitting(true);
+        txActions.resetContract();
+
+        // Step 1: Check validation
+        txActions.setCurrentStep('checkWithdraw');
+        txActions.setCurrentStep('checkGas');
+
+        // First check if approval is needed
+        if (validation.needsApproval) {
+            txActions.setCurrentStep('approve');
+            txActions.setIsSubmitting(false);
+            return;
+        }
+
+        // Then check if validation passes
+        if (!validation.isValid) {
+            txActions.setCurrentStep('input');
+            txActions.setIsSubmitting(false);
+            return;
+        }
+
+        // Step 2: Proceed with withdrawal
+        void handleWithdraw();
+    }, [amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, validation, handleWithdraw, isValidRecipient]);
+
+    // Handle approve success -> proceed to withdrawal
     useEffect(() => {
         if (contractState.isApprovalSuccess && txState.currentStep === 'approving') {
+            // Add a small delay to ensure the approval state is fully processed
             setTimeout(() => {
-                void handleSubmit();
-            }, 2000);
+                void handleWithdraw();
+            }, 100);
         }
-    }, [contractState.isApprovalSuccess, txState.currentStep, handleSubmit]);
+    }, [contractState.isApprovalSuccess, txState.currentStep, handleWithdraw, txActions]);
 
     // Handle withdraw transaction success
     useEffect(() => {
@@ -194,12 +258,18 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
             sourceChain={selectedAsset.sourceChain}
             currentStep={txState.currentStep}
             isSubmitting={txState.isSubmitting}
-            onSubmit={() => { void handleSubmit() }}
-            onApprove={handleApproveGasToken}
-            isValidAmount={Boolean(isValidAmount && validation.isValid)}
+            onSubmit={() => {
+                if (txState.currentStep === 'withdraw') {
+                    void handleWithdraw();
+                } else {
+                    void handleSubmit();
+                }
+            }}
+            onApprove={handleApproveToken}
+            isValidAmount={Boolean(isValidAmount && validation.isValid && isValidRecipient)}
             isConnected={Boolean(address)}
             submitButtonText="Withdraw"
-            approveButtonText="Approve Gas Tokens"
+            approveButtonText={`Approve ${gasTokenSymbol || 'Gas Token'}`}
             canApprove={validation.gasTokenInfo.needsApproval}
         >
             {txState.currentStep === 'input' && (
@@ -231,6 +301,63 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                         </div>
                     </div>
 
+                    {/* Recipient Address Input */}
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="font-medium">Recipient Address</span>
+                            <span className="text-xs text-muted-foreground px-2 py-1 bg-muted rounded-md">
+                                {isDestinationSolana ? 'Solana Address' : 'EVM Address'}
+                            </span>
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="relative">
+                                <Input
+                                    type="text"
+                                    value={recipientAddress}
+                                    onChange={handleRecipientAddressChange}
+                                    placeholder={isDestinationSolana
+                                        ? "Enter Solana address..."
+                                        : "Enter EVM address (0x...)"}
+                                    className={`${address && !isDestinationSolana ? 'pr-24' : 'pr-4'} ${!isValidRecipient && recipientAddress.trim() ? 'border-destructive focus:border-destructive' : ''}`}
+                                />
+                                {address && !isDestinationSolana && (
+                                    <Button
+                                        variant="zeta-outline"
+                                        size="sm"
+                                        className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 text-xs px-2 whitespace-nowrap"
+                                        onClick={() => setRecipientAddress(address)}
+                                    >
+                                        MY WALLET
+                                    </Button>
+                                )}
+                            </div>
+
+                            {/* Validation Status */}
+                            <div className="min-h-[1.25rem]">
+                                {recipientAddress.trim() && !isValidRecipient && (
+                                    <div className="text-xs text-destructive flex items-center gap-1">
+                                        <span className="inline-block w-3 h-3 text-center">⚠</span>
+                                        {isDestinationSolana ? 'Invalid Solana address' : 'Invalid EVM address'}
+                                    </div>
+                                )}
+                                {recipientAddress.trim() && isValidRecipient && (
+                                    <div className="text-xs text-green-600 flex items-center gap-1">
+                                        <span className="inline-block w-3 h-3 text-center">✓</span>
+                                        Valid {isDestinationSolana ? 'Solana' : 'EVM'} address
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Helper text for Solana */}
+                            {isDestinationSolana && !recipientAddress.trim() && (
+                                <div className="text-xs text-muted-foreground">
+                                    Example: 9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Withdrawal Destination Info */}
                     <div className="p-3 bg-muted rounded-lg text-sm">
                         <div className="flex justify-between">
@@ -243,9 +370,75 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                         </div>
                         <div className="flex justify-between mt-1">
                             <span>Recipient:</span>
-                            <span className="font-medium text-xs">{formatHexString(safeAddress || '')}</span>
+                            <span className="font-medium text-xs">
+                                {isDestinationSolana
+                                    ? (recipientAddress ? `${recipientAddress.slice(0, 4)}...${recipientAddress.slice(-4)}` : 'Not set')
+                                    : recipientAddress
+                                }
+                            </span>
                         </div>
                     </div>
+
+                    {/* Gas Fee Information */}
+                    {amount && parseFloat(amount) > 0 && (
+                        <div className="p-3 border border-border rounded-lg bg-muted/50 text-sm">
+                            <div className="text-foreground font-medium mb-2">
+                                {isGasToken ? 'Transaction Details' : 'Gas Fee Requirements'}
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Withdrawal Amount:</span>
+                                    <span className="font-medium">{amount} {selectedAsset.unit}</span>
+                                </div>
+                                {isGasToken ? (
+                                    <>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Gas Fee:</span>
+                                            <span className="font-medium text-orange-600">
+                                                -{gasFeeAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} {selectedAsset.unit}
+                                            </span>
+                                        </div>
+                                        <div className="border-t border-border pt-2">
+                                            <div className="flex justify-between">
+                                                <span className="text-foreground font-medium">You'll Receive:</span>
+                                                <span className="font-semibold text-green-600">
+                                                    {Number(validation.formattedReceiveAmount || '0').toLocaleString('en-US', {
+                                                        minimumFractionDigits: 2,
+                                                        maximumFractionDigits: 6
+                                                    })} {selectedAsset.unit}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                            Gas fee is paid from your withdrawal amount
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Required Gas Token:</span>
+                                            <span className="font-medium text-orange-600">
+                                                {validation.gasTokenInfo.amount > 0 ?
+                                                    (Number(validation.gasTokenInfo.amount) / Math.pow(10, gasTokenDecimals)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 }) : '0'
+                                                } {gasTokenSymbol}
+                                            </span>
+                                        </div>
+                                        <div className="border-t border-border pt-2">
+                                            <div className="flex justify-between">
+                                                <span className="text-foreground font-medium">You'll Receive:</span>
+                                                <span className="font-semibold text-green-600">
+                                                    {amount} {selectedAsset.unit}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                            Gas fee is paid separately from your gas token balance
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Transaction Summary */}
                     {amount && (
@@ -254,8 +447,9 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                             amount={amount}
                             tokenSymbol={selectedAsset.unit}
                             destinationChain={destinationChainName}
-                            recipientAddress={safeAddress || ''}
-                            formattedReceiveAmount={validation.formattedReceiveAmount}
+                            recipientAddress={recipientAddress || ''}
+                            isGasToken={Boolean(isGasToken)}
+                            formattedReceiveAmount={isGasToken ? validation.formattedReceiveAmount : amount}
                             className="bg-secondary/50"
                         />
                     )}
