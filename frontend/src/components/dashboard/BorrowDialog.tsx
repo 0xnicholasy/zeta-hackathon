@@ -38,7 +38,7 @@ export function BorrowDialog({
     selectedAsset
 }: BorrowDialogProps) {
     const [amount, setAmount] = useState('');
-    const isDestinationSolana = selectedAsset.sourceChain === 'SOL';
+    const isDestinationSolana = selectedAsset.externalChainId === SupportedChain.SOLANA_DEVNET;
     const [recipientAddress, setRecipientAddress] = useState<string>('');
 
     // Custom hooks
@@ -110,8 +110,9 @@ export function BorrowDialog({
             // For Solana addresses, convert to UTF-8 bytes (as per withdraw-all-sol-crosschain.ts:172)
             return utils.hexlify(utils.toUtf8Bytes(recipientAddress)) as `0x${string}`;
         } else {
-            // For EVM addresses, hexlify directly 
-            return utils.hexlify(recipientAddress) as `0x${string}`;
+            // For EVM addresses, ensure it's properly formatted as hex
+            // The address is already a hex string, just ensure it's lowercase
+            return recipientAddress.toLowerCase() as `0x${string}`;
         }
     }, [recipientAddress, isDestinationSolana]);
 
@@ -183,11 +184,15 @@ export function BorrowDialog({
     }, []);
 
     // Initialize recipient address with user's address (for non-Solana) when address becomes available
+    const [isRecipientInitialized, setIsRecipientInitialized] = useState(false);
+
+    // Initialize recipient address with user's address (for non-Solana) when address becomes available
     useEffect(() => {
-        if (address && !isDestinationSolana && !recipientAddress) {
+        if (address && !isDestinationSolana && !isRecipientInitialized) {
             setRecipientAddress(address);
+            setIsRecipientInitialized(true);
         }
-    }, [address, isDestinationSolana, recipientAddress]);
+    }, [address, isDestinationSolana, isRecipientInitialized]);
 
     // Handle close
     const handleClose = useCallback(() => {
@@ -459,10 +464,14 @@ export function BorrowDialog({
                             <span className="font-medium">{selectedAsset.unit}</span>
                         </div>
                         <div className="flex justify-between mt-1">
-                            <span>Recipient:</span>
-                            <span className="font-medium text-xs">
-                                {recipientAddress.slice(0, 4)}...{recipientAddress.slice(-4)}
-                            </span>
+                            <div className="flex justify-between mt-1">
+                                <span>Recipient:</span>
+                                <span className="font-medium text-xs">
+                                    {recipientAddress && recipientAddress.length > 8
+                                        ? `${recipientAddress.slice(0, 4)}...${recipientAddress.slice(-4)}`
+                                        : recipientAddress || 'Not set'}
+                                </span>
+                            </div>
                         </div>
                     </div>
 

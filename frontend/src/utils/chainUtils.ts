@@ -1,4 +1,4 @@
-import { SupportedChain, getNetworkConfig, TOKEN_SYMBOLS, getTokenAddress } from '../contracts/deployments';
+import { SupportedChain, TOKEN_SYMBOLS, getTokenAddress } from '../contracts/deployments';
 import type { EVMAddress } from '@/types/address';
 
 // Helper function to get chain ID from source chain name
@@ -55,17 +55,6 @@ export const getChainDisplayName = (sourceChain: string): string => {
 
 // Helper function to get chain display name from chain ID
 export const getChainDisplayNameFromId = (chainId: number): string => {
-    try {
-        const network = getNetworkConfig(chainId);
-        if (network) {
-            return network.name;
-        }
-        else if (chainId === SupportedChain.SOLANA_DEVNET) {
-            return 'Solana Devnet';
-        }
-        // Fall through to fallback logic if network is null (e.g., for Solana)
-    } catch {
-        // Fallback for unsupported chains
         switch (chainId) {
             case SupportedChain.ARBITRUM_SEPOLIA:
                 return 'Arbitrum Sepolia';
@@ -84,8 +73,6 @@ export const getChainDisplayNameFromId = (chainId: number): string => {
             default:
                 return 'Unknown Chain';
         }
-    }
-    return "Generic Chain";
 };
 
 // Helper function to get gas token symbol based on destination chain

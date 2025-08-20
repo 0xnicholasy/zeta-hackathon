@@ -6,7 +6,7 @@ import { isEVMAddress, isZeroAddress, ZERO_ADDRESS, type EVMAddress } from '@/ty
 export interface NetworkConfig {
   name: string;
   chainId: number;
-  type: 'testnet' | 'mainnet';
+  type: 'testnet' | 'mainnet' | 'devnet';
   rpc?: string;
   explorer?: string;
   contracts: Record<string, string>;
@@ -36,10 +36,18 @@ export function getAvailableNetworks(): NetworkConfig[] {
 /**
  * Get network configuration by chain ID
  */
-export function getNetworkConfig(chainId: number): NetworkConfig | null {
+export function getNetworkConfig(chainId: number): NetworkConfig {
   // Handle special case for Solana - it's not an EVM network but used as destination chain
   if (chainId === SupportedChain.SOLANA_DEVNET) {
-    return null; // Solana doesn't have network config as it's not an EVM chain
+    return {
+      name: 'Solana Devnet',
+      chainId: chainId,
+      type: 'devnet',
+      rpc: '',
+      explorer: '',
+      contracts: {},
+      tokens: {},
+    }; // Solana doesn't have network config as it's not an EVM chain
   }
 
   const chainIdStr = chainId.toString();
