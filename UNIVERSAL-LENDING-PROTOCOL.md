@@ -2,20 +2,31 @@
 
 ## Overview
 
-The Universal Lending Protocol is an advanced cross-chain lending protocol built on ZetaChain that extends the functionality of the Simple Lending Protocol. It introduces sophisticated features like dynamic interest rate calculations, enhanced health factor computations, and cross-chain transaction fee handling.
+The Universal Lending Protocol is an advanced cross-chain lending protocol built on ZetaChain that extends the functionality of the Simple Lending Protocol. It introduces sophisticated features like dynamic interest rate calculations, enhanced health factor computations, cross-chain transaction fee handling, and modular library-based architecture for improved gas efficiency and maintainability.
 
 ## Core Components
 
 ### 1. Protocol Architecture
 
-The protocol consists of several key contracts:
+The protocol follows a modular, inheritance-based architecture with specialized libraries:
 
-1. **SimpleLendingProtocolBase.sol** - Base implementation with core lending functionality
-2. **SimpleLendingProtocol.sol** - Extends base with cross-chain capabilities
-3. **UniversalLendingProtocol.sol** - Enhanced version with advanced features
-4. **InterestRateModel.sol** - Library for calculating dynamic interest rates
-5. **LiquidationLogic.sol** - Library for liquidation calculations
-6. **PriceOracle.sol** - Oracle for asset price feeds
+**Core Contracts:**
+1. **SimpleLendingProtocolBase.sol** - Abstract base with core lending logic and oracle integration
+2. **SimpleLendingProtocol.sol** - Concrete implementation extending base with ZetaChain gateway integration
+3. **UniversalLendingProtocol.sol** - Enhanced version with advanced features, interest rates, and cross-chain validation
+4. **DepositContract.sol** - Cross-chain deposit contract for external chains
+5. **PriceOracle.sol** - Oracle implementation for asset price feeds
+
+**Library Contracts:**
+6. **InterestRateModel.sol** - Library for kinked interest rate model calculations with RAY precision
+7. **LiquidationLogic.sol** - Library for liquidation calculations and health factor validation
+8. **UserAssetCalculations.sol** - Library for consolidated asset value calculations and gas optimization
+
+**Interface Contracts:**
+9. **ISimpleLendingProtocol.sol** - Core lending protocol interface
+10. **IUniversalLendingProtocol.sol** - Enhanced protocol interface with advanced features
+11. **IPriceOracle.sol** - Oracle interface for price fetching
+12. **IZRC20.sol** - ZRC-20 token interface for cross-chain operations
 
 ## Key Features
 
@@ -35,60 +46,91 @@ Cross-chain transactions in the Universal Lending Protocol involve gas fees that
 
 4. **Fee Transfer**: Gas fees are transferred from the user to the protocol contract before initiating the cross-chain transaction.
 
-### 2. Health Factor Changes
+### 2. Enhanced Health Factor System
 
-The health factor is a critical metric that determines a user's position health:
+The Universal Lending Protocol implements a sophisticated health factor system with weighted collateral calculations:
 
-1. **Calculation Formula**:
+1. **Dual Health Factor Models**:
+   - **Simple Model** (SimpleLendingProtocolBase): `Health Factor = Total Collateral Value / Total Debt Value`
+   - **Enhanced Model** (UniversalLendingProtocol): `Health Factor = Total Weighted Collateral / Total Debt Value`
+
+2. **Weighted Collateral Calculation**:
+   ```solidity
+   // Each asset contributes weighted collateral based on its liquidation threshold
+   Weighted Collateral = Σ(Asset Value * Asset Liquidation Threshold)
+   
+   // Example with multiple assets:
+   // ETH: $1000 * 0.85 = $850
+   // USDC: $500 * 0.95 = $475  
+   // Total Weighted Collateral = $1,325
    ```
-   Health Factor = (Total Weighted Collateral Value) / (Total Debt Value)
+
+3. **Health Factor Thresholds**:
+   - **Minimum Health Factor**: 1.5e18 (150%) - Required for borrowing/withdrawing
+   - **Liquidation Threshold**: 1.2e18 (120%) - Below this, position can be liquidated
+   - **Base Protocol Threshold**: 1.1e18 (110%) - Used in SimpleLendingProtocol
+
+4. **Consolidated Calculations**: The `UserAssetCalculations` library eliminates repetitive calculations by computing all user asset data in a single loop:
+   ```solidity
+   struct UserAssetData {
+       uint256 totalCollateralValue;      // Raw collateral value
+       uint256 totalDebtValue;            // Total debt value
+       uint256 totalBorrowableCollateral; // Collateral * collateralFactor
+       uint256 totalWeightedCollateral;   // Collateral * liquidationThreshold
+       uint256 weightedLiquidationThreshold; // For weighted average calculation
+   }
    ```
 
-2. **Weighted Collateral**: Unlike simple collateral value, the protocol uses a weighted value based on each asset's liquidation threshold:
+5. **Real-time Updates**: Health factor changes dynamically through:
+   - Oracle price fluctuations (validated for staleness and minimum values)
+   - User operations (supply, borrow, repay, withdraw)
+   - Interest accrual on borrowed amounts
+   - Cross-chain operations via ZetaChain gateway
+
+### 3. Advanced Interest Rate Model
+
+The Universal Lending Protocol implements a sophisticated kinked interest rate model using RAY precision (1e27) for maximum accuracy:
+
+1. **Kinked Interest Rate Model**:
+   ```solidity
+   // Below optimal utilization (80%)
+   if (utilizationRate <= optimalUtilization) {
+       borrowRate = baseRate + (utilizationRate * slope1) / RAY;
+   }
+   // Above optimal utilization  
+   else {
+       excessUtilization = utilizationRate - optimalUtilization;
+       borrowRate = baseRate + slope1 + (excessUtilization * slope2) / RAY;
+   }
    ```
-   Weighted Collateral = Σ(Collateral Value * Liquidation Threshold)
+
+2. **Interest Rate Parameters** (Configurable per asset):
+   - **Base Rate**: 2% annually (0.02e18)
+   - **Slope1**: 4% annually (0.04e18) - up to optimal utilization
+   - **Slope2**: 75% annually (0.75e18) - beyond optimal utilization  
+   - **Optimal Utilization**: 80% (0.8e18)
+   - **Reserve Factor**: 10% (0.1e18)
+
+3. **Supply Interest Rate Calculation**:
+   ```solidity
+   supplyRate = (utilizationRate * borrowRate * (RAY - reserveFactor)) / (RAY * RAY);
    ```
 
-3. **Thresholds**:
-   - **Minimum Health Factor**: 1.5 (150%) - Required for borrowing/withdrawing
-   - **Liquidation Threshold**: 1.2 (120%) - Below this, position can be liquidated
-
-4. **Dynamic Updates**: The health factor changes in real-time as:
-   - Prices of assets fluctuate (through the price oracle)
-   - Users supply/borrow/repay/withdraw assets
-   - Interest accrues on borrowed amounts
-
-### 3. Interest Rate Adjustments
-
-The protocol implements a dynamic interest rate model:
-
-1. **Borrow Interest Rate**:
-   - Uses a kinked model with two slopes based on utilization rate
-   - Formula when utilization ≤ optimal (80%):
+4. **Compound Interest Accrual**:
+   - Uses optimized Taylor series expansion for gas efficiency:
+     ```solidity
+     compound = RAY + (ratePerSecond * timeElapsed) + 
+                (ratePerSecond^2 * timeElapsed * (timeElapsed-1)) / 2 + 
+                (ratePerSecond^3 * timeElapsed * (timeElapsed-1) * (timeElapsed-2)) / 6;
      ```
-     Borrow Rate = Base Rate + (Utilization Rate * Slope1)
-     ```
-   - Formula when utilization > optimal:
-     ```
-     Borrow Rate = Base Rate + Slope1 + ((Utilization - Optimal) * Slope2)
-     ```
+   - Applied during every user interaction (`_updateInterest`)
+   - Separate rate updates after operations (`_updateInterestRates`)
 
-2. **Supply Interest Rate**:
-   ```
-   Supply Rate = Borrow Rate * Utilization Rate * (1 - Reserve Factor)
-   ```
-
-3. **Parameters**:
-   - Base Rate: 2% annually
-   - Slope1: 4% (up to optimal utilization)
-   - Slope2: 75% (beyond optimal utilization)
-   - Optimal Utilization: 80%
-   - Reserve Factor: 10%
-
-4. **Interest Accrual**:
-   - Interest is compounded over time using a Taylor series approximation
-   - Applied to total borrowed amounts periodically during transactions
-   - Part of the interest (10%) goes to protocol reserves
+5. **Reserve Management**:
+   - 10% of accrued interest goes to protocol reserves
+   - Reserves can be withdrawn by protocol owner
+   - Used for covering bad debts and protocol sustainability
+   - Tracked per asset: `mapping(address => uint256) public totalReserves`
 
 ### 4. Liquidation Examples
 
@@ -129,32 +171,216 @@ Liquidations occur when a user's health factor drops below 1.2 (120%). Here's ho
      - Borrowed: 750 DAI
      - Health Factor: ~1.35 (above threshold)
 
-## Cross-Chain Functionality
+## Enhanced Cross-Chain Functionality
 
-The protocol supports cross-chain operations through ZetaChain's universal contracts:
+The Universal Lending Protocol provides comprehensive cross-chain operations with advanced validation and fee handling:
 
-1. **Cross-Chain Supply**: Users can supply assets from any connected chain
-2. **Cross-Chain Borrow**: Users can borrow assets and receive them on any chain
-3. **Cross-Chain Withdrawal**: Users can withdraw supplied assets to any chain
-4. **Cross-Chain Repayment**: Users can repay debts from any chain
+### 1. Cross-Chain Operation Types
 
-All cross-chain operations are handled through the `onCall` function which processes messages from the ZetaChain gateway.
+**Basic Operations** (128-byte messages):
+- **Cross-Chain Supply**: Deposit assets from any connected chain via gateway
+- **Cross-Chain Repayment**: Repay debts from any chain with overpayment conversion
 
-## Security Features
+**Advanced Operations** (224-byte messages):
+- **Cross-Chain Borrowing**: Borrow assets and receive them on any destination chain
+- **Cross-Chain Withdrawal**: Withdraw collateral to any supported chain
 
-1. **Price Validation**: Prices are validated for staleness (max 1 hour old)
-2. **Reentrancy Protection**: All state-changing functions are protected
-3. **Access Control**: Admin functions are restricted to owner
-4. **Health Factor Checks**: All borrowing/withdrawal operations validate health factor
-5. **Liquidation Thresholds**: Conservative thresholds prevent undercollateralization
+### 2. Source Chain Validation (Universal Protocol Feature)
+```solidity
+// Only Universal protocol validates source chains
+mapping(uint256 => bool) public allowedSourceChains;
 
-## Reserve Management
+function onCall(...) external onlyGateway {
+    if (!allowedSourceChains[context.chainID]) {
+        revert ChainNotAllowed(context.chainID);
+    }
+    // Process operation...
+}
+```
 
-10% of all interest goes to protocol reserves:
-- Used for covering bad debts
-- Can be withdrawn by the protocol owner
-- Helps maintain protocol solvency during market volatility
+### 3. ZRC-20 Asset Mapping
+```solidity
+// Map ZRC-20 tokens to their source chains
+mapping(address => uint256) public zrc20ToChainId;
+mapping(uint256 => mapping(string => address)) public chainAssets;
+
+// Example: chainAssets[421614]["USDC"] = 0x... (USDC.ARBI address)
+```
+
+### 4. Cross-Chain Gas Fee Handling
+
+**Same Token as Gas** (e.g., ETH withdrawal):
+```solidity
+(address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
+if (asset == gasZRC20) {
+    withdrawalAmount = amount - gasFee;  // Deduct gas from withdrawal
+    IERC20(asset).approve(gateway, amount);  // Approve full amount
+}
+```
+
+**Different Gas Token** (e.g., USDC withdrawal, ETH gas):
+```solidity
+else {
+    // User must have gas tokens in their balance
+    IERC20(gasZRC20).transferFrom(user, address(this), gasFee);
+    IERC20(gasZRC20).approve(gateway, gasFee);
+    IERC20(asset).approve(gateway, amount);
+}
+```
+
+All operations include proper revert handling and user-friendly error messages for failed cross-chain transactions.
+
+## Enhanced Security Features
+
+### 1. Multi-Layer Price Validation
+```solidity
+function _getValidatedPrice(address asset) internal view returns (uint256) {
+    uint256 price = priceOracle.getPrice(asset);
+    require(price >= MIN_VALID_PRICE, "Invalid price: too low");  // Prevents flash loan attacks
+    require(price > 0, "Invalid price: zero");  // Basic sanity check
+    // Additional staleness and bounds checking in UserAssetCalculations library
+    return price;
+}
+```
+
+### 2. Comprehensive Access Control
+- **Owner-only functions**: Asset management, oracle updates, protocol configuration
+- **Gateway-only functions**: Cross-chain message handling via `onlyGateway` modifier
+- **User operation validation**: Health factor checks, balance verification, collateral requirements
+
+### 3. Reentrancy and State Protection
+- **ReentrancyGuard**: All external functions protected with `nonReentrant` modifier
+- **State consistency**: Operations update state before external calls
+- **Failed transaction handling**: Proper revert mechanisms for cross-chain operations
+
+### 4. Advanced Health Factor Validation
+```solidity
+// Multiple health factor check methods
+function canBorrow(address user, address asset, uint256 amount) public view returns (bool) {
+    uint256 healthFactor = _calculateHealthFactorInternal(
+        user, asset, userSupplies[user][asset], 
+        userBorrows[user][asset] + amount, true
+    );
+    return healthFactor >= MINIMUM_HEALTH_FACTOR;
+}
+```
+
+### 5. Gas Fee and Amount Validation
+```solidity
+function _validateAmountVsGasFee(address asset, uint256 amount) internal view {
+    (address gasToken, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
+    if (!_isAmountSufficientForGas(asset, amount, gasToken, gasFee)) {
+        revert InvalidAmount();
+    }
+}
+```
+
+### 6. Liquidation Safety Mechanisms
+- **Health factor thresholds**: Multiple thresholds for different risk levels
+- **Liquidation bonus validation**: Prevents excessive bonus that could drain protocol
+- **Partial liquidation limits**: Prevents full position liquidation in single transaction
+- **Collateral seizure caps**: Ensures liquidation doesn't exceed available collateral
+
+## Advanced Reserve and Asset Management
+
+### 1. Dynamic Reserve Accumulation
+```solidity
+// Interest accrual includes reserve calculation
+if (assetConfig.totalBorrow > 0 && assetConfig.borrowRate > 0) {
+    uint256 interestAccrued = (totalBorrow * borrowRate * timeElapsed) / (365 days * PRECISION);
+    assetConfig.totalBorrow += interestAccrued;
+    
+    // 10% to reserves
+    uint256 reserveAmount = (interestAccrued * RESERVE_FACTOR) / PRECISION;
+    totalReserves[asset] += reserveAmount;
+}
+```
+
+### 2. Per-Asset Reserve Tracking
+```solidity
+mapping(address => uint256) public totalReserves;  // Track reserves per asset
+mapping(address => uint256) public lastGlobalInterestUpdate;  // Last interest update timestamp
+```
+
+### 3. Enhanced Asset Configuration
+```solidity
+struct AssetConfig {
+    bool isSupported;
+    uint256 collateralFactor;      // Borrowing power (e.g., 80% for ETH)
+    uint256 liquidationThreshold;  // Liquidation trigger (e.g., 85% for ETH)
+    uint256 liquidationBonus;      // Liquidator incentive (e.g., 5%)
+    uint256 borrowRate;            // Current borrow APR
+    uint256 supplyRate;            // Current supply APR  
+    uint256 totalSupply;           // Total supplied amount
+    uint256 totalBorrow;           // Total borrowed amount
+}
+```
+
+### 4. Reserve Management Features
+- **Owner Withdrawal**: Protocol owner can withdraw reserves for operational expenses
+- **Bad Debt Coverage**: Reserves provide cushion against liquidation failures
+- **Market Stability**: Reserves help maintain protocol solvency during volatility
+- **Transparent Tracking**: All reserve changes are tracked per asset with events
+
+## Gas Optimization and Performance
+
+### 1. Consolidated Asset Calculations
+The `UserAssetCalculations` library eliminates gas-expensive loops by calculating all user data in a single iteration:
+```solidity
+// Instead of 5+ separate loops for different calculations:
+// - getTotalCollateralValue() 
+// - getTotalDebtValue()
+// - maxAvailableBorrows()
+// - getUserAccountData()
+// - getHealthFactor()
+
+// Single consolidated calculation:
+UserAssetData memory data = UserAssetCalculations.calculateUserAssetData(
+    user, modifiedAsset, newSupply, newDebt, useModified,
+    supportedAssets, userSupplies, userBorrows, enhancedAssets, priceOracle
+);
+```
+
+### 2. Efficient Interest Rate Updates
+- **Separate Update Functions**: `_updateInterest()` for accrual, `_updateInterestRates()` for rate recalculation
+- **Timestamp-based Accrual**: Only accrue interest when time has actually passed
+- **RAY Precision**: High precision calculations without excessive gas costs
+
+### 3. Optimized Cross-Chain Operations
+- **Message Length Validation**: Different handling for 128-byte vs 224-byte messages
+- **Batch Approvals**: Single approval calls for gas tokens and withdrawal assets
+- **Conditional Gas Handling**: Efficient logic for same-token vs different-token gas payments
+
+## Library Architecture Benefits
+
+### 1. **InterestRateModel Library**
+- Pure functions for gas efficiency
+- Reusable across multiple assets
+- RAY precision for institutional-grade calculations
+- Taylor series approximation for compound interest
+
+### 2. **LiquidationLogic Library**  
+- Standardized liquidation calculations
+- Health factor validation logic
+- Asset value calculations with proper decimal handling
+- Collateral and debt value computations
+
+### 3. **UserAssetCalculations Library**
+- Eliminates code duplication across view functions
+- Single-loop calculations for multiple data points
+- Consolidated price validation and caching
+- Memory struct returns for efficient data transfer
 
 ## Conclusion
 
-The Universal Lending Protocol provides a robust, secure, and efficient cross-chain lending solution with sophisticated risk management features. Its dynamic interest rate model, comprehensive health factor calculations, and proper liquidation mechanics make it suitable for professional DeFi applications.
+The Universal Lending Protocol represents a sophisticated, production-ready cross-chain lending solution that combines:
+
+- **Modular Architecture**: Clean separation of concerns with specialized libraries
+- **Advanced Risk Management**: Multi-layered health factor calculations and liquidation logic
+- **Cross-Chain Integration**: Native ZetaChain gateway support with comprehensive fee handling
+- **Gas Optimization**: Consolidated calculations and efficient state management
+- **Enterprise Security**: Multiple validation layers and comprehensive access controls
+- **Dynamic Interest Rates**: Kinked rate model with RAY precision and compound accrual
+- **Reserve Management**: Automated reserve accumulation for protocol sustainability
+
+This architecture makes it suitable for professional DeFi applications requiring institutional-grade reliability, security, and performance across multiple blockchain networks.

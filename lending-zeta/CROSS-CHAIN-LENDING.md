@@ -1,584 +1,758 @@
-# ZetaChain Cross-Chain Lending Protocol
+# Cross-Chain Lending Architecture and Implementation Guide
 
 ## Overview
 
-This project implements a **comprehensive cross-chain lending protocol** built on ZetaChain that revolutionizes decentralized lending by enabling seamless cross-chain operations. Users can:
+This document provides a comprehensive technical guide to the cross-chain lending protocol architecture, focusing on the gateway integration, message flows, and cross-chain operation mechanisms that enable seamless lending across Ethereum, Arbitrum, BSC, Polygon, Base, Solana, and ZetaChain.
 
-1. **Deposit collateral from multiple external chains** (Arbitrum Sepolia, Ethereum Sepolia)
-2. **Perform advanced lending operations** on ZetaChain (supply, borrow, repay, liquidate) with both basic and advanced protocol options
-3. **Withdraw assets to any supported destination chain** with complete flexibility
-4. **Benefit from dynamic interest rates** and enhanced risk management (UniversalLendingProtocol)
-5. **Utilize real-time price oracles** for accurate asset valuation and liquidation triggers
+## Architecture Components
 
-## Architecture
+### 1. Protocol Layer Architecture
 
-### Core Components
-
-#### 1. Dual Protocol Architecture (ZetaChain)
-
-**SimpleLendingProtocol** (`contracts/SimpleLendingProtocol.sol`)
-- **Purpose**: Basic lending protocol with fixed interest rates and cross-chain support
-- **Features**:
-  - Fixed interest rate model for predictable returns
-  - Cross-chain deposits and withdrawals via ZetaChain Gateway
-  - Basic health factor calculations with fixed collateral factors
-  - ZRC-20 asset support for cross-chain representations
-  - Simple admin controls for asset and price management
-
-**UniversalLendingProtocol** (`contracts/UniversalLendingProtocol.sol`)
-- **Purpose**: Advanced lending protocol with dynamic features and enhanced risk management
-- **Features**:
-  - Dynamic interest rate model based on asset utilization (Aave-inspired)
-  - Advanced cross-chain configuration with source chain validation
-  - Enhanced risk management with configurable collateral factors and liquidation thresholds
-  - External price oracle integration for real-time asset pricing
-  - Reserve system for protocol revenue capture
-  - Comprehensive user account data with detailed health factor calculations
-
-#### 2. DepositContract (External Chains)
-- **Location**: `contracts/DepositContract.sol`
-- **Purpose**: Deployed on external chains to facilitate secure cross-chain deposits
-- **Features**:
-  - Validates supported assets (ETH, USDC) with proper decimals handling
-  - Handles cross-chain deposits via ZetaChain Gateway with message encoding
-  - Supports both supply and repay operations for flexible user interactions
-  - Asset management with add/remove functionality for administrators
-  - Gas fee handling for cross-chain transactions
-
-#### 3. Enhanced Cross-Chain Configuration
-- **Allowed Source Chains**: Configurable source chains (currently Arbitrum Sepolia 421614, Ethereum Sepolia 11155111)
-- **Supported Assets**: ETH and USDC on both chains with proper ZRC-20 mapping
-- **Withdrawal Destinations**: Any supported chain with flexible routing
-- **Asset Mapping**: ZRC-20 tokens mapped to their source chains and symbols (ETH.ARBI, USDC.ARBI, ETH.ETH, USDC.ETH)
-- **Gateway Authentication**: Proper message validation and authentication for security
-
-## Enhanced Security Model
-
-### Multi-Layer Security Architecture
-
-#### 1. Cross-Chain Deposit Validation
-```solidity
-// UniversalLendingProtocol: Strict source chain validation
-if (!allowedSourceChains[context.chainID]) {
-    revert ChainNotAllowed(context.chainID);
-}
-
-// DepositContract: Asset support validation
-if (!supportedAssets[asset].isSupported) {
-    revert AssetNotSupported(asset);
-}
+```mermaid
+graph TB
+    subgraph "External Chains"
+        EC1[Ethereum]
+        EC2[Arbitrum]
+        EC3[BSC]
+        EC4[Polygon]
+        EC5[Base]
+        EC6[Solana]
+        DC1[DepositContract]
+        DC2[DepositContract]
+        DC3[DepositContract]
+        DC4[DepositContract]
+        DC5[DepositContract]
+        DC6[DepositContract]
+    end
+    
+    subgraph "ZetaChain Universal EVM"
+        GW[ZetaChain Gateway]
+        SLP[SimpleLendingProtocol]
+        ULP[UniversalLendingProtocol]
+        ZRC[ZRC-20 Tokens]
+        OR[Price Oracle]
+    end
+    
+    EC1 --> DC1
+    EC2 --> DC2
+    EC3 --> DC3
+    EC4 --> DC4
+    EC5 --> DC5
+    EC6 --> DC6
+    DC1 --> GW
+    DC2 --> GW
+    DC3 --> GW
+    DC4 --> GW
+    DC5 --> GW
+    DC6 --> GW
+    GW --> SLP
+    GW --> ULP
+    SLP --> ZRC
+    ULP --> ZRC
+    ULP --> OR
 ```
 
-#### 2. ZRC-20 Asset Validation
-```solidity
-// Only whitelisted ZRC-20 tokens accepted
-if (!assets[zrc20].isSupported) revert AssetNotSupported(zrc20);
+### 2. Cross-Chain Message Flow
 
-// Asset mapping validation for cross-chain operations
-require(zrc20ToChainInfo[zrc20].chainId != 0, "Asset not mapped");
+The protocol uses ZetaChain's Universal Contract interface to handle cross-chain operations through structured message passing:
+
+#### Message Types and Encoding
+
+**Standard Operations (128 bytes)**:
+```solidity
+// Supply or Repay operations
+bytes memory message = abi.encode(
+    "supply",     // or "repay"
+    userAddress   // recipient address
+);
 ```
 
-#### 3. Gateway Authentication and Authorization
+**Advanced Operations (224 bytes)**:
 ```solidity
-// Only authenticated gateway can call cross-chain functions
-modifier onlyGateway() {
-    if (msg.sender != address(gateway)) revert Unauthorized();
-    _;
-}
-
-// Cross-chain message integrity validation
-function onCall(MessageContext calldata context, address zrc20, uint256 amount, bytes calldata message) 
-    external override onlyGateway {
-    // Validate context and decode message safely
-    _validateAndProcessCrossChainCall(context, zrc20, amount, message);
-}
+// Cross-chain borrow or withdraw
+bytes memory message = abi.encode(
+    "borrowCrossChain",    // or "withdrawCrossChain"
+    userAddress,           // user initiating operation
+    operationAmount,       // amount to borrow/withdraw
+    destinationChainId,    // target chain ID
+    recipientAddress       // recipient on destination chain
+);
 ```
 
-#### 4. Health Factor and Liquidation Security
-```solidity
-// UniversalLendingProtocol: Enhanced health factor validation
-function _validateHealthFactor(address user) internal view {
-    uint256 healthFactor = calculateHealthFactor(user);
-    require(healthFactor >= MINIMUM_HEALTH_FACTOR, "Insufficient collateral");
-}
+## Cross-Chain Operation Flows
 
-// Liquidation threshold validation with configurable parameters
-function _calculateLiquidationThreshold(address user) internal view returns (uint256) {
-    // Uses configurable collateral factors and liquidation thresholds per asset
-    return _getUserLiquidationThreshold(user);
-}
-```
-
-#### 5. Oracle Price Security (UniversalLendingProtocol)
-```solidity
-// Price oracle validation with staleness checks
-function getAssetPrice(address asset) internal view returns (uint256) {
-    uint256 price = priceOracle.getPrice(asset);
-    require(price > 0, "Invalid price");
-    require(block.timestamp - priceOracle.getLastUpdate(asset) < MAX_PRICE_AGE, "Stale price");
-    return price;
-}
-```
-
-## Cross-Chain Flow
-
-### 1. Enhanced Cross-Chain Deposit Flow (External Chain → ZetaChain)
+### 1. Cross-Chain Deposit Flow
 
 ```mermaid
 sequenceDiagram
     participant User
     participant DepositContract
-    participant ZetaGateway
+    participant Gateway
     participant LendingProtocol
     participant ZRC20
     
-    User->>DepositContract: depositToken(asset, amount, recipient)
-    DepositContract->>DepositContract: Validate asset support & amount
-    DepositContract->>DepositContract: Encode cross-chain message
-    DepositContract->>ZetaGateway: depositAndCall(protocol, amount, asset, message)
+    User->>DepositContract: depositToken(asset, amount, onBehalfOf)
+    DepositContract->>DepositContract: Validate asset & amount
+    DepositContract->>DepositContract: Encode message("supply", onBehalfOf)
+    DepositContract->>Gateway: depositAndCall(protocol, amount, asset, message)
     
-    ZetaGateway->>ZetaGateway: Convert to ZRC-20 tokens
-    ZetaGateway->>LendingProtocol: onCall(context, zrc20, amount, message)
-    LendingProtocol->>LendingProtocol: Validate source chain allowed
-    LendingProtocol->>LendingProtocol: Decode operation (supply/repay)
-    LendingProtocol->>LendingProtocol: Execute lending operation
-    LendingProtocol->>ZRC20: Transfer ZRC-20 tokens
-    LendingProtocol->>User: Update user balances
+    Note over Gateway: Convert native asset to ZRC-20
+    Gateway->>LendingProtocol: onCall(context, zrc20, amount, message)
+    
+    alt UniversalLendingProtocol
+        LendingProtocol->>LendingProtocol: Validate source chain allowed
+    end
+    
+    LendingProtocol->>LendingProtocol: Decode operation type
+    LendingProtocol->>LendingProtocol: Execute _supply(zrc20, amount, onBehalfOf)
+    LendingProtocol->>ZRC20: Update user balances
+    LendingProtocol-->>User: Emit Supply event
 ```
 
-### 2. Advanced Cross-Chain Withdrawal Flow (ZetaChain → External Chain)
+### 2. Cross-Chain Borrowing Flow
 
 ```mermaid
 sequenceDiagram
     participant User
     participant LendingProtocol
-    participant ZRC20
-    participant ZetaGateway
-    participant ExternalChain
-    
-    User->>LendingProtocol: withdrawCrossChain(zrc20, amount, chainId, recipient)
-    LendingProtocol->>LendingProtocol: Validate health factor
-    LendingProtocol->>LendingProtocol: Calculate gas fees
-    LendingProtocol->>LendingProtocol: Update user balances
-    LendingProtocol->>ZRC20: Transfer ZRC-20 tokens to protocol
-    LendingProtocol->>ZetaGateway: withdraw(recipient, amount, zrc20, chainId)
-    ZetaGateway->>ZetaGateway: Convert ZRC-20 to native tokens
-    ZetaGateway->>ExternalChain: Transfer native tokens to recipient
-```
-
-### 3. Cross-Chain Borrowing Flow (Borrow on ZetaChain → Withdraw to External Chain)
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant LendingProtocol
-    participant PriceOracle
-    participant ZRC20
-    participant ZetaGateway
-    participant ExternalChain
+    participant Oracle
+    participant Gateway
+    participant DestChain
     
     User->>LendingProtocol: borrowCrossChain(asset, amount, chainId, recipient)
-    LendingProtocol->>PriceOracle: getAssetPrice(asset)
-    LendingProtocol->>LendingProtocol: Calculate health factor
-    LendingProtocol->>LendingProtocol: Validate borrowing capacity
+    
+    alt UniversalLendingProtocol
+        LendingProtocol->>Oracle: getPrice(asset)
+        LendingProtocol->>LendingProtocol: Update interest rates
+    end
+    
+    LendingProtocol->>LendingProtocol: Validate health factor
+    LendingProtocol->>LendingProtocol: Calculate gas fees
     LendingProtocol->>LendingProtocol: Update borrow balances
-    LendingProtocol->>ZRC20: Transfer borrowed ZRC-20 tokens
-    LendingProtocol->>ZetaGateway: withdraw(recipient, amount, asset, chainId)
-    ZetaGateway->>ExternalChain: Transfer tokens to recipient
+    
+    alt Same Gas Token
+        LendingProtocol->>LendingProtocol: withdrawAmount = amount - gasFee
+        LendingProtocol->>Gateway: withdraw(recipient, withdrawAmount, asset)
+    else Different Gas Token
+        LendingProtocol->>User: Transfer gas tokens from user
+        LendingProtocol->>Gateway: withdraw(recipient, amount, asset)
+    end
+    
+    Note over Gateway: Convert ZRC-20 to native asset
+    Gateway->>DestChain: Transfer native asset to recipient
+    LendingProtocol-->>User: Emit Borrow event
 ```
 
-## Smart Contract Interfaces
+### 3. Cross-Chain Withdrawal Flow
 
-### SimpleLendingProtocol Core Functions
+```mermaid
+sequenceDiagram
+    participant User
+    participant LendingProtocol
+    participant Gateway
+    participant DestChain
+    
+    User->>LendingProtocol: withdrawCrossChain(asset, amount, chainId, recipient)
+    LendingProtocol->>LendingProtocol: Validate withdrawal permissions
+    LendingProtocol->>LendingProtocol: Check health factor impact
+    LendingProtocol->>LendingProtocol: Calculate gas fees
+    LendingProtocol->>LendingProtocol: Update supply balances
+    
+    alt Same Gas Token
+        LendingProtocol->>Gateway: withdraw(recipient, amount-gasFee, asset)
+    else Different Gas Token
+        LendingProtocol->>User: Transfer gas tokens from user
+        LendingProtocol->>Gateway: withdraw(recipient, amount, asset)
+    end
+    
+    Gateway->>DestChain: Transfer native asset to recipient
+    LendingProtocol-->>User: Emit Withdraw event
+```
+
+## Gateway Integration Patterns
+
+### 1. Universal Contract Implementation
 
 ```solidity
-// Basic lending operations
-function supply(address zrc20, uint256 amount, address onBehalfOf) external;
-function borrow(address zrc20, uint256 amount, address to) external;
-function repay(address zrc20, uint256 amount, address onBehalfOf) external;
-function withdraw(address zrc20, uint256 amount, address to) external;
-function liquidate(address collateralAsset, address debtAsset, address user, uint256 debtToCover) external;
-
-// Cross-chain operations
-function borrowCrossChain(address zrc20, uint256 amount, uint256 destinationChain, address recipient) external;
-function withdrawCrossChain(address zrc20, uint256 amount, uint256 destinationChain, address recipient) external;
-
-// Cross-chain deposit handler (Universal Contract interface)
-function onCall(MessageContext calldata context, address zrc20, uint256 amount, bytes calldata message) external override onlyGateway;
-function onRevert(RevertContext calldata context) external override onlyGateway;
-
-// Asset management
-function addAsset(address zrc20, uint256 priceInUsd, uint256 collateralFactor) external onlyOwner;
-function updatePrice(address zrc20, uint256 newPriceInUsd) external onlyOwner;
-
-// View functions
-function getHealthFactor(address user) external view returns (uint256);
-function getTotalCollateralValue(address user) external view returns (uint256);
-function getTotalDebtValue(address user) external view returns (uint256);
-function getSupplyBalance(address user, address zrc20) external view returns (uint256);
-function getBorrowBalance(address user, address zrc20) external view returns (uint256);
-```
-
-### UniversalLendingProtocol Advanced Functions
-
-```solidity
-// Enhanced lending operations with dynamic features
-function supply(address zrc20, uint256 amount, address onBehalfOf) external;
-function borrow(address zrc20, uint256 amount, address to) external;
-function repay(address zrc20, uint256 amount, address onBehalfOf) external;
-function withdraw(address zrc20, uint256 amount, address to) external;
-function liquidate(address collateralAsset, address debtAsset, address user, uint256 debtToCover) external;
-
-// Advanced cross-chain operations
-function borrowCrossChain(address zrc20, uint256 amount, uint256 destinationChain, address recipient) external;
-function withdrawCrossChain(address zrc20, uint256 amount, uint256 destinationChain, address recipient) external;
-
-// Cross-chain deposit handler with enhanced validation
-function onCall(MessageContext calldata context, address zrc20, uint256 amount, bytes calldata message) external override onlyGateway;
-function onRevert(RevertContext calldata context) external override onlyGateway;
-
-// Advanced asset management
-function addAsset(address zrc20, uint256 collateralFactor, uint256 liquidationThreshold, uint256 liquidationBonus) external onlyOwner;
-function setPriceOracle(address newPriceOracle) external onlyOwner;
-
-// Cross-chain configuration
-function setAllowedSourceChain(uint256 chainId, bool allowed) external onlyOwner;
-function mapZRC20Asset(address zrc20, uint256 chainId, string calldata symbol) external onlyOwner;
-
-// Enhanced view functions
-function getUserAccountData(address user) external view returns (
-    uint256 totalCollateralInUsd,
-    uint256 totalDebtInUsd,
-    uint256 availableBorrowsInUsd,
-    uint256 currentLiquidationThreshold,
-    uint256 healthFactor
-);
-function getAssetData(address zrc20) external view returns (
-    uint256 totalSupply,
-    uint256 totalBorrows,
-    uint256 currentSupplyRate,
-    uint256 currentBorrowRate,
-    uint256 liquidityIndex,
-    uint256 borrowIndex
-);
-function isChainAllowed(uint256 chainId) external view returns (bool);
-function getZRC20ByChainAndSymbol(uint256 chainId, string calldata symbol) external view returns (address);
-```
-
-### DepositContract Key Functions
-
-```solidity
-// ETH deposits with proper handling
-function depositEth(address onBehalfOf) external payable;
-function repayEth(address onBehalfOf) external payable;
-
-// ERC20 token deposits with validation
-function depositToken(address asset, uint256 amount, address onBehalfOf) external;
-function repayToken(address asset, uint256 amount, address onBehalfOf) external;
-
-// Asset management with configuration
-function addSupportedAsset(address asset, uint8 decimals, bool isNative) external onlyOwner;
-function removeSupportedAsset(address asset) external onlyOwner;
-function updateLendingProtocolAddress(address newLendingProtocol) external onlyOwner;
-
-// View functions
-function isAssetSupported(address asset) external view returns (bool);
-function getSupportedAssets() external view returns (address[] memory);
-function getAssetConfig(address asset) external view returns (uint8 decimals, bool isNative, bool isSupported);
-function getLendingProtocolAddress() external view returns (address);
-```
-
-## Comprehensive Deployment Guide
-
-### Phase 1: Deploy Main Protocol on ZetaChain
-
-#### Option A: SimpleLendingProtocol (Basic Features)
-```bash
-# Deploy SimpleLendingProtocol with fixed interest rates
-npx hardhat run scripts/simple/deploy-and-init-simple.ts --network zeta-testnet
-
-# Alternative: Use complete redeployment script
-./scripts/redeploy-and-init-simple.sh
-```
-
-#### Option B: UniversalLendingProtocol (Advanced Features)
-```bash
-# Deploy UniversalLendingProtocol with dynamic rates and enhanced features
-npx hardhat run scripts/universal/deploy-universal-lending.ts --network zeta-testnet
-
-# Alternative: Use complete redeployment script
-./scripts/redeploy-and-init-universal.sh
-```
-
-### Phase 2: Deploy DepositContracts on External Chains
-
-```bash
-# Deploy DepositContract on Arbitrum Sepolia
-npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network arbitrum-sepolia
-
-# Deploy DepositContract on Ethereum Sepolia  
-npx hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network ethereum-sepolia
-
-# Add supported assets to DepositContracts
-npx hardhat run scripts/deposit-contract/add-assets.ts --network arbitrum-sepolia
-npx hardhat run scripts/deposit-contract/add-assets.ts --network ethereum-sepolia
-```
-
-### Phase 3: Configuration and Integration
-
-```bash
-# Update lending protocol addresses in DepositContracts
-npx hardhat run scripts/deposit-contract/update-lending-protocol-address.ts --network arbitrum-sepolia
-npx hardhat run scripts/deposit-contract/update-lending-protocol-address.ts --network ethereum-sepolia
-
-# Verify all asset configurations
-npx hardhat run scripts/simple/verify-assets.ts --network zeta-testnet
-npx hardhat run scripts/deposit-contract/verify-assets.ts --network arbitrum-sepolia
-
-# For UniversalLendingProtocol: Configure oracle prices
-npx hardhat run scripts/universal/check-oracle-prices.ts --network zeta-testnet
-```
-
-## Comprehensive Testing Strategy
-
-### 1. Cross-Chain Deposit Testing
-
-```bash
-# Test deposits from Arbitrum Sepolia to ZetaChain
-npx hardhat run scripts/deposit-contract/simulate-deposit.ts --network arbitrum-sepolia
-
-# Test deposits from Ethereum Sepolia to ZetaChain
-npx hardhat run scripts/deposit-contract/simulate-deposit.ts --network ethereum-sepolia
-
-# Verify balances after cross-chain deposits
-npx hardhat run scripts/simple/check-balances.ts --network zeta-testnet
-```
-
-### 2. Cross-Chain Borrowing and Withdrawal Testing
-
-```bash
-# Test cross-chain borrowing operations
-npx hardhat run scripts/simple/borrow-cross-chain.ts --network zeta-testnet
-
-# Test cross-chain withdrawals (UniversalLendingProtocol)
-npx hardhat run scripts/universal/withdraw-all-crosschain.ts --network zeta-testnet
-
-# Test local withdrawals
-npx hardhat run scripts/universal/withdraw-all-local.ts --network zeta-testnet
-```
-
-### 3. Complete End-to-End Testing Flow
-
-#### Scenario 1: Basic Cross-Chain Lending (SimpleLendingProtocol)
-```typescript
-// 1. User deposits USDC from Arbitrum Sepolia
-await depositContract.depositToken(usdcAddress, parseUnits("1000", 6), userAddress);
-// Result: User has 1000 USDC.ARBI collateral on ZetaChain
-
-// 2. User borrows ETH.ETH on ZetaChain
-await simpleLendingProtocol.borrow(ethEthZrc20Address, parseEther("0.5"), userAddress);
-// Result: User borrows 0.5 ETH.ETH against USDC.ARBI collateral
-
-// 3. User withdraws borrowed ETH to Ethereum Sepolia
-await simpleLendingProtocol.withdrawCrossChain(
-    ethEthZrc20Address, 
-    parseEther("0.5"), 
-    11155111, // Ethereum Sepolia
-    userAddress
-);
-// Result: User receives 0.5 ETH on Ethereum Sepolia
-```
-
-#### Scenario 2: Advanced Cross-Chain Lending (UniversalLendingProtocol)
-```typescript
-// 1. User deposits ETH from Ethereum Sepolia
-await depositContract.depositEth(userAddress, { value: parseEther("2") });
-// Result: User has 2 ETH.ETH collateral with dynamic interest rates
-
-// 2. Check user account data with enhanced features
-const accountData = await universalLendingProtocol.getUserAccountData(userAddress);
-console.log("Health Factor:", accountData.healthFactor);
-console.log("Available Borrows:", accountData.availableBorrowsInUsd);
-
-// 3. User borrows USDC with dynamic rates
-await universalLendingProtocol.borrow(usdcArbiZrc20Address, parseUnits("2000", 6), userAddress);
-// Result: Borrowed with dynamic interest rate based on utilization
-
-// 4. User withdraws borrowed USDC to Arbitrum Sepolia
-await universalLendingProtocol.withdrawCrossChain(
-    usdcArbiZrc20Address,
-    parseUnits("2000", 6),
-    421614, // Arbitrum Sepolia
-    userAddress
-);
-// Result: User receives 2000 USDC on Arbitrum Sepolia
-```
-
-## Configuration Files
-
-### contracts.json Structure
-
-```json
-{
-  "networks": {
-    "7001": {
-      "name": "ZetaChain Athens Testnet",
-      "contracts": {
-        "SimpleLendingProtocol": "0x...",
-        "UniversalLendingProtocol": "0x...",
-        "PriceOracle": "0x..."
-      },
-      "tokens": {
-        "ETH.ARBI": "0x13A0c5930C028511Dc02665E7285134B6d11A5f4",
-        "USDC.ARBI": "0x48f80608B672DC30DC7e3dbBd0343c5F02C738Eb", 
-        "ETH.ETH": "0xd97B1de3619ed2c6BEb3860147E30cA8A7dC9891",
-        "USDC.ETH": "0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a"
-      }
-    },
-    "421614": {
-      "name": "Arbitrum Sepolia",
-      "contracts": {
-        "DepositContract": "0x...",
-        "Gateway": "0x999999cf1046e68e36E1aA2E0E07105eDDD1f08E"
-      },
-      "tokens": {
-        "ETH": "0x0000000000000000000000000000000000000000",
-        "USDC": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
-      },
-      "lendingProtocolAddress": "0x..." // Main lending protocol on ZetaChain
-    },
-    "11155111": {
-      "name": "Ethereum Sepolia", 
-      "contracts": {
-        "DepositContract": "0x...",
-        "Gateway": "0x6c533f7fe93fae114d0954697069df33c9b74fd7"
-      },
-      "tokens": {
-        "ETH": "0x0000000000000000000000000000000000000000",
-        "USDC": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
-      },
-      "lendingProtocolAddress": "0x..." // Main lending protocol on ZetaChain
+contract LendingProtocolBase is UniversalContract {
+    
+    function onCall(
+        MessageContext calldata context,
+        address zrc20,
+        uint256 amount,
+        bytes calldata message
+    ) external override onlyGateway {
+        
+        // Validate source chain (UniversalLendingProtocol only)
+        if (isUniversalProtocol && !allowedSourceChains[context.chainID]) {
+            revert ChainNotAllowed(context.chainID);
+        }
+        
+        // Decode message based on length
+        if (message.length == 128) {
+            _handleStandardOperation(zrc20, amount, message);
+        } else if (message.length == 224) {
+            _handleAdvancedOperation(zrc20, amount, message);
+        } else {
+            revert("Invalid message format");
+        }
     }
-  }
+    
+    function onRevert(
+        RevertContext calldata revertContext
+    ) external override onlyGateway {
+        // Handle failed cross-chain transactions
+        emit Withdraw(address(0), revertContext.asset, revertContext.amount);
+    }
 }
 ```
 
-## Key Features and Capabilities
+### 2. Gas Fee Handling Strategy
 
-### 🔒 Enhanced Security Features
-- **Multi-Layer Chain Validation**: Only pre-configured source chains can deposit (Arbitrum Sepolia, Ethereum Sepolia)
-- **Comprehensive Asset Validation**: Only whitelisted ZRC-20 tokens accepted with proper mapping validation
-- **Dynamic Health Factor Monitoring**: Prevents risky withdrawals with configurable thresholds
-- **Gateway Authentication**: Strict authentication for cross-chain message handling
-- **Oracle Price Security**: Price staleness checks and validation (UniversalLendingProtocol)
-- **Liquidation Protection**: Automated liquidation system to maintain protocol solvency
+The protocol implements sophisticated gas fee management for cross-chain operations:
 
-### 🌐 Advanced Cross-Chain Capabilities
-- **Multi-Chain Deposits**: Seamless deposits from Arbitrum Sepolia and Ethereum Sepolia
-- **Universal Withdrawals**: Flexible withdrawals to any supported destination chain
-- **ZRC-20 Integration**: Native ZetaChain token representation for cross-chain assets
-- **Intelligent Message Encoding**: Proper cross-chain communication with operation routing
-- **Gas Fee Management**: Automatic gas fee handling for cross-chain transactions
-- **Cross-Chain Borrowing**: Borrow assets on ZetaChain and receive them on external chains
+```solidity
+function _handleCrossChainGas(address asset, uint256 amount) internal {
+    (address gasZRC20, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
+    
+    if (asset == gasZRC20) {
+        // Same token: deduct gas from withdrawal amount
+        uint256 withdrawalAmount = amount - gasFee;
+        IERC20(asset).approve(address(gateway), amount); // Full amount for gas
+        gateway.withdraw(recipient, withdrawalAmount, asset, revertOptions);
+    } else {
+        // Different token: collect gas fee separately
+        IERC20(gasZRC20).transferFrom(user, address(this), gasFee);
+        IERC20(gasZRC20).approve(address(gateway), gasFee);
+        IERC20(asset).approve(address(gateway), amount);
+        gateway.withdraw(recipient, amount, asset, revertOptions);
+    }
+}
+```
 
-### 💰 Comprehensive Lending Features
+## ZRC-20 Asset Management
 
-#### SimpleLendingProtocol (Basic)
-- **Fixed Interest Rates**: Predictable returns with manually set rates
-- **Basic Health Factor**: Simple collateral ratio calculations
-- **Cross-Chain Support**: Full cross-chain deposit and withdrawal functionality
-- **Manual Price Management**: Administrator-controlled asset pricing
+### 1. Asset Mapping Configuration
 
-#### UniversalLendingProtocol (Advanced)
-- **Dynamic Interest Rates**: Aave-inspired utilization-based rate models
-- **Enhanced Health Factors**: Sophisticated collateral factor and liquidation threshold calculations
-- **External Price Oracle**: Real-time asset pricing with staleness protection
-- **Reserve System**: Protocol revenue capture from interest spreads
-- **Advanced Liquidation**: Configurable liquidation bonuses and thresholds
-- **Detailed User Analytics**: Comprehensive account data with borrowing capacity calculations
+```typescript
+// ZRC-20 to source chain mapping (Deployed on ZetaChain Athens 7001)
+const zrc20Mapping = {
+    // Ethereum assets
+    "0x05BA149A7bd6dC1F937fA9046A9e05C05f3b18b0": {
+        symbol: "ETH.ETH",
+        sourceChain: 11155111, // Ethereum Sepolia
+        decimals: 18
+    },
+    "0xcC683A782f4B30c138787CB5576a86AF66fdc31d": {
+        symbol: "USDC.ETH",
+        sourceChain: 11155111, // Ethereum Sepolia
+        decimals: 6
+    },
+    // Arbitrum assets
+    "0x1de70f3e971B62A0707dA18100392af14f7fB677": {
+        symbol: "ETH.ARBI",
+        sourceChain: 421614, // Arbitrum Sepolia
+        decimals: 18
+    },
+    "0x4bC32034caCcc9B7e02536945eDbC286bACbA073": {
+        symbol: "USDC.ARBI", 
+        sourceChain: 421614, // Arbitrum Sepolia
+        decimals: 6
+    },
+    // BSC assets
+    "0x...": {
+        symbol: "BNB.BSC",
+        sourceChain: 56, // BSC mainnet
+        decimals: 18
+    },
+    "0x...": {
+        symbol: "USDC.BSC",
+        sourceChain: 56, // BSC mainnet
+        decimals: 18
+    },
+    // Polygon assets
+    "0x...": {
+        symbol: "MATIC.POLYGON",
+        sourceChain: 137, // Polygon mainnet
+        decimals: 18
+    },
+    "0x...": {
+        symbol: "USDC.POLYGON",
+        sourceChain: 137, // Polygon mainnet
+        decimals: 6
+    },
+    // Base assets
+    "0x...": {
+        symbol: "ETH.BASE",
+        sourceChain: 8453, // Base mainnet
+        decimals: 18
+    },
+    "0x...": {
+        symbol: "USDC.BASE",
+        sourceChain: 8453, // Base mainnet
+        decimals: 6
+    },
+    // Solana assets (represented as ZRC-20 on ZetaChain)
+    "0x...": {
+        symbol: "SOL.SOLANA",
+        sourceChain: "solana-mainnet",
+        decimals: 9
+    },
+    "0x...": {
+        symbol: "USDC.SOLANA",
+        sourceChain: "solana-mainnet",
+        decimals: 6
+    }
+};
+```
 
-### 📊 Asset Support Matrix
-- **ETH.ARBI**: Arbitrum ETH deposits → ZRC-20 representation
-- **USDC.ARBI**: Arbitrum USDC deposits → ZRC-20 representation  
-- **ETH.ETH**: Ethereum ETH deposits → ZRC-20 representation
-- **USDC.ETH**: Ethereum USDC deposits → ZRC-20 representation
-- **Cross-Chain Flexibility**: Any supported asset can be withdrawn to any supported chain
+### 2. Asset Configuration Management
 
-## Network Infrastructure
+```solidity
+// UniversalLendingProtocol asset configuration
+struct AssetConfig {
+    bool isSupported;
+    uint256 collateralFactor;      // 80% for ETH, 90% for USDC
+    uint256 liquidationThreshold;  // 85% for ETH, 95% for USDC  
+    uint256 liquidationBonus;      // 5% liquidator incentive
+    uint256 borrowRate;            // Current borrow APR
+    uint256 supplyRate;            // Current supply APR
+    uint256 totalSupply;           // Total supplied amount
+    uint256 totalBorrow;           // Total borrowed amount
+}
 
-### ZetaChain Athens Testnet (7001)
-- **SimpleLendingProtocol**: Deployed via scripts (address in contracts.json)
-- **UniversalLendingProtocol**: Deployed via scripts (address in contracts.json)
-- **PriceOracle**: External oracle integration for UniversalLendingProtocol
-- **ZRC-20 Assets**:
-  - ETH.ARBI: `0x13A0c5930C028511Dc02665E7285134B6d11A5f4`
-  - USDC.ARBI: `0x48f80608B672DC30DC7e3dbBd0343c5F02C738Eb`
-  - ETH.ETH: `0xd97B1de3619ed2c6BEb3860147E30cA8A7dC9891`
-  - USDC.ETH: `0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a`
+function addAsset(
+    address asset,
+    uint256 collateralFactor,
+    uint256 liquidationThreshold,
+    uint256 liquidationBonus
+) external onlyOwner {
+    enhancedAssets[asset] = AssetConfig({
+        isSupported: true,
+        collateralFactor: collateralFactor,
+        liquidationThreshold: liquidationThreshold,
+        liquidationBonus: liquidationBonus,
+        borrowRate: 0,
+        supplyRate: 0,
+        totalSupply: 0,
+        totalBorrow: 0
+    });
+}
+```
 
-### Arbitrum Sepolia (421614)
-- **DepositContract**: Deployed via scripts (address in contracts.json)
-- **ZetaChain Gateway**: `0x999999cf1046e68e36E1aA2E0E07105eDDD1f08E`
-- **Native Assets**:
-  - ETH: `0x0000000000000000000000000000000000000000` (Native ETH)
-  - USDC: `0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`
+## Security Validation Layers
 
-### Ethereum Sepolia (11155111)
-- **DepositContract**: Deployed via scripts (address in contracts.json)
-- **ZetaChain Gateway**: `0x6c533f7fe93fae114d0954697069df33c9b74fd7`
-- **Native Assets**:
-  - ETH: `0x0000000000000000000000000000000000000000` (Native ETH)
-  - USDC: `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`
+### 1. Multi-Layer Chain Validation
 
-## Important Deployment Considerations
+```solidity
+// UniversalLendingProtocol source chain validation
+mapping(uint256 => bool) public allowedSourceChains;
 
-### 🔧 Technical Requirements
-1. **contracts.json Management**: All deployed contract addresses are automatically tracked
-2. **ZRC-20 Token Configuration**: Ensure correct ZRC-20 token addresses for cross-chain mapping
-3. **Gateway Integration**: Proper ZetaChain Gateway addresses for each supported network
-4. **Gas Fee Provisioning**: Adequate gas tokens for cross-chain transaction execution
-5. **Oracle Configuration**: External price oracle setup for UniversalLendingProtocol
+function setAllowedSourceChain(uint256 chainId, bool allowed) external onlyOwner {
+    allowedSourceChains[chainId] = allowed;
+    emit AllowedChainUpdated(chainId, allowed);
+}
 
-### ⚠️ Security Considerations
-1. **Health Factor Monitoring**: Implement monitoring systems to track user health factors
-2. **Liquidation Monitoring**: Set up alerts for liquidation opportunities and protocol health
-3. **Price Feed Validation**: Monitor oracle price feeds for anomalies and staleness
-4. **Cross-Chain Message Validation**: Ensure proper validation of all cross-chain operations
-5. **Testing Coverage**: Comprehensive testing on testnets before mainnet deployment
+// Currently allowed chains:
+// 1 (Ethereum)
+// 42161 (Arbitrum)
+// 56 (BSC)
+// 137 (Polygon)
+// 8453 (Base)
+// solana-mainnet (Solana)
+```
 
-### 📈 Operational Guidelines
-1. **Interest Rate Monitoring**: Track utilization rates and adjust parameters as needed (UniversalLendingProtocol)
-2. **Liquidity Management**: Monitor asset liquidity across all supported chains
-3. **Cross-Chain Transaction Tracking**: Implement monitoring for cross-chain transaction success rates
-4. **User Experience Optimization**: Monitor transaction costs and execution times
-5. **Protocol Analytics**: Track total value locked, borrowing volumes, and user activity
+### 2. Asset Validation Framework
 
-## Development Roadmap
+```solidity
+// DepositContract asset validation
+struct SupportedAsset {
+    bool isSupported;
+    uint8 decimals;
+    bool isNative;  // true for ETH, false for ERC20
+}
 
-### Phase 1: Core Infrastructure ✅
-- [x] SimpleLendingProtocol with basic cross-chain functionality
-- [x] UniversalLendingProtocol with advanced features
-- [x] DepositContract deployment on external chains
-- [x] Comprehensive testing suite and scripts
+mapping(address => SupportedAsset) public supportedAssets;
 
-### Phase 2: Enhanced Features 🚧
-- [ ] Frontend interface for user interactions
-- [ ] Advanced liquidation mechanisms and bots
-- [ ] Additional asset support (BTC, more stablecoins)
-- [ ] Enhanced oracle price feed integration
+function addSupportedAsset(
+    address asset,
+    uint8 decimals,
+    bool isNative
+) external onlyOwner {
+    supportedAssets[asset] = SupportedAsset({
+        isSupported: true,
+        decimals: decimals,
+        isNative: isNative
+    });
+}
+```
 
-### Phase 3: Production Features 📋
-- [ ] Mainnet deployment and security audits
-- [ ] Cross-chain governance mechanisms
-- [ ] Protocol analytics and monitoring dashboard
-- [ ] Advanced risk management and insurance features
+### 3. Health Factor Protection
 
-## References
+```solidity
+// Enhanced health factor validation across protocols
+function _validateHealthFactor(address user, address asset, uint256 newDebt) internal view {
+    uint256 healthFactor = _calculateHealthFactorInternal(
+        user, asset, userSupplies[user][asset], newDebt, true
+    );
+    require(healthFactor >= MINIMUM_HEALTH_FACTOR, "Insufficient collateral");
+}
 
-- [ZetaChain Universal Apps](https://www.zetachain.com/docs/developers/tutorials/swap/)
-- [ZetaChain Cross-Chain Calls](https://www.zetachain.com/docs/developers/tutorials/call/)
-- [ZetaChain Gateway Integration](https://www.zetachain.com/docs/developers/)
+// Multiple validation points:
+// 1. Before borrowing operations
+// 2. Before withdrawal operations  
+// 3. During liquidation checks
+// 4. In cross-chain operations
+```
+
+## Advanced Cross-Chain Features
+
+### 1. Cross-Chain Source Validation (Universal Protocol)
+
+```solidity
+function onCall(
+    MessageContext calldata context,
+    address zrc20,
+    uint256 amount,
+    bytes calldata message
+) external override onlyGateway {
+    
+    // Universal protocol validates source chains
+    if (!allowedSourceChains[context.chainID]) {
+        revert ChainNotAllowed(context.chainID);
+    }
+    
+    // Process validated cross-chain operation
+    _processValidatedOperation(context, zrc20, amount, message);
+}
+```
+
+### 2. Dynamic Interest Rate Integration
+
+```solidity
+// UniversalLendingProtocol interest rate updates
+function _supply(address asset, uint256 amount, address onBehalfOf) internal override {
+    _updateInterest(asset);  // Apply accrued interest
+    super._supply(asset, amount, onBehalfOf);
+    enhancedAssets[asset].totalSupply += amount;
+    _updateInterestRates(asset);  // Recalculate rates
+}
+
+function _updateInterest(address asset) internal {
+    AssetConfig storage config = enhancedAssets[asset];
+    uint256 timeElapsed = block.timestamp - lastGlobalInterestUpdate[asset];
+    
+    if (timeElapsed > 0 && config.totalBorrow > 0) {
+        uint256 interestAccrued = (config.totalBorrow * config.borrowRate * timeElapsed) 
+                                 / (365 days * PRECISION);
+        config.totalBorrow += interestAccrued;
+        
+        // 10% to protocol reserves
+        totalReserves[asset] += (interestAccrued * RESERVE_FACTOR) / PRECISION;
+    }
+    
+    lastGlobalInterestUpdate[asset] = block.timestamp;
+}
+```
+
+## Deployment and Configuration Guide
+
+### 1. Network-Specific Deployment
+
+```bash
+# ZetaChain (7000) - Main Protocol
+export ZETA_MAINNET_RPC="https://zetachain-evm.blockpi.network/v1/rpc/public"
+export ZETA_MAINNET_CHAIN_ID=7000
+
+# Ethereum (1) - Deposit Contract
+export ETHEREUM_RPC="https://mainnet.infura.io/v3/YOUR_PROJECT_ID"
+export ETHEREUM_CHAIN_ID=1
+
+# Arbitrum (42161) - Deposit Contract
+export ARBITRUM_RPC="https://arb1.arbitrum.io/rpc"
+export ARBITRUM_CHAIN_ID=42161
+
+# BSC (56) - Deposit Contract
+export BSC_RPC="https://bsc-dataseed1.binance.org/"
+export BSC_CHAIN_ID=56
+
+# Polygon (137) - Deposit Contract
+export POLYGON_RPC="https://polygon-rpc.com/"
+export POLYGON_CHAIN_ID=137
+
+# Base (8453) - Deposit Contract
+export BASE_RPC="https://mainnet.base.org"
+export BASE_CHAIN_ID=8453
+
+# Solana - Deposit Contract
+export SOLANA_RPC="https://api.mainnet-beta.solana.com"
+```
+
+### 2. Sequential Deployment Process
+
+```bash
+# 1. Deploy main protocol on ZetaChain
+bun hardhat run scripts/universal/deploy-universal-lending.ts --network zeta-mainnet
+
+# 2. Deploy deposit contracts on all external chains
+bun hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network ethereum
+bun hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network arbitrum
+bun hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network bsc
+bun hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network polygon
+bun hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network base
+bun hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network solana
+
+# 3. Configure cross-chain mappings
+bun hardhat run scripts/universal/configure-cross-chain.ts --network zeta-mainnet
+
+# 4. Test end-to-end flows
+bun hardhat run scripts/deposit-contract/simulate-deposit.ts --network arbitrum
+bun hardhat run scripts/universal/test-cross-chain-borrow.ts --network zeta-mainnet
+```
+
+### 3. Configuration Verification
+
+```typescript
+// Verify cross-chain configuration
+const verifyConfiguration = async () => {
+    // Check ZRC-20 mapping across multiple chains
+    const ethArbiAddress = await universalProtocol.getZRC20ByChainAndSymbol(42161, "ETH");
+    const bnbBscAddress = await universalProtocol.getZRC20ByChainAndSymbol(56, "BNB");
+    const maticPolygonAddress = await universalProtocol.getZRC20ByChainAndSymbol(137, "MATIC");
+    console.log("ETH.ARBI ZRC-20:", ethArbiAddress);
+    console.log("BNB.BSC ZRC-20:", bnbBscAddress);
+    console.log("MATIC.POLYGON ZRC-20:", maticPolygonAddress);
+    
+    // Check allowed source chains
+    const isEthereumAllowed = await universalProtocol.isChainAllowed(1);
+    const isArbitrumAllowed = await universalProtocol.isChainAllowed(42161);
+    const isBscAllowed = await universalProtocol.isChainAllowed(56);
+    const isPolygonAllowed = await universalProtocol.isChainAllowed(137);
+    const isBaseAllowed = await universalProtocol.isChainAllowed(8453);
+    console.log("Ethereum allowed:", isEthereumAllowed);
+    console.log("Arbitrum allowed:", isArbitrumAllowed);
+    console.log("BSC allowed:", isBscAllowed);
+    console.log("Polygon allowed:", isPolygonAllowed);
+    console.log("Base allowed:", isBaseAllowed);
+    
+    // Check asset configurations
+    const ethConfig = await universalProtocol.getEnhancedAssetConfig(ethArbiAddress);
+    console.log("ETH collateral factor:", ethConfig.collateralFactor);
+    console.log("ETH liquidation threshold:", ethConfig.liquidationThreshold);
+};
+```
+
+## Testing and Validation Framework
+
+### 1. Cross-Chain Integration Tests
+
+```typescript
+describe("Cross-Chain Integration", () => {
+    it("should handle deposits from multiple chains to ZetaChain", async () => {
+        // Test 1: Deposit from Arbitrum
+        const arbDepositAmount = parseUnits("1000", 6);
+        await depositContract.depositToken(usdcArbiAddress, arbDepositAmount, userAddress);
+        const arbSupply = await lendingProtocol.getSupplyBalance(userAddress, usdcArbiZrc20);
+        expect(arbSupply).to.equal(arbDepositAmount);
+        
+        // Test 2: Deposit from BSC
+        const bscDepositAmount = parseEther("1"); // 1 BNB
+        await bscDepositContract.depositToken(bnbAddress, bscDepositAmount, userAddress);
+        const bscSupply = await lendingProtocol.getSupplyBalance(userAddress, bnbBscZrc20);
+        expect(bscSupply).to.equal(bscDepositAmount);
+        
+        // Test 3: Deposit from Polygon
+        const polygonDepositAmount = parseEther("1000"); // 1000 MATIC
+        await polygonDepositContract.depositToken(maticAddress, polygonDepositAmount, userAddress);
+        const polygonSupply = await lendingProtocol.getSupplyBalance(userAddress, maticPolygonZrc20);
+        expect(polygonSupply).to.equal(polygonDepositAmount);
+    });
+    
+    it("should handle cross-chain borrowing to external chain", async () => {
+        // Setup: User has collateral on ZetaChain
+        await setupUserCollateral(userAddress, parseEther("2")); // 2 ETH collateral
+        
+        // Execute: Borrow USDC and withdraw to Arbitrum
+        const borrowAmount = parseUnits("1000", 6);
+        await lendingProtocol.borrowCrossChain(
+            usdcArbiZrc20, borrowAmount, 421614, userAddress
+        );
+        
+        // Verify: User received USDC on Arbitrum Sepolia
+        const arbitrumBalance = await getArbitrumUsdcBalance(userAddress);
+        expect(arbitrumBalance).to.equal(borrowAmount);
+    });
+});
+```
+
+### 2. Message Encoding Validation
+
+```typescript
+// Test message encoding for cross-chain operations
+const testMessageEncoding = () => {
+    // Standard 128-byte message for supply
+    const supplyMessage = ethers.utils.defaultAbiCoder.encode(
+        ["string", "address"],
+        ["supply", userAddress]
+    );
+    console.log("Supply message length:", supplyMessage.length);
+    
+    // Advanced 224-byte message for cross-chain borrow
+    const borrowMessage = ethers.utils.defaultAbiCoder.encode(
+        ["string", "address", "uint256", "uint256", "address"],
+        ["borrowCrossChain", userAddress, borrowAmount, 421614, recipientAddress]
+    );
+    console.log("Borrow message length:", borrowMessage.length);
+};
+```
+
+## Performance Optimization
+
+### 1. Gas-Optimized Calculations
+
+The protocol uses custom libraries to minimize gas costs for cross-chain operations:
+
+```solidity
+// UserAssetCalculations library consolidates multiple calculations
+UserAssetData memory assetData = UserAssetCalculations.calculateUserAssetData(
+    user, modifiedAsset, newSupply, newDebt, useModified,
+    supportedAssets, userSupplies, userBorrows, enhancedAssets, priceOracle
+);
+
+// Single calculation replaces multiple individual calls:
+// - getTotalCollateralValue()
+// - getTotalDebtValue() 
+// - maxAvailableBorrows()
+// - getUserAccountData()
+// - getHealthFactor()
+```
+
+### 2. Efficient Cross-Chain State Management
+
+```solidity
+// Batch state updates for cross-chain operations
+function _borrowCrossChainFromCall(
+    address asset,
+    uint256 amount,
+    address user,
+    uint256 destinationChain,
+    bytes memory recipient
+) internal {
+    // Single state update for all related changes
+    userBorrows[user][asset] += amount;
+    enhancedAssets[asset].totalBorrow += amount;
+    lastInterestUpdate[user][asset] = block.timestamp;
+    
+    // Single gateway call for cross-chain transfer
+    gateway.withdraw(recipient, withdrawalAmount, asset, revertOptions);
+}
+```
+
+## Monitoring and Analytics
+
+### 1. Cross-Chain Event Tracking
+
+```solidity
+// Comprehensive event emission for monitoring
+event CrossChainDeposit(
+    address indexed user,
+    address indexed asset,
+    uint256 amount,
+    uint256 indexed sourceChain,
+    bytes32 transactionHash
+);
+
+event CrossChainBorrow(
+    address indexed user,
+    address indexed asset,
+    uint256 amount,
+    uint256 indexed destinationChain,
+    address recipient
+);
+
+event CrossChainWithdraw(
+    address indexed user,
+    address indexed asset,
+    uint256 amount,
+    uint256 indexed destinationChain,
+    address recipient
+);
+```
+
+### 2. Health Factor Monitoring
+
+```typescript
+// Monitor user health factors across all positions
+const monitorHealthFactors = async () => {
+    const allUsers = await getAllUsers();
+    
+    for (const user of allUsers) {
+        const healthFactor = await lendingProtocol.getHealthFactor(user);
+        
+        if (healthFactor < parseEther("1.3")) { // < 130%
+            console.warn(`User ${user} at risk - Health Factor: ${healthFactor}`);
+            
+            // Trigger liquidation alerts
+            if (healthFactor < parseEther("1.2")) { // < 120%
+                await triggerLiquidationAlert(user, healthFactor);
+            }
+        }
+    }
+};
+```
+
+## Future Enhancements
+
+### 1. Additional Chain Support
+
+```solidity
+// Framework for adding new chains
+struct ChainConfig {
+    bool isSupported;
+    address gatewayAddress;
+    uint256 minGasForExecution;
+    mapping(string => address) nativeAssets;
+}
+
+mapping(uint256 => ChainConfig) public chainConfigs;
+
+function addSupportedChain(
+    uint256 chainId,
+    address gateway,
+    uint256 minGas
+) external onlyOwner {
+    chainConfigs[chainId] = ChainConfig({
+        isSupported: true,
+        gatewayAddress: gateway,
+        minGasForExecution: minGas
+    });
+}
+```
+
+### 2. Advanced Cross-Chain Features
+
+```solidity
+// Multi-hop cross-chain operations
+function borrowAndBridgeToMultipleChains(
+    address asset,
+    uint256 totalAmount,
+    uint256[] calldata destinationChains,
+    uint256[] calldata amounts,
+    address[] calldata recipients
+) external {
+    require(destinationChains.length == amounts.length, "Length mismatch");
+    require(destinationChains.length == recipients.length, "Length mismatch");
+    
+    // Single borrow operation
+    _borrow(asset, totalAmount, address(this));
+    
+    // Distribute to multiple chains
+    for (uint256 i = 0; i < destinationChains.length; i++) {
+        _withdrawCrossChain(asset, amounts[i], destinationChains[i], recipients[i]);
+    }
+}
+```
 
 ---
 
-This cross-chain lending protocol demonstrates ZetaChain's capabilities for building truly universal, multi-chain applications while maintaining security and proper validation of cross-chain operations.
+This comprehensive cross-chain architecture enables truly universal lending operations while maintaining security, efficiency, and user experience across multiple blockchain networks.
