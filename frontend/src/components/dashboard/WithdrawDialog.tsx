@@ -18,6 +18,7 @@ import { ERC20__factory, UniversalLendingProtocol__factory } from '@/contracts/t
 import { utils } from 'ethers';
 import { isAddress } from 'viem';
 import { isValidSolanaAddress } from '../../lib/solana-utils';
+import { FaClipboard } from 'react-icons/fa';
 
 
 interface WithdrawDialogProps {
@@ -152,6 +153,18 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     // Handle recipient address change
     const handleRecipientAddressChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         setRecipientAddress(e.target.value);
+    }, []);
+
+    // Handle paste from clipboard
+    const handlePasteFromClipboard = useCallback(async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text.trim()) {
+                setRecipientAddress(text.trim());
+            }
+        } catch (error) {
+            console.error('Failed to read from clipboard:', error);
+        }
     }, []);
 
     // Handle withdrawal function
@@ -321,16 +334,15 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                                         : "Enter EVM address (0x...)"}
                                     className={`${address && !isDestinationSolana ? 'pr-24' : 'pr-4'} ${!isValidRecipient && recipientAddress.trim() ? 'border-destructive focus:border-destructive' : ''}`}
                                 />
-                                {address && !isDestinationSolana && (
-                                    <Button
-                                        variant="zeta-outline"
-                                        size="sm"
-                                        className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 text-xs px-2 whitespace-nowrap"
-                                        onClick={() => setRecipientAddress(address)}
-                                    >
-                                        MY WALLET
-                                    </Button>
-                                )}
+                                <Button
+                                    variant="zeta-outline"
+                                    size="sm"
+                                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
+                                    onClick={handlePasteFromClipboard}
+                                    title="Paste from clipboard"
+                                >
+                                    <FaClipboard className="h-3 w-3" />
+                                </Button>
                             </div>
 
                             {/* Validation Status */}

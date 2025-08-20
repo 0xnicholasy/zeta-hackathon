@@ -57,7 +57,13 @@ export const getChainDisplayName = (sourceChain: string): string => {
 export const getChainDisplayNameFromId = (chainId: number): string => {
     try {
         const network = getNetworkConfig(chainId);
-        return network.name;
+        if (network) {
+            return network.name;
+        }
+        else if (chainId === SupportedChain.SOLANA_DEVNET) {
+            return 'Solana Devnet';
+        }
+        // Fall through to fallback logic if network is null (e.g., for Solana)
     } catch {
         // Fallback for unsupported chains
         switch (chainId) {
@@ -79,6 +85,7 @@ export const getChainDisplayNameFromId = (chainId: number): string => {
                 return 'Unknown Chain';
         }
     }
+    return "Generic Chain";
 };
 
 // Helper function to get gas token symbol based on destination chain
@@ -120,6 +127,9 @@ export const getGasTokenDecimals = (sourceChain: string): number => {
         case 'zetachain':
         case 'zeta testnet':
             return 18; // ZETA has 18 decimals
+        case 'solana':
+        case 'solana devnet':
+            return 9; // SOL has 9 decimals
         default:
             return 18; // Default to 18 decimals
     }
@@ -233,6 +243,9 @@ export const getTokenInfo = (tokenSymbol: string, chainId: number): TokenInfo | 
 
     // Get decimals based on token type
     let decimals = 18; // Default for most tokens
+    if (chainId === SupportedChain.SOLANA_DEVNET) {
+        decimals = 9; // SOL has 9 decimals
+    }
     if (tokenSymbol === 'USDC') {
         decimals = 6;
     }

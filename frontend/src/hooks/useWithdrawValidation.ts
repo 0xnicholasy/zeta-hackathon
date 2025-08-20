@@ -123,16 +123,16 @@ export function useWithdrawValidation({
     });
 
     // Get withdrawal token allowance - protocol needs this for transferFrom
-    const { data: withdrawalTokenAllowance, error: withdrawalTokenAllowanceError } = useReadContract({
-        address: selectedAsset?.address ?? ZERO_ADDRESS,
-        abi: ERC20__factory.abi,
-        functionName: 'allowance',
-        args: [userAddress, universalLendingProtocol],
-        query: {
-            enabled: Boolean(selectedAsset && !isZeroAddress(selectedAsset.address)),
-            refetchInterval: 10000,
-        },
-    });
+    // const { data: withdrawalTokenAllowance, error: withdrawalTokenAllowanceError } = useReadContract({
+    //     address: selectedAsset?.address ?? ZERO_ADDRESS,
+    //     abi: ERC20__factory.abi,
+    //     functionName: 'allowance',
+    //     args: [userAddress, universalLendingProtocol],
+    //     query: {
+    //         enabled: Boolean(selectedAsset && !isZeroAddress(selectedAsset.address)),
+    //         refetchInterval: 10000,
+    //     },
+    // });
 
     // Get gas token allowance only if gas token is different from asset
     const { data: gasTokenAllowance, error: gasTokenAllowanceError } = useReadContract({
@@ -157,7 +157,7 @@ export function useWithdrawValidation({
         }
 
         // Check for data loading errors
-        if (canWithdrawError || gasFeeError || gasTokenBalanceError || gasTokenAllowanceError || withdrawalTokenAllowanceError) {
+        if (canWithdrawError || gasFeeError || gasTokenBalanceError || gasTokenAllowanceError) {
             setValidationResult({
                 ...DEFAULT_VALIDATION_FAILED_RESULT,
                 error: 'Error loading data',
@@ -257,7 +257,7 @@ export function useWithdrawValidation({
             formattedReceiveAmount,
         });
 
-    }, [selectedAsset, amount, canWithdraw, gasFeeData, gasTokenAddress, gasFeeAmount, gasTokenBalance, gasTokenAllowance, withdrawalTokenAllowance, gasTokenSymbol, gasTokenDecimals, isGasToken, receiveAmount, formattedReceiveAmount, maxAmount, amountBigInt, canWithdrawError, gasFeeError, gasTokenBalanceError, gasTokenAllowanceError, withdrawalTokenAllowanceError]);
+    }, [selectedAsset, amount, canWithdraw, gasFeeData, gasTokenAddress, gasFeeAmount, gasTokenBalance, gasTokenAllowance, gasTokenSymbol, gasTokenDecimals, isGasToken, receiveAmount, formattedReceiveAmount, maxAmount, amountBigInt, canWithdrawError, gasFeeError, gasTokenBalanceError, gasTokenAllowanceError]);
 
     // Run validation when dependencies change
     useEffect(() => {

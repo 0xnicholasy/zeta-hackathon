@@ -36,7 +36,12 @@ export function getAvailableNetworks(): NetworkConfig[] {
 /**
  * Get network configuration by chain ID
  */
-export function getNetworkConfig(chainId: number): NetworkConfig {
+export function getNetworkConfig(chainId: number): NetworkConfig | null {
+  // Handle special case for Solana - it's not an EVM network but used as destination chain
+  if (chainId === SupportedChain.SOLANA_DEVNET) {
+    return null; // Solana doesn't have network config as it's not an EVM chain
+  }
+
   const chainIdStr = chainId.toString();
   const network = deployments.networks[chainIdStr];
 
