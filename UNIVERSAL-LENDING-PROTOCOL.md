@@ -67,8 +67,10 @@ The Universal Lending Protocol implements a sophisticated health factor system w
 
 3. **Health Factor Thresholds**:
    - **Minimum Health Factor**: 1.5e18 (150%) - Required for borrowing/withdrawing
-   - **Liquidation Threshold**: 1.2e18 (120%) - Below this, position can be liquidated
-   - **Base Protocol Threshold**: 1.1e18 (110%) - Used in SimpleLendingProtocol
+   - **Universal Protocol Liquidation**: 1.2e18 (120%) - Below this, position can be liquidated
+   - **Simple Protocol Liquidation**: 1.1e18 (110%) - Lower threshold for basic protocol
+   
+   **Note**: SimpleLendingProtocolBase defines LIQUIDATION_THRESHOLD = 1.1e18, but liquidation functions check against 1.2e18 for safety.
 
 4. **Consolidated Calculations**: The `UserAssetCalculations` library eliminates repetitive calculations by computing all user asset data in a single loop:
    ```solidity
@@ -236,12 +238,12 @@ All operations include proper revert handling and user-friendly error messages f
 ```solidity
 function _getValidatedPrice(address asset) internal view returns (uint256) {
     uint256 price = priceOracle.getPrice(asset);
-    require(price >= MIN_VALID_PRICE, "Invalid price: too low");  // Prevents flash loan attacks
-    require(price > 0, "Invalid price: zero");  // Basic sanity check
-    // Additional staleness and bounds checking in UserAssetCalculations library
+    require(price >= MIN_VALID_PRICE, "Invalid price: too low");  // Prevents manipulation
     return price;
 }
 ```
+
+**Current Implementation**: Only validates minimum price threshold. Staleness checks and additional bounds validation are planned for future versions but not yet implemented.
 
 ### 2. Comprehensive Access Control
 - **Owner-only functions**: Asset management, oracle updates, protocol configuration

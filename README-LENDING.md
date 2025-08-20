@@ -14,9 +14,9 @@ A streamlined cross-chain lending protocol built on ZetaChain that serves as the
 ## 📋 Protocol Parameters
 
 - **Collateral Ratio**: 150% (1.5x overcollateralization required)
-- **Liquidation Threshold**: 120% (positions below this can be liquidated)
+- **Liquidation Threshold**: 110% base protocol (positions below this can be liquidated)
 - **Liquidation Bonus**: 5% (liquidators receive 5% bonus)
-- **Supported Assets**: ETH, BNB, MATIC, SOL, USDC, USDT across all supported chains
+- **Supported Assets**: ETH, BNB, MATIC, SOL, USDC across all supported chains
 
 ## 🛠️ Quick Start
 
@@ -68,11 +68,12 @@ function withdraw(address asset, uint256 amount) external
 #### Liquidation
 ```solidity
 // Liquidate undercollateralized position
+// Note: Correct parameter order from ISimpleLendingProtocol interface
 function liquidate(
-    address user,
-    address collateralAsset,
-    address debtAsset,
-    uint256 repayAmount
+    address user,           // User being liquidated (1st parameter)
+    address collateralAsset, // Collateral to seize (2nd parameter) 
+    address debtAsset,       // Debt being repaid (3rd parameter)
+    uint256 repayAmount      // Amount to repay (4th parameter)
 ) external
 ```
 
@@ -246,14 +247,16 @@ The SimpleLendingProtocol leverages ZetaChain's Universal EVM capabilities:
 - **Gateway Integration**: Seamless cross-chain message passing
 - **Revert Handling**: Robust error handling for failed cross-chain transactions
 
-### Supported Blockchain Networks
-- **Ethereum** (Chain ID: 1) - ETH, USDC, USDT
-- **Arbitrum** (Chain ID: 42161) - ETH, USDC, USDT
-- **BSC** (Chain ID: 56) - BNB, USDC, USDT
-- **Polygon** (Chain ID: 137) - MATIC, USDC, USDT
-- **Base** (Chain ID: 8453) - ETH, USDC
-- **Solana** (Mainnet) - SOL, USDC
-- **ZetaChain** (Chain ID: 7000) - All cross-chain assets as ZRC-20
+### Currently Deployed Testnet Networks
+⚠️ **Testnet Deployment Only** - Mainnet support planned for future releases
+
+- **Ethereum Sepolia** (Chain ID: 11155111) - ETH, USDC
+- **Arbitrum Sepolia** (Chain ID: 421614) - ETH, USDC
+- **BSC Testnet** (Chain ID: 97) - BNB, USDC
+- **Polygon Amoy** (Chain ID: 80002) - POL, USDC
+- **Base Sepolia** (Chain ID: 84532) - ETH, USDC
+- **Solana Devnet** - SOL, USDC (via ZRC-20 representation)
+- **ZetaChain Athens** (Chain ID: 7001) - All cross-chain assets as ZRC-20
 
 ### Cross-Chain Operation Flow
 1. **Deposit**: Users deposit assets on any supported chain via DepositContract

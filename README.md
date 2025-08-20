@@ -73,7 +73,7 @@ Choose between two lending protocols based on your needs:
 
 ### 🔒 Security First
 - **Overcollateralization**: 150% minimum collateral requirement ensures protocol safety
-- **Automated Liquidations**: Positions are liquidated at 120% ratio to protect lenders
+- **Automated Liquidations**: Positions are liquidated at 110% (Simple) or 120% (Universal) ratio to protect lenders
 - **Multi-layer Validation**: Comprehensive security checks for all cross-chain operations
 - **Oracle Integration**: Real-time price feeds for accurate asset valuation
 
