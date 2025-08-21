@@ -2,6 +2,11 @@
 
 *Built for the ZetaChain Universal dApps Hackathon*
 
+## 🔗 Quick Links
+
+- **📦 GitHub Repository**: [https://github.com/0xnicholasy/zeta-hackathon](https://github.com/0xnicholasy/zeta-hackathon)
+- **🌐 Live Demo**: [https://zeta-hackathon.vercel.app/](https://zeta-hackathon.vercel.app/)
+
 ## What is This?
 
 A revolutionary **cross-chain lending platform** that lets you borrow and lend cryptocurrency across multiple blockchain networks seamlessly. Think of it as a universal bank account that works across Ethereum, Arbitrum, BSC, Polygon, Base, Solana, and ZetaChain simultaneously.
