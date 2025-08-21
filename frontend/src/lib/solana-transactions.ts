@@ -94,8 +94,11 @@ export async function createSOLSupplyTransaction({
   
   // Serialize amount as u64 (8 bytes, little endian)
   const amountBuffer = Buffer.allocUnsafe(8);
-  amountBuffer.writeUInt32LE(totalAmount, 0);
-  amountBuffer.writeUInt32LE(0, 4); // high 32 bits
+  // Handle large amounts that exceed 32-bit integer limits
+  const lowBits = totalAmount & 0xFFFFFFFF;
+  const highBits = Math.floor(totalAmount / 0x100000000);
+  amountBuffer.writeUInt32LE(lowBits, 0);
+  amountBuffer.writeUInt32LE(highBits, 4);
   
   // Destination is 20 bytes (fixed array [u8; 20])
   const receiverBuffer = destinationBuffer;
@@ -186,8 +189,11 @@ export async function createUSDCSupplyTransaction({
   
   // Serialize amount as u64 (8 bytes, little endian)
   const amountBuffer = Buffer.allocUnsafe(8);
-  amountBuffer.writeUInt32LE(tokenAmount, 0);
-  amountBuffer.writeUInt32LE(0, 4); // high 32 bits
+  // Handle large amounts that exceed 32-bit integer limits
+  const lowBits = tokenAmount & 0xFFFFFFFF;
+  const highBits = Math.floor(tokenAmount / 0x100000000);
+  amountBuffer.writeUInt32LE(lowBits, 0);
+  amountBuffer.writeUInt32LE(highBits, 4);
   
   // Destination is 20 bytes (fixed array [u8; 20])
   const receiverBuffer = destinationBuffer;

@@ -66,11 +66,12 @@ export function SolanaSupplyDialog({
       // Step 1: Sign transaction
       const signature = await onSupply(selectedToken, parseFloat(amount), evmAddress);
       setTransactionSignature(signature);
-      
+
       // Step 2: Transaction confirmed, now move to success for cross-chain tracking
       setCurrentStep('success');
 
     } catch (err) {
+      console.error(err);
       setError(err instanceof Error ? err.message : 'Transaction failed');
       setCurrentStep('error');
     } finally {
