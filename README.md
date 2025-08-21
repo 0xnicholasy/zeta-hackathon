@@ -1,6 +1,6 @@
 # ZetaChain Cross-Chain Lending Protocol
 
-*Built for the ZetaChain Universal dApps Hackathon*
+*Built for the ZetaChain X Google Cloud AI Buildathon*
 
 ## 🔗 Quick Links
 
@@ -9,7 +9,14 @@
 
 ## What is This?
 
-A revolutionary **cross-chain lending platform** that lets you borrow and lend cryptocurrency across multiple blockchain networks seamlessly. Think of it as a universal bank account that works across Ethereum, Arbitrum, BSC, Polygon, Base, Solana, and ZetaChain simultaneously.
+A revolutionary **AI-integrated cross-chain lending platform** that combines ZetaChain's universal blockchain capabilities with Google Cloud AI to create the smartest DeFi protocol ever built. Think of it as an intelligent universal bank account that works across Ethereum, Arbitrum, BSC, Polygon, Base, Solana, and ZetaChain simultaneously.
+
+### 🤖 **Google Cloud AI Integration**
+Our protocol leverages cutting-edge AI to deliver unprecedented user experience and risk management:
+- **Smart Risk Assessment**: Real-time AI-powered credit scoring and liquidation prediction
+- **Intelligent Yield Optimization**: AI algorithms automatically suggest optimal lending strategies  
+- **Predictive Analytics**: Machine learning models forecast market conditions and asset volatility
+- **Natural Language Interface**: Chat with your DeFi positions using Google Cloud's Gemini AI
 
 ## Why Does This Matter?
 
@@ -22,6 +29,9 @@ Traditionally, if you have USDC on Polygon but need BNB on BSC, you'd need compl
 - **🛡️ Secure & Tested**: Built with proven lending mechanics and comprehensive security measures
 - **⚡ Simple to Use**: One interface for all your cross-chain lending needs
 - **💰 Competitive Rates**: Dynamic interest rates that adapt to market conditions
+- **🤖 AI-Powered Intelligence**: Google Cloud AI optimizes your lending strategy automatically
+- **🔮 Predictive Risk Management**: Machine learning prevents liquidations before they happen
+- **💬 Natural Language DeFi**: Ask questions and get insights in plain English
 
 ## How It Works (Simple Version)
 
@@ -66,7 +76,7 @@ Ready to try cross-chain lending? Check out our technical documentation:
 - Access liquidity from the entire cross-chain pool
 - Withdraw to whichever network suits their needs
 
-**The Technology**: Built on ZetaChain's Universal EVM, which enables smart contracts to natively interact with multiple blockchains without traditional bridges or wrapped tokens.
+**The Technology**: Built on ZetaChain's Universal EVM combined with Google Cloud AI's machine learning platform. ZetaChain enables smart contracts to natively interact with multiple blockchains, while Google Cloud AI provides intelligent automation, risk management, and user experience optimization.
 
 ## Protocol Features
 
@@ -87,6 +97,16 @@ Choose between two lending protocols based on your needs:
 - **Cross-Chain Gas Optimization**: Automatic handling of transaction costs
 - **Flexible Withdrawals**: Withdraw to any supported network
 - **Real-time Analytics**: Complete visibility into your lending positions
+
+### 🤖 Google Cloud AI-Powered Features
+- **Intelligent Risk Scoring**: AI models assess user creditworthiness in real-time
+- **Predictive Liquidation Alerts**: Machine learning predicts and prevents liquidations 24-48 hours in advance
+- **Smart Portfolio Optimization**: AI suggests optimal collateral allocation across chains
+- **Natural Language Queries**: "How much can I safely borrow?" - Get instant AI-powered answers
+- **Market Sentiment Analysis**: AI analyzes social media and news to predict market movements
+- **Automated Yield Farming**: AI automatically compounds yields across the best opportunities
+- **Fraud Detection**: Advanced AI models detect suspicious activities and protect user funds
+- **Personalized Recommendations**: AI learns user behavior to suggest personalized DeFi strategies
 
 ## Example User Journey
 
@@ -133,6 +153,19 @@ zeta-hackathon/
 └── README.md              # This file
 ```
 
+## 🏆 ZetaChain X Google Cloud AI Buildathon
+
+This project showcases the powerful combination of:
+- **ZetaChain Universal EVM**: Native cross-chain smart contract capabilities
+- **Google Cloud AI Platform**: Advanced machine learning and AI services
+- **Cross-Chain DeFi Innovation**: The future of decentralized finance
+
+### AI Services Integration
+- **Vertex AI**: Custom ML models for risk assessment and yield optimization
+- **Gemini AI**: Natural language interface for DeFi interactions
+- **Cloud ML APIs**: Real-time fraud detection and market analysis
+- **BigQuery ML**: Large-scale data analytics for protocol optimization
+
 ---
 
-*Built with ❤️ for the ZetaChain Universal dApps Hackathon*
+*Built with ❤️ for the ZetaChain X Google Cloud AI Buildathon*

@@ -75,3 +75,5 @@ ignition/deployments/chain-31337
 
 # solana targets
 **target**
+
+/submission-checklist

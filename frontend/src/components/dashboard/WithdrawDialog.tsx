@@ -382,11 +382,8 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                         </div>
                         <div className="flex justify-between mt-1">
                             <span>Recipient:</span>
-                            <span className="font-medium text-xs">
-                                {isDestinationSolana
-                                    ? (recipientAddress ? `${recipientAddress.slice(0, 4)}...${recipientAddress.slice(-4)}` : 'Not set')
-                                    : recipientAddress
-                                }
+                            <span className="font-medium">
+                                {recipientAddress.slice(0, 4)}...{recipientAddress.slice(-4)}
                             </span>
                         </div>
                     </div>

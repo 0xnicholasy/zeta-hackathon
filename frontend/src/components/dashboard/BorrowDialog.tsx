@@ -464,14 +464,10 @@ export function BorrowDialog({
                             <span className="font-medium">{selectedAsset.unit}</span>
                         </div>
                         <div className="flex justify-between mt-1">
-                            <div className="flex justify-between mt-1">
-                                <span>Recipient:</span>
-                                <span className="font-medium text-xs">
-                                    {recipientAddress && recipientAddress.length > 8
-                                        ? `${recipientAddress.slice(0, 4)}...${recipientAddress.slice(-4)}`
-                                        : recipientAddress || 'Not set'}
-                                </span>
-                            </div>
+                            <span>Recipient:</span>
+                            <span className="font-medium">
+                                {recipientAddress.slice(0, 4)}...{recipientAddress.slice(-4)}
+                            </span>
                         </div>
                     </div>
 
