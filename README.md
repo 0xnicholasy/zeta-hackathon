@@ -6,17 +6,16 @@
 
 - **📦 GitHub Repository**: [https://github.com/0xnicholasy/zeta-hackathon](https://github.com/0xnicholasy/zeta-hackathon)
 - **🌐 Live Demo**: [https://zeta-hackathon.vercel.app/](https://zeta-hackathon.vercel.app/)
+- **💬 Join Our Discord**: [https://discord.gg/E3qBNnQGjG](https://discord.gg/E3qBNnQGjG)
 
 ## What is This?
 
 A revolutionary **AI-integrated cross-chain lending platform** that combines ZetaChain's universal blockchain capabilities with Google Cloud AI to create the smartest DeFi protocol ever built. Think of it as an intelligent universal bank account that works across Ethereum, Arbitrum, BSC, Polygon, Base, Solana, and ZetaChain simultaneously.
 
 ### 🤖 **Google Cloud AI Integration**
-Our protocol leverages cutting-edge AI to deliver unprecedented user experience and risk management:
-- **Smart Risk Assessment**: Real-time AI-powered credit scoring and liquidation prediction
-- **Intelligent Yield Optimization**: AI algorithms automatically suggest optimal lending strategies  
-- **Predictive Analytics**: Machine learning models forecast market conditions and asset volatility
+Our protocol leverages cutting-edge AI to deliver enhanced user experience:
 - **Natural Language Interface**: Chat with your DeFi positions using Google Cloud's Gemini AI
+- **AI-Powered Strategy Analyzer**: Scan for yielding strategies on supported chains for yield farming opportunities
 
 ## Why Does This Matter?
 
@@ -29,8 +28,7 @@ Traditionally, if you have USDC on Polygon but need BNB on BSC, you'd need compl
 - **🛡️ Secure & Tested**: Built with proven lending mechanics and comprehensive security measures
 - **⚡ Simple to Use**: One interface for all your cross-chain lending needs
 - **💰 Competitive Rates**: Dynamic interest rates that adapt to market conditions
-- **🤖 AI-Powered Intelligence**: Google Cloud AI optimizes your lending strategy automatically
-- **🔮 Predictive Risk Management**: Machine learning prevents liquidations before they happen
+- **🤖 AI-Powered Intelligence**: Natural language interface and yield farming strategy analysis
 - **💬 Natural Language DeFi**: Ask questions and get insights in plain English
 
 ## How It Works (Simple Version)
@@ -51,13 +49,12 @@ Our automated liquidation system ensures the platform remains secure. If collate
 
 | **Network** | **Assets** | **What You Can Do** |
 |-------------|------------|---------------------|
-| **Ethereum** | ETH, USDC, USDT | Deposit, withdraw, full lending operations |
-| **Arbitrum** | ETH, USDC, USDT | Deposit, withdraw, full lending operations |
-| **BSC (Binance Smart Chain)** | BNB, USDC, USDT | Deposit, withdraw, full lending operations |
-| **Polygon** | MATIC, USDC, USDT | Deposit, withdraw, full lending operations |
+| **Ethereum** | ETH, USDC | Deposit, withdraw, full lending operations |
+| **Arbitrum** | ETH, USDC | Deposit, withdraw, full lending operations |
+| **BSC (Binance Smart Chain)** | BNB, USDC | Deposit, withdraw, full lending operations |
+| **Polygon** | MATIC, USDC | Deposit, withdraw, full lending operations |
 | **Base** | ETH, USDC | Deposit, withdraw, full lending operations |
 | **Solana** | SOL, USDC | Deposit, withdraw, full lending operations |
-| **ZetaChain** | All cross-chain assets | Core protocol operations |
 
 ## Getting Started
 
@@ -80,15 +77,9 @@ Ready to try cross-chain lending? Check out our technical documentation:
 
 ## Protocol Features
 
-### 🏦 Dual Protocol Architecture
-Choose between two lending protocols based on your needs:
-
-- **SimpleLendingProtocol**: Perfect for straightforward lending with predictable fixed rates
-- **UniversalLendingProtocol**: Advanced features with dynamic rates, enhanced risk management, and institutional-grade capabilities
-
 ### 🔒 Security First
 - **Overcollateralization**: 150% minimum collateral requirement ensures protocol safety
-- **Automated Liquidations**: Positions are liquidated at 110% (Simple) or 120% (Universal) ratio to protect lenders
+- **Automated Liquidations**: Positions are liquidated at 120% ratio to protect lenders
 - **Multi-layer Validation**: Comprehensive security checks for all cross-chain operations
 - **Oracle Integration**: Real-time price feeds for accurate asset valuation
 
@@ -99,32 +90,26 @@ Choose between two lending protocols based on your needs:
 - **Real-time Analytics**: Complete visibility into your lending positions
 
 ### 🤖 Google Cloud AI-Powered Features
-- **Intelligent Risk Scoring**: AI models assess user creditworthiness in real-time
-- **Predictive Liquidation Alerts**: Machine learning predicts and prevents liquidations 24-48 hours in advance
-- **Smart Portfolio Optimization**: AI suggests optimal collateral allocation across chains
-- **Natural Language Queries**: "How much can I safely borrow?" - Get instant AI-powered answers
-- **Market Sentiment Analysis**: AI analyzes social media and news to predict market movements
-- **Automated Yield Farming**: AI automatically compounds yields across the best opportunities
-- **Fraud Detection**: Advanced AI models detect suspicious activities and protect user funds
-- **Personalized Recommendations**: AI learns user behavior to suggest personalized DeFi strategies
+- **Natural Language Interface**: Ask questions like "How much can I safely borrow?" and get instant AI-powered answers using Google Gemini AI
+- **AI-Powered Strategy Analyzer**: Automatically scan for yielding strategies across supported chains and identify optimal yield farming opportunities
 
 ## Example User Journey
 
 ### Sarah's Cross-Chain Lending Experience
 
-1. **🏦 Starting Position**: Sarah has 3,000 USDC on Polygon but needs 5 SOL for a transaction on Solana
+1. **🏦 Starting Position**: Sarah has 10 SOL on Solana (SOL/USD = $200, total value = $2,000) but needs 0.25 ETH for a transaction on Arbitrum (ETH/USD = $4,000, total value = $1,000)
 
-2. **💰 Supply Collateral**: She deposits her 3,000 USDC from Polygon into our protocol (becomes collateral)
+2. **💰 Supply Collateral**: She deposits her 10 SOL from Solana into our protocol (becomes $2,000 collateral)
 
-3. **📈 Borrow SOL**: With $3,000 collateral, she can safely borrow 5 SOL (worth ~$2,000)
+3. **📈 Borrow ETH**: With $2,000 collateral, she can safely borrow 0.25 ETH (worth $1,000) while maintaining healthy 200% collateralization ratio
 
-4. **🔄 Receive on Solana**: The borrowed SOL is delivered directly to her Solana wallet
+4. **🔄 Receive on Arbitrum**: The borrowed 0.25 ETH is delivered directly to her Arbitrum wallet
 
-5. **📱 Repay Later**: When ready, she repays the SOL loan plus interest from any supported network
+5. **📱 Repay Later**: When ready, she repays the 0.25 ETH loan plus interest from any supported network
 
-6. **✨ Withdraw**: She gets her original USDC collateral back, plus any earned interest
+6. **✨ Withdraw**: She gets her original 10 SOL collateral back, plus any earned interest
 
-**Result**: Sarah got SOL on Solana using USDC from Polygon, all through one simple interface!
+**Result**: Sarah got ETH on Arbitrum using SOL from Solana, all through one simple interface!
 
 ## Ready to Build?
 
@@ -137,7 +122,7 @@ This protocol demonstrates the power of ZetaChain's universal blockchain capabil
 
 ### For Users
 - **Test on Testnets**: Try the protocol risk-free across all supported testnets including Ethereum, Arbitrum, BSC, Polygon, Base, and Solana
-- **Join the Community**: Follow our progress and provide feedback
+- **💬 Join Our Discord**: [https://discord.gg/E3qBNnQGjG](https://discord.gg/E3qBNnQGjG) - Connect with the community and get support
 - **Explore DeFi**: Experience true cross-chain lending without the complexity
 
 ## Project Structure
@@ -165,6 +150,21 @@ This project showcases the powerful combination of:
 - **Gemini AI**: Natural language interface for DeFi interactions
 - **Cloud ML APIs**: Real-time fraud detection and market analysis
 - **BigQuery ML**: Large-scale data analytics for protocol optimization
+
+## 🚀 Future Roadmap
+
+### Upcoming Features
+- **AMM Liquidity Pool Integration**: Direct integration with automated market makers for enhanced liquidity
+- **Dynamic Rebalancing**: Control borrowing and supplying APY to automatically rebalance collateral supply
+- **DAO & Governance**: Launch governance token for community voting on supported assets and protocol parameters
+- **Advanced AI Features**: 
+  - Intelligent risk scoring and credit assessment
+  - Predictive liquidation alerts
+  - Smart portfolio optimization
+  - Market sentiment analysis
+  - Automated yield farming
+  - Fraud detection systems
+  - Personalized DeFi recommendations
 
 ---
 

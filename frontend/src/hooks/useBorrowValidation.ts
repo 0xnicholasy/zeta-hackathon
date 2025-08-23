@@ -143,7 +143,7 @@ export function useBorrowValidation({
         const maxBorrowAmount = formatUnits(maxAvailableBorrowsForAsset, selectedAsset.decimals);
 
         // Only calculate borrow validation if amount is entered
-        const hasAmount = amountToBorrow && parseFloat(amountToBorrow) > 0;
+        const hasAmount = (amountToBorrow.trim() !== '') && parseFloat(amountToBorrow) > 0;
         const borrowValueUsd = hasAmount ? parseFloat(amountToBorrow) * assetPriceUsd : 0;
 
         // Calculate estimated health factor after borrow (only if amount entered)
@@ -190,7 +190,7 @@ export function useBorrowValidation({
         }
 
         setValidationResult({
-            isValid: hasAmount ? (isValid && canBorrowResult === true) : false,
+            isValid: hasAmount && isValid && canBorrowResult === true,
             error,
             canBorrow: canBorrowResult === true,
             maxBorrowAmount,

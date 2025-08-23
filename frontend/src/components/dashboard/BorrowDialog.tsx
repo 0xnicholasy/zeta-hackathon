@@ -62,6 +62,7 @@ export function BorrowDialog({
         priceOracle: safeEVMAddressOrZeroAddress(priceOracle),
         userAddress: safeAddress,
     });
+    console.log("🚀 ~ BorrowDialog ~ validation:", validation);
 
     // Computed values
     const amountBigInt = amount && selectedAsset ? parseUnits(amount, selectedAsset.decimals) : BigInt(0);
@@ -332,7 +333,7 @@ export function BorrowDialog({
 
     // Early return after all hooks
     if (!selectedAsset || !universalLendingProtocol) return null;
-
+    console.log("🚀 ~ BorrowDialog ~ validation:", validation.isValid, !gasApproval.hasInsufficientBalance, !gasApproval.error, isValidRecipient);
     return (
         <BaseTransactionDialog
             isOpen={isOpen}
@@ -345,7 +346,7 @@ export function BorrowDialog({
             isSubmitting={txState.isSubmitting}
             onSubmit={() => { void handleSubmit() }}
             onRetry={handleRetry}
-            isValidAmount={validation.isValid && !gasApproval.hasInsufficientBalance && !gasApproval.error && isValidRecipient}
+            isValidAmount={validation.isValid && (!gasApproval.hasInsufficientBalance || gasApproval.gasTokenAddress === selectedAsset.address) && !gasApproval.error && isValidRecipient}
             isConnected={Boolean(address)}
             submitButtonText={
                 !isOnZetaChain
