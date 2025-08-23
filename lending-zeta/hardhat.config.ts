@@ -1,8 +1,8 @@
 import "@nomicfoundation/hardhat-toolbox";
 import "./tasks/deploy";
 import "./tasks/withdraw-local";
-import "@zetachain/localnet/tasks";
-import "@zetachain/toolkit/tasks";
+// import "@zetachain/localnet/tasks"; // Commented out for mainnet deployment
+// import "@zetachain/toolkit/tasks"; // Commented out for mainnet deployment
 
 import * as dotenv from "dotenv";
 import { HardhatUserConfig } from "hardhat/config";

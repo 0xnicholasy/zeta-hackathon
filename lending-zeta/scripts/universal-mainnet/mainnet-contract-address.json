@@ -1,0 +1,11 @@
+{
+  "chainId": 7000,
+  "network": "zeta-mainnet",
+  "contracts": {
+    "MockPriceOracle": "0x55E1Bd43F67BaB1E176E2A65608C151bC0d8F148",
+    "UniversalLendingProtocol": "0x575b07E3cC36eEeC6B94ac5D09f6285ecE2a66dd",
+    "Gateway": "0xfEDD7A6e3Ef1cC470fbfbF955a22D793dDC0F44E"
+  },
+  "deployedAt": "2025-08-23T13:41:31.510Z",
+  "deployer": "0xe1C5Bf97A7Ffb50988DeF972E1E242072298a59C"
+}

@@ -54,7 +54,8 @@
       "Bash(curl:*)",
       "Bash(git restore:*)",
       "WebSearch",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "WebFetch(domain:zetachain.blockpi.network)"
     ],
     "deny": []
   }
