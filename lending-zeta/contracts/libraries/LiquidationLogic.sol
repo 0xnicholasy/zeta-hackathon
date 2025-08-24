@@ -214,6 +214,45 @@ library LiquidationLogic {
     }
 
     /**
+     * @notice Calculates the amount of collateral to seize during liquidation with proper decimal handling
+     * @dev Formula: collateralToSeize = (debtToCover * debtPrice / collateralPrice) * (1 + liquidationBonus)
+     *      CRITICAL: Handles decimal differences between debt and collateral assets
+     *      Example: ETH (18 decimals) debt vs SOL (9 decimals) collateral
+     * @param debtToCover Amount of debt being repaid (in debt asset's native decimals)
+     * @param debtPrice USD price of debt asset (in 1e18 precision)
+     * @param collateralPrice USD price of collateral asset (in 1e18 precision)
+     * @param liquidationBonus Bonus percentage for liquidator (in PRECISION units)
+     * @param debtAsset Address of debt asset (for decimal handling)
+     * @param collateralAsset Address of collateral asset (for decimal handling)
+     * @return collateralAmount Amount of collateral to transfer to liquidator (in collateral asset's native decimals)
+     */
+    function calculateLiquidationAmount(
+        uint256 debtToCover,
+        uint256 debtPrice,
+        uint256 collateralPrice,
+        uint256 liquidationBonus,
+        address debtAsset,
+        address collateralAsset
+    ) internal view returns (uint256) {
+        // Get asset decimals
+        uint8 debtDecimals = IERC20Metadata(debtAsset).decimals();
+        uint8 collateralDecimals = IERC20Metadata(collateralAsset).decimals();
+        
+        // Normalize debt amount to 18 decimals for consistent calculation
+        uint256 normalizedDebtToCover = _normalizeToDecimals(debtToCover, debtDecimals);
+        
+        // Calculate collateral amount in normalized 18 decimal precision
+        uint256 normalizedCollateralAmount = (normalizedDebtToCover * debtPrice) / collateralPrice;
+        
+        // Apply liquidation bonus
+        uint256 normalizedCollateralWithBonus = normalizedCollateralAmount +
+            (normalizedCollateralAmount * liquidationBonus) / PRECISION;
+        
+        // Denormalize to collateral asset's native decimals
+        return _denormalizeFromDecimals(normalizedCollateralWithBonus, collateralDecimals);
+    }
+
+    /**
      * @notice Validates that liquidation improves the user's health factor sufficiently
      * @dev Ensures liquidation moves user back to a healthy position above minimum threshold
      *      Prevents partial liquidations that leave user still at risk
@@ -246,6 +285,26 @@ library LiquidationLogic {
             normalizedAmount = amount / (10 ** (decimals - 18));
         } else {
             normalizedAmount = amount;
+        }
+    }
+
+    /**
+     * @notice Denormalize amount from 18 decimals back to target decimals
+     * @dev Converts normalized amounts back to asset's native precision
+     * @param normalizedAmount The amount in 18 decimal precision
+     * @param decimals The target decimal places
+     * @return amount The amount in target decimals
+     */
+    function _denormalizeFromDecimals(
+        uint256 normalizedAmount,
+        uint256 decimals
+    ) internal pure returns (uint256 amount) {
+        if (decimals < 18) {
+            amount = normalizedAmount / (10 ** (18 - decimals));
+        } else if (decimals > 18) {
+            amount = normalizedAmount * (10 ** (decimals - 18));
+        } else {
+            amount = normalizedAmount;
         }
     }
 }

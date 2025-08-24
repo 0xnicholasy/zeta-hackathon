@@ -316,7 +316,9 @@ contract UniversalLendingProtocol is
                 repayAmount,
                 debtPrice,
                 collateralPrice,
-                enhancedAssets[collateralAsset].liquidationBonus
+                enhancedAssets[collateralAsset].liquidationBonus,
+                debtAsset,
+                collateralAsset
             );
 
         if (userSupplies[user][collateralAsset] < liquidatedCollateral)
@@ -888,36 +890,58 @@ contract UniversalLendingProtocol is
         // In practice, protocols often limit to 50% to prevent full liquidation
         maxRepayAmount = userDebt;
 
-        // Calculate corresponding collateral that would be liquidated
+        // Calculate corresponding collateral that would be liquidated (with proper decimal handling)
         liquidatedCollateral = LiquidationLogic.calculateLiquidationAmount(
             maxRepayAmount,
             debtPrice,
             collateralPrice,
-            enhancedAssets[collateralAsset].liquidationBonus
+            enhancedAssets[collateralAsset].liquidationBonus,
+            debtAsset,
+            collateralAsset
         );
 
         // Ensure we don't liquidate more collateral than available
         if (liquidatedCollateral > userCollateral) {
             // If calculated liquidation exceeds available collateral, 
-            // work backwards from available collateral
+            // work backwards from available collateral with proper decimal handling
             liquidatedCollateral = userCollateral;
             
-            // Calculate the maximum repay amount for this collateral
-            // liquidatedCollateral = repayAmount * debtPrice * (1 + bonus) / collateralPrice
-            // Therefore: repayAmount = liquidatedCollateral * collateralPrice / (debtPrice * (1 + bonus))
+            // FIXED: Calculate the maximum repay amount with proper decimal handling
+            // Formula: repayAmount = liquidatedCollateral * collateralPrice / (debtPrice * (1 + bonus))
+            // But we need to handle different decimals between collateral and debt assets
+            
+            // Get asset decimals for proper conversion
+            uint256 collateralDecimals = IERC20Metadata(collateralAsset).decimals();
+            uint256 debtDecimals = IERC20Metadata(debtAsset).decimals();
+            
+            // Normalize collateral amount to 18 decimals
+            uint256 normalizedCollateral = UserAssetCalculations._normalizeToDecimals(
+                liquidatedCollateral, 
+                collateralDecimals
+            );
+            
+            // Calculate repay amount in normalized 18 decimals
             uint256 bonusFactor = PRECISION + enhancedAssets[collateralAsset].liquidationBonus;
-            maxRepayAmount = (liquidatedCollateral * collateralPrice * PRECISION) / 
-                            (debtPrice * bonusFactor);
+            uint256 normalizedRepayAmount = (normalizedCollateral * collateralPrice * PRECISION) / 
+                                          (debtPrice * bonusFactor);
+            
+            // Denormalize back to debt asset's native decimals
+            maxRepayAmount = UserAssetCalculations._denormalizeFromDecimals(
+                normalizedRepayAmount,
+                debtDecimals
+            );
             
             // Ensure we don't repay more than the user's actual debt
             if (maxRepayAmount > userDebt) {
                 maxRepayAmount = userDebt;
-                // Recalculate liquidated collateral for the capped repay amount
+                // Recalculate liquidated collateral for the capped repay amount (with proper decimal handling)
                 liquidatedCollateral = LiquidationLogic.calculateLiquidationAmount(
                     maxRepayAmount,
                     debtPrice,
                     collateralPrice,
-                    enhancedAssets[collateralAsset].liquidationBonus
+                    enhancedAssets[collateralAsset].liquidationBonus,
+                    debtAsset,
+                    collateralAsset
                 );
             }
         }

@@ -56,6 +56,22 @@ Our automated liquidation system ensures the platform remains secure. If collate
 | **Base** | ETH, USDC | Deposit, withdraw, full lending operations |
 | **Solana** | SOL, USDC | Deposit, withdraw, full lending operations |
 
+## 🌐 Mainnet Deployment
+
+The protocol is now live on **ZetaChain Mainnet** with the following deployed contracts:
+
+| **Contract** | **Address** | **Network** |
+|--------------|-------------|-------------|
+| **UniversalLendingProtocol** | `0x575b07E3cC36eEeC6B94ac5D09f6285ecE2a66dd` | ZetaChain Mainnet (7000) |
+| **MockPriceOracle** | `0x55E1Bd43F67BaB1E176E2A65608C151bC0d8F148` | ZetaChain Mainnet (7000) |
+
+**Deployment Details:**
+- **Deployed:** August 23, 2025
+- **Deployer:** `0xe1C5Bf97A7Ffb50988DeF972E1E242072298a59C`
+- **Chain ID:** 7000 (ZetaChain Mainnet)
+
+Ready for production use across all supported cross-chain operations!
+
 ## Getting Started
 
 Ready to try cross-chain lending? Check out our technical documentation:

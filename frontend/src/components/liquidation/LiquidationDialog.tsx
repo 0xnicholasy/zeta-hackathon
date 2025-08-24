@@ -75,6 +75,7 @@ export function LiquidationDialog({ targetAddress, isOpen, onClose }: Liquidatio
     }
   } = useLiquidateTransactionFlow();
 
+  // TODO: check if this is correct
   const { data: getMaxLiquidationData } = useReadContract({
     address: universalLendingProtocol as EVMAddress,
     abi: UniversalLendingProtocol__factory.abi,
@@ -131,6 +132,7 @@ export function LiquidationDialog({ targetAddress, isOpen, onClose }: Liquidatio
   // Set max repay amount when debt asset is selected
   useEffect(() => {
     if (getMaxLiquidationData) {
+      console.log("🚀 ~ LiquidationDialog ~ getMaxLiquidationData:", getMaxLiquidationData)
       setMaxRepayAmount(formatUnits(getMaxLiquidationData[0], getTokenDecimals(selectedDebtAsset as EVMAddress)));
     }
   }, [getMaxLiquidationData, selectedDebtAsset]);

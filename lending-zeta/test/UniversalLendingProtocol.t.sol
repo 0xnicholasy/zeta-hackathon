@@ -2214,4 +2214,200 @@ contract UniversalLendingProtocolTest is Test {
         vm.expectRevert("Price too stale");
         lendingProtocol.canBorrow(user1, address(usdcToken), additionalBorrow);
     }
+
+    /**
+     * @dev Test cross-decimal liquidation scenario: SOL (9 decimals) vs ETH (18 decimals)
+     * This test reproduces the exact issue described where getMaxLiquidation
+     * was returning incorrect values due to decimal precision handling.
+     */
+    function testCrossDecimalLiquidation() public {
+        // Create SOL token with 9 decimals (like real SOL) - deployer gets initial supply
+        vm.prank(address(this));
+        MockZRC20 solToken = new MockZRC20("Solana", "SOL", 9, INITIAL_BALANCE);
+        
+        // Setup SOL asset in the protocol
+        vm.startPrank(owner);
+        
+        // Set initial SOL price to $150 (higher to allow borrowing)
+        priceOracle.setPrice(address(solToken), 150 * 1e18);
+        
+        // Set initial ETH price lower to allow borrowing
+        priceOracle.setPrice(address(ethToken), 2000 * 1e18);
+        
+        // Add SOL as supported asset
+        lendingProtocol.addAsset(
+            address(solToken),
+            0.75e18, // 75% collateral factor
+            0.80e18, // 80% liquidation threshold
+            0.05e18  // 5% liquidation bonus
+        );
+        
+        vm.stopPrank();
+        
+        // Transfer SOL tokens to user1 from the test contract (which deployed the token)
+        solToken.transfer(user1, 10002 * 10 ** 6); // 10.002 SOL in 9 decimals
+        
+        // User1 supplies 10.002 SOL as collateral
+        vm.startPrank(user1);
+        uint256 solSupplyAmount = 10002 * 10 ** 6; // 10.002 SOL in 9 decimals
+        solToken.approve(address(lendingProtocol), solSupplyAmount);
+        lendingProtocol.supply(address(solToken), solSupplyAmount, user1);
+        
+        // User1 borrows 0.3 ETH (worth $600 at $2000/ETH, healthy position)
+        uint256 ethBorrowAmount = 3 * 10 ** 17; // 0.3 ETH in 18 decimals
+        lendingProtocol.borrow(address(ethToken), ethBorrowAmount, user1);
+        vm.stopPrank();
+        
+        // Now crash SOL price to make position liquidatable
+        vm.prank(owner);
+        priceOracle.setPrice(address(solToken), 80 * 1e18); // SOL crashes to $80
+        
+        // Verify the position is set up correctly
+        uint256 userSolSupply = lendingProtocol.userSupplies(user1, address(solToken));
+        uint256 userEthBorrow = lendingProtocol.userBorrows(user1, address(ethToken));
+        
+        assertEq(userSolSupply, solSupplyAmount, "SOL supply should match");
+        assertEq(userEthBorrow, ethBorrowAmount, "ETH borrow should match");
+        
+        // Check health factor - should be liquidatable (< 1.2)
+        uint256 healthFactor = lendingProtocol.getHealthFactor(user1);
+        console.log("Health Factor:", healthFactor);
+        assertTrue(healthFactor < 1.2e18, "Position should be liquidatable");
+        
+        // Test getMaxLiquidation - this was returning (0, 0, false) before the fix
+        (uint256 maxRepayAmount, uint256 liquidatedCollateral, bool canLiquidate) = 
+            lendingProtocol.getMaxLiquidation(user1, address(solToken), address(ethToken));
+        
+        console.log("Max Repay Amount (ETH):", maxRepayAmount);
+        console.log("Liquidated Collateral (SOL):", liquidatedCollateral);
+        console.log("Can Liquidate:", canLiquidate);
+        
+        // Verify the fix works
+        assertTrue(canLiquidate, "Position should be liquidatable");
+        assertTrue(maxRepayAmount > 0, "Max repay amount should be > 0");
+        assertTrue(liquidatedCollateral > 0, "Liquidated collateral should be > 0");
+        assertTrue(liquidatedCollateral <= userSolSupply, "Cannot liquidate more than available");
+        
+        // The max repay amount should be reasonable (not tiny like 0.000000000238142857)
+        assertTrue(maxRepayAmount > 1e15, "Max repay amount should be reasonable (> 0.001 ETH)");
+        
+        // Test actual liquidation execution
+        vm.startPrank(liquidator);
+        
+        // Liquidator needs ETH to repay the debt
+        ethToken.approve(address(lendingProtocol), maxRepayAmount);
+        
+        uint256 liquidatorSolBalanceBefore = solToken.balanceOf(liquidator);
+        uint256 liquidatorEthBalanceBefore = ethToken.balanceOf(liquidator);
+        
+        // Execute liquidation
+        lendingProtocol.liquidate(
+            user1,
+            address(solToken),  // collateral asset
+            address(ethToken),  // debt asset  
+            maxRepayAmount
+        );
+        
+        uint256 liquidatorSolBalanceAfter = solToken.balanceOf(liquidator);
+        uint256 liquidatorEthBalanceAfter = ethToken.balanceOf(liquidator);
+        
+        // Verify liquidator received SOL collateral
+        uint256 solReceived = liquidatorSolBalanceAfter - liquidatorSolBalanceBefore;
+        uint256 ethPaid = liquidatorEthBalanceBefore - liquidatorEthBalanceAfter;
+        
+        console.log("Liquidator SOL received:", solReceived);
+        console.log("Liquidator ETH paid:", ethPaid);
+        
+        assertTrue(solReceived > 0, "Liquidator should receive SOL");
+        assertTrue(ethPaid > 0, "Liquidator should pay ETH");
+        assertEq(ethPaid, maxRepayAmount, "ETH paid should match max repay amount");
+        
+        // Verify liquidation bonus (liquidator should receive more value than they paid)
+        uint256 solPrice = priceOracle.getPrice(address(solToken));
+        uint256 ethPrice = priceOracle.getPrice(address(ethToken));
+        
+        // Calculate USD values (accounting for decimals)
+        uint256 solReceivedUsdValue = (solReceived * 10**9 * solPrice) / 1e18; // normalize SOL to 18 decimals
+        uint256 ethPaidUsdValue = (ethPaid * ethPrice) / 1e18;
+        
+        console.log("SOL received USD value:", solReceivedUsdValue);
+        console.log("ETH paid USD value:", ethPaidUsdValue);
+        
+        assertTrue(solReceivedUsdValue > ethPaidUsdValue, "Liquidator should receive liquidation bonus");
+        
+        vm.stopPrank();
+        
+        // Verify user's position is updated
+        uint256 userSolSupplyAfter = lendingProtocol.userSupplies(user1, address(solToken));
+        uint256 userEthBorrowAfter = lendingProtocol.userBorrows(user1, address(ethToken));
+        
+        assertTrue(userSolSupplyAfter < userSolSupply, "User SOL supply should decrease");
+        assertTrue(userEthBorrowAfter < userEthBorrow, "User ETH debt should decrease");
+        
+        // Health factor should improve after liquidation
+        uint256 healthFactorAfter = lendingProtocol.getHealthFactor(user1);
+        assertTrue(healthFactorAfter > healthFactor, "Health factor should improve after liquidation");
+        
+        console.log("Health Factor After:", healthFactorAfter);
+    }
+
+    /**
+     * @dev Test liquidation between USDC (6 decimals) and ETH (18 decimals)
+     */
+    function testUsdcEthLiquidation() public {
+        // Setup: user2 supplies USDC and borrows ETH, then ETH price drops making position liquidatable
+        
+        uint256 usdcSupplyAmount = 2000 * 10 ** 6; // 2000 USDC (6 decimals)
+        uint256 ethBorrowAmount = 1 * 10 ** 18;    // 1 ETH (18 decimals)
+        
+        vm.startPrank(user2);
+        
+        // Supply USDC as collateral
+        usdcToken.approve(address(lendingProtocol), usdcSupplyAmount);
+        lendingProtocol.supply(address(usdcToken), usdcSupplyAmount, user2);
+        
+        // Borrow ETH
+        lendingProtocol.borrow(address(ethToken), ethBorrowAmount, user2);
+        
+        vm.stopPrank();
+        
+        // Make position liquidatable by increasing ETH price
+        vm.prank(owner);
+        priceOracle.setPrice(address(ethToken), 3000 * 1e18); // Increase ETH price to $3000
+        
+        // Check position is liquidatable
+        uint256 healthFactor = lendingProtocol.getHealthFactor(user2);
+        assertTrue(healthFactor < 1.2e18, "Position should be liquidatable");
+        
+        // Test cross-decimal liquidation
+        (uint256 maxRepayAmount, uint256 liquidatedCollateral, bool canLiquidate) = 
+            lendingProtocol.getMaxLiquidation(user2, address(usdcToken), address(ethToken));
+        
+        assertTrue(canLiquidate, "USDC/ETH position should be liquidatable");
+        assertTrue(maxRepayAmount > 0, "Max repay amount should be > 0");
+        assertTrue(liquidatedCollateral > 0, "Liquidated collateral should be > 0");
+        
+        console.log("USDC/ETH Max Repay Amount (ETH):", maxRepayAmount);
+        console.log("USDC/ETH Liquidated Collateral (USDC):", liquidatedCollateral);
+        
+        // Execute liquidation
+        vm.startPrank(liquidator);
+        ethToken.approve(address(lendingProtocol), maxRepayAmount);
+        
+        lendingProtocol.liquidate(
+            user2,
+            address(usdcToken), // collateral asset (6 decimals)
+            address(ethToken),  // debt asset (18 decimals)
+            maxRepayAmount
+        );
+        
+        vm.stopPrank();
+        
+        // Verify liquidation worked correctly
+        uint256 userUsdcSupplyAfter = lendingProtocol.userSupplies(user2, address(usdcToken));
+        uint256 userEthBorrowAfter = lendingProtocol.userBorrows(user2, address(ethToken));
+        
+        assertTrue(userUsdcSupplyAfter < usdcSupplyAmount, "User USDC supply should decrease");
+        assertTrue(userEthBorrowAfter < ethBorrowAmount, "User ETH debt should decrease");
+    }
 }
