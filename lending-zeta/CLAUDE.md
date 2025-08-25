@@ -1,4 +1,4 @@
-- always run 'forge build' after modifying .sol files to make sure it has no syntax error and can be built successfully
-- always use @contracts/libraries/CoreCalculations.sol for handling calculations between assets with decimals
-- always refer to @test/README.md for what the tests are doing and understand what to test
-- always update @test/README.md after modifying testing scripts under @test/
+- Always run `forge build` after modifying `.sol` files to ensure the project compiles without syntax errors.
+- Always use `@contracts/libraries/CoreCalculations.sol` for calculations across assets with differing decimals.
+- Always refer to `@test/README.md` to understand existing test coverage and what to add next.
+- Always update `@test/README.md` after modifying any test scripts under `@test/`.

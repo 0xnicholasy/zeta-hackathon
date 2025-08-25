@@ -48,8 +48,9 @@ graph TB
     GW --> ULP
     ULP --> LIB
     ULP --> ZRC
-    ULP --> ZRC
+    LIB --> ZRC
     ULP --> OR
+    LIB --> OR
 ```
 
 ### 2. Cross-Chain Message Flow

@@ -17,32 +17,32 @@ contract InterestRateModelTest is Test {
     function setUp() public {
         // Standard parameters (similar to USDC in Aave)
         standardParams = InterestRateModel.RateParams({
-            baseRate: (2 * RAY) / 100,           // 2% base rate
-            slope1: (4 * RAY) / 100,             // 4% slope before optimal utilization
-            slope2: (75 * RAY) / 100,            // 75% slope after optimal utilization
+            baseRate: (2 * RAY) / 100, // 2% base rate
+            slope1: (4 * RAY) / 100, // 4% slope before optimal utilization
+            slope2: (75 * RAY) / 100, // 75% slope after optimal utilization
             optimalUtilization: (80 * RAY) / 100 // 80% optimal utilization
         });
 
         // Aggressive parameters (higher rates, for volatile assets)
         aggressiveParams = InterestRateModel.RateParams({
-            baseRate: (5 * RAY) / 100,           // 5% base rate
-            slope1: (8 * RAY) / 100,             // 8% slope before optimal
-            slope2: (100 * RAY) / 100,           // 100% slope after optimal
+            baseRate: (5 * RAY) / 100, // 5% base rate
+            slope1: (8 * RAY) / 100, // 8% slope before optimal
+            slope2: (100 * RAY) / 100, // 100% slope after optimal
             optimalUtilization: (70 * RAY) / 100 // 70% optimal utilization
         });
 
         // Conservative parameters (lower rates, for stable assets)
         conservativeParams = InterestRateModel.RateParams({
-            baseRate: (1 * RAY) / 100,           // 1% base rate
-            slope1: (2 * RAY) / 100,             // 2% slope before optimal
-            slope2: (50 * RAY) / 100,            // 50% slope after optimal
+            baseRate: (1 * RAY) / 100, // 1% base rate
+            slope1: (2 * RAY) / 100, // 2% slope before optimal
+            slope2: (50 * RAY) / 100, // 50% slope after optimal
             optimalUtilization: (90 * RAY) / 100 // 90% optimal utilization
         });
     }
 
     // ==================== Basic Interest Rate Calculation Tests ====================
 
-    function testCalculateBorrowRate_ZeroUtilization() public {
+    function testCalculateBorrowRate_ZeroUtilization() public view {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 0; // 0% utilization
 
@@ -52,11 +52,15 @@ contract InterestRateModelTest is Test {
             standardParams
         );
 
-        assertEq(borrowRate, standardParams.baseRate, "Zero utilization should return base rate");
+        assertEq(
+            borrowRate,
+            standardParams.baseRate,
+            "Zero utilization should return base rate"
+        );
         assertEq(borrowRate, (2 * RAY) / 100, "Base rate should be 2%");
     }
 
-    function testCalculateBorrowRate_OptimalUtilization() public {
+    function testCalculateBorrowRate_OptimalUtilization() public view {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 800 * 1e18; // 80% utilization (optimal)
 
@@ -69,10 +73,14 @@ contract InterestRateModelTest is Test {
         // Expected: baseRate + (optimalUtilization * slope1)
         // = 0.02 + (0.80 * 0.04) = 0.02 + 0.032 = 0.052 = 5.2%
         uint256 expectedRate = (52 * RAY) / 1000;
-        assertEq(borrowRate, expectedRate, "Optimal utilization should be 5.2%");
+        assertEq(
+            borrowRate,
+            expectedRate,
+            "Optimal utilization should be 5.2%"
+        );
     }
 
-    function testCalculateBorrowRate_BelowOptimalUtilization() public {
+    function testCalculateBorrowRate_BelowOptimalUtilization() public view {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 400 * 1e18; // 40% utilization
 
@@ -88,7 +96,7 @@ contract InterestRateModelTest is Test {
         assertEq(borrowRate, expectedRate, "40% utilization should be 3.6%");
     }
 
-    function testCalculateBorrowRate_AboveOptimalUtilization() public {
+    function testCalculateBorrowRate_AboveOptimalUtilization() public view {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 900 * 1e18; // 90% utilization
 
@@ -105,7 +113,7 @@ contract InterestRateModelTest is Test {
         assertEq(borrowRate, expectedRate, "90% utilization should be 13.5%");
     }
 
-    function testCalculateBorrowRate_MaxUtilization() public {
+    function testCalculateBorrowRate_MaxUtilization() public view {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 1000 * 1e18; // 100% utilization
 
@@ -122,7 +130,7 @@ contract InterestRateModelTest is Test {
         assertEq(borrowRate, expectedRate, "100% utilization should be 21%");
     }
 
-    function testCalculateBorrowRate_ZeroSupply() public {
+    function testCalculateBorrowRate_ZeroSupply() public view {
         uint256 totalSupply = 0;
         uint256 totalBorrow = 0;
 
@@ -132,12 +140,16 @@ contract InterestRateModelTest is Test {
             standardParams
         );
 
-        assertEq(borrowRate, standardParams.baseRate, "Zero supply should return base rate");
+        assertEq(
+            borrowRate,
+            standardParams.baseRate,
+            "Zero supply should return base rate"
+        );
     }
 
     // ==================== Supply Rate Calculation Tests ====================
 
-    function testCalculateSupplyRate_StandardCase() public {
+    function testCalculateSupplyRate_StandardCase() public view {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 600 * 1e18; // 60% utilization
         uint256 reserveFactor = (10 * RAY) / 100; // 10% reserve factor
@@ -163,10 +175,14 @@ contract InterestRateModelTest is Test {
         assertEq(borrowRate, expectedBorrowRate, "Borrow rate should be 4.4%");
 
         uint256 expectedSupplyRate = (2376 * RAY) / 100000;
-        assertEq(supplyRate, expectedSupplyRate, "Supply rate should be 2.376%");
+        assertEq(
+            supplyRate,
+            expectedSupplyRate,
+            "Supply rate should be 2.376%"
+        );
     }
 
-    function testCalculateSupplyRate_HighUtilization() public {
+    function testCalculateSupplyRate_HighUtilization() public view {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 900 * 1e18; // 90% utilization
         uint256 reserveFactor = (15 * RAY) / 100; // 15% reserve factor
@@ -187,10 +203,14 @@ contract InterestRateModelTest is Test {
         // borrowRate at 90% = 0.135 (13.5% as calculated before)
         // supplyRate = 0.135 * 0.90 * 0.85 = 0.103275 = 10.3275%
         uint256 expectedSupplyRate = (103275 * RAY) / 1000000;
-        assertEq(supplyRate, expectedSupplyRate, "High utilization supply rate should be 10.3275%");
+        assertEq(
+            supplyRate,
+            expectedSupplyRate,
+            "High utilization supply rate should be 10.3275%"
+        );
     }
 
-    function testCalculateSupplyRate_ZeroUtilization() public {
+    function testCalculateSupplyRate_ZeroUtilization() public view {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 0; // 0% utilization
         uint256 reserveFactor = (10 * RAY) / 100;
@@ -208,10 +228,14 @@ contract InterestRateModelTest is Test {
             reserveFactor
         );
 
-        assertEq(supplyRate, 0, "Zero utilization should have zero supply rate");
+        assertEq(
+            supplyRate,
+            0,
+            "Zero utilization should have zero supply rate"
+        );
     }
 
-    function testCalculateSupplyRate_ZeroSupply() public {
+    function testCalculateSupplyRate_ZeroSupply() public view {
         uint256 totalSupply = 0;
         uint256 totalBorrow = 0;
         uint256 reserveFactor = (10 * RAY) / 100;
@@ -232,7 +256,7 @@ contract InterestRateModelTest is Test {
         assertEq(supplyRate, 0, "Zero supply should have zero supply rate");
     }
 
-    function testCalculateSupplyRate_NoReserveFactor() public {
+    function testCalculateSupplyRate_NoReserveFactor() public view {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 500 * 1e18; // 50% utilization
         uint256 reserveFactor = 0; // No reserve factor
@@ -253,12 +277,16 @@ contract InterestRateModelTest is Test {
         // borrowRate at 50% = 0.02 + (0.50 * 0.04) = 0.04 = 4%
         // supplyRate = 0.04 * 0.50 * 1.0 = 0.02 = 2%
         uint256 expectedSupplyRate = (2 * RAY) / 100;
-        assertEq(supplyRate, expectedSupplyRate, "No reserve factor should be 2%");
+        assertEq(
+            supplyRate,
+            expectedSupplyRate,
+            "No reserve factor should be 2%"
+        );
     }
 
     // ==================== Utilization Rate Helper Tests ====================
 
-    function testCalculateUtilization_StandardCase() public {
+    function testCalculateUtilization_StandardCase() public pure {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 750 * 1e18;
 
@@ -268,7 +296,7 @@ contract InterestRateModelTest is Test {
         assertEq(utilization, (75 * RAY) / 100, "Utilization should be 75%");
     }
 
-    function testCalculateUtilization_FullUtilization() public {
+    function testCalculateUtilization_FullUtilization() public pure {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 1000 * 1e18;
 
@@ -277,7 +305,7 @@ contract InterestRateModelTest is Test {
         assertEq(utilization, RAY, "Full utilization should be 100%");
     }
 
-    function testCalculateUtilization_PrecisionTest() public {
+    function testCalculateUtilization_PrecisionTest() public pure {
         uint256 totalSupply = 3 * 1e18;
         uint256 totalBorrow = 1 * 1e18;
 
@@ -285,40 +313,113 @@ contract InterestRateModelTest is Test {
 
         // 1/3 = 0.333... Should be precisely calculated
         uint256 expectedUtilization = RAY / 3;
-        assertEq(utilization, expectedUtilization, "Should calculate 1/3 precisely");
+        assertEq(
+            utilization,
+            expectedUtilization,
+            "Should calculate 1/3 precisely"
+        );
     }
 
     // ==================== Interest Compounding Tests ====================
 
-    function testCalculateCompoundedInterest_ZeroTime() public {
+    function testCalculateCompoundedInterest_ZeroTime() public view {
         uint256 rate = (5 * RAY) / 100; // 5% annual rate
         uint256 lastUpdate = block.timestamp;
 
-        uint256 compounded = InterestRateModel.calculateCompoundedInterest(rate, lastUpdate);
+        uint256 compounded = InterestRateModel.calculateCompoundedInterest(
+            rate,
+            lastUpdate
+        );
 
-        assertEq(compounded, RAY, "Zero time should return RAY (no compounding)");
+        assertEq(
+            compounded,
+            RAY,
+            "Zero time should return RAY (no compounding)"
+        );
     }
 
-    function testCalculateCompoundedInterest_OneSecond() public {
+    function testCalculateCompoundedInterest_OneSecond() public view {
         uint256 rate = (5 * RAY) / 100; // 5% annual rate
         uint256 lastUpdate = block.timestamp - 1; // 1 second ago
 
-        uint256 compounded = InterestRateModel.calculateCompoundedInterest(rate, lastUpdate);
+        uint256 compounded = InterestRateModel.calculateCompoundedInterest(
+            rate,
+            lastUpdate
+        );
 
         // Should be slightly above RAY
         assertTrue(compounded > RAY, "One second should accrue some interest");
-        assertTrue(compounded < RAY + (RAY / 1000), "One second should not accrue much interest");
+        assertTrue(
+            compounded < RAY + (RAY / 1000),
+            "One second should not accrue much interest"
+        );
     }
 
-    // NOTE: Compound interest function has arithmetic overflow issues with longer time periods
-    // Skipping problematic tests for now - these would be addressed in production
+    function testCalculateCompoundedInterest_ZeroRateAnyDelta() public {
+        uint256 rate = 0;
+        vm.warp(block.timestamp + 365 days);
+        uint256 lastUpdate = block.timestamp - 365 days; // 1 year ago
 
-    // NOTE: Zero rate compound interest also has arithmetic issues
-    // This would need refactoring of the Taylor series implementation
+        uint256 compounded = InterestRateModel.calculateCompoundedInterest(
+            rate,
+            lastUpdate
+        );
+
+        assertEq(
+            compounded,
+            RAY,
+            "Zero rate should return RAY regardless of delta"
+        );
+    }
+
+    function testCalculateCompoundedInterest_MonotonicTypical() public {
+        uint256 rate = (5 * RAY) / 100; // 5% annual rate
+        vm.warp(block.timestamp + 365 days);
+        uint256 c1 = InterestRateModel.calculateCompoundedInterest(
+            rate,
+            block.timestamp - 1
+        );
+        uint256 c1d = InterestRateModel.calculateCompoundedInterest(
+            rate,
+            block.timestamp - 1 days
+        );
+        uint256 c1y = InterestRateModel.calculateCompoundedInterest(
+            rate,
+            block.timestamp - 365 days
+        );
+
+        assertTrue(c1 > RAY, "1s > RAY");
+        assertTrue(c1d > c1, "1d > 1s");
+        assertTrue(c1y > c1d, "1y > 1d");
+    }
+
+    function testCalculateCompoundedInterest_VeryLargeDeltaClamped() public {
+        uint256 rate = (20 * RAY) / 100; // 20% annual rate
+        vm.warp(block.timestamp + (2000 * 365 days));
+        uint256 c50y = InterestRateModel.calculateCompoundedInterest(
+            rate,
+            block.timestamp - (50 * 365 days)
+        );
+        uint256 c120y = InterestRateModel.calculateCompoundedInterest(
+            rate,
+            block.timestamp - (120 * 365 days)
+        );
+        uint256 c1000y = InterestRateModel.calculateCompoundedInterest(
+            rate,
+            block.timestamp - (1000 * 365 days)
+        );
+
+        // Growth is monotonic up to clamp; after clamp, results should be equal
+        assertTrue(
+            c50y < c120y,
+            "50y < 120y due to continued compounding before clamp"
+        );
+        assertEq(c120y, c1000y, "Deltas beyond clamp should yield same result");
+    }
 
     // ==================== Different Parameter Sets Tests ====================
 
-    function testAggressiveParameters_HighUtilization() public {
+    function testAggressiveParameters_HighUtilization() public view {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 800 * 1e18; // 80% utilization (above optimal 70%)
 
@@ -332,10 +433,14 @@ contract InterestRateModelTest is Test {
         // excessUtilization = (0.80 - 0.70) = 0.10
         // = 0.05 + 0.08 + (0.10 * 1.00) = 0.05 + 0.08 + 0.10 = 0.23 = 23%
         uint256 expectedRate = (23 * RAY) / 100;
-        assertEq(borrowRate, expectedRate, "Aggressive params at 80% should be 23%");
+        assertEq(
+            borrowRate,
+            expectedRate,
+            "Aggressive params at 80% should be 23%"
+        );
     }
 
-    function testConservativeParameters_HighUtilization() public {
+    function testConservativeParameters_HighUtilization() public view {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 950 * 1e18; // 95% utilization (above optimal 90%)
 
@@ -349,12 +454,16 @@ contract InterestRateModelTest is Test {
         // excessUtilization = (0.95 - 0.90) = 0.05
         // = 0.01 + 0.02 + (0.05 * 0.50) = 0.01 + 0.02 + 0.025 = 0.055 = 5.5%
         uint256 expectedRate = (55 * RAY) / 1000;
-        assertEq(borrowRate, expectedRate, "Conservative params at 95% should be 5.5%");
+        assertEq(
+            borrowRate,
+            expectedRate,
+            "Conservative params at 95% should be 5.5%"
+        );
     }
 
     // ==================== Edge Cases and Boundary Tests ====================
 
-    function testCalculateBorrowRate_ExactlyAtOptimal() public {
+    function testCalculateBorrowRate_ExactlyAtOptimal() public view {
         uint256 totalSupply = 1234 * 1e18;
         uint256 totalBorrow = (1234 * 1e18 * 80) / 100; // Exactly 80%
 
@@ -366,11 +475,17 @@ contract InterestRateModelTest is Test {
 
         // Should be exactly at the kink point
         // Rate = baseRate + (optimalUtilization * slope1) / RAY
-        uint256 expectedRate = standardParams.baseRate + (standardParams.optimalUtilization * standardParams.slope1) / RAY;
-        assertEq(borrowRate, expectedRate, "Exactly optimal should be baseRate + (optimal * slope1) / RAY");
+        uint256 expectedRate = standardParams.baseRate +
+            (standardParams.optimalUtilization * standardParams.slope1) /
+            RAY;
+        assertEq(
+            borrowRate,
+            expectedRate,
+            "Exactly optimal should be baseRate + (optimal * slope1) / RAY"
+        );
     }
 
-    function testBoundaryCondition_VeryHighUtilization() public {
+    function testBoundaryCondition_VeryHighUtilization() public view {
         uint256 totalSupply = 1000 * 1e18;
         uint256 totalBorrow = 999 * 1e18; // 99.9% utilization
 
@@ -381,13 +496,19 @@ contract InterestRateModelTest is Test {
         );
 
         // Should handle near-100% utilization without overflow
-        assertTrue(borrowRate > standardParams.baseRate, "Very high utilization should have high rate");
-        assertTrue(borrowRate < 1 * RAY, "Rate should be reasonable (less than 100%)");
+        assertTrue(
+            borrowRate > standardParams.baseRate,
+            "Very high utilization should have high rate"
+        );
+        assertTrue(
+            borrowRate < 1 * RAY,
+            "Rate should be reasonable (less than 100%)"
+        );
     }
 
-    function testPrecisionBoundary_VerySmallAmounts() public {
+    function testPrecisionBoundary_VerySmallAmounts() public view {
         uint256 totalSupply = 1000; // Very small amount
-        uint256 totalBorrow = 100;  // 10% utilization
+        uint256 totalBorrow = 100; // 10% utilization
 
         uint256 borrowRate = InterestRateModel.calculateBorrowRate(
             totalSupply,
@@ -396,10 +517,13 @@ contract InterestRateModelTest is Test {
         );
 
         // Should handle small amounts without underflow/overflow
-        assertTrue(borrowRate >= standardParams.baseRate, "Small amounts should work correctly");
+        assertTrue(
+            borrowRate >= standardParams.baseRate,
+            "Small amounts should work correctly"
+        );
     }
 
-    function testPrecisionBoundary_VeryLargeAmounts() public {
+    function testPrecisionBoundary_VeryLargeAmounts() public view {
         uint256 totalSupply = 1e30; // Very large amount
         uint256 totalBorrow = 5e29; // 50% utilization
 
@@ -410,12 +534,15 @@ contract InterestRateModelTest is Test {
         );
 
         // Should handle large amounts without overflow
-        assertTrue(borrowRate >= standardParams.baseRate, "Large amounts should work correctly");
+        assertTrue(
+            borrowRate >= standardParams.baseRate,
+            "Large amounts should work correctly"
+        );
     }
 
     // ==================== Integration Tests ====================
 
-    function testIntegration_FullRateCalculationCycle() public {
+    function testIntegration_FullRateCalculationCycle() public view {
         uint256 totalSupply = 10000 * 1e18;
         uint256 totalBorrow = 7500 * 1e18; // 75% utilization
         uint256 reserveFactor = (12 * RAY) / 100; // 12% reserve factor
@@ -444,30 +571,33 @@ contract InterestRateModelTest is Test {
         assertEq(supplyRate, (33 * RAY) / 1000, "Supply rate should be 3.3%");
 
         // Verify relationship: supplyRate < borrowRate
-        assertTrue(supplyRate < borrowRate, "Supply rate should be less than borrow rate");
+        assertTrue(
+            supplyRate < borrowRate,
+            "Supply rate should be less than borrow rate"
+        );
     }
 
-    function testIntegration_RateSpreadAnalysis() public {
+    function testIntegration_RateSpreadAnalysis() public view {
         // Test rate spreads at different utilization levels
         uint256 totalSupply = 1000 * 1e18;
         uint256 reserveFactor = (10 * RAY) / 100;
 
         uint256[] memory utilizationLevels = new uint256[](5);
-        utilizationLevels[0] = 200 * 1e18;  // 20%
-        utilizationLevels[1] = 500 * 1e18;  // 50%
-        utilizationLevels[2] = 800 * 1e18;  // 80% (optimal)
-        utilizationLevels[3] = 900 * 1e18;  // 90%
-        utilizationLevels[4] = 950 * 1e18;  // 95%
+        utilizationLevels[0] = 200 * 1e18; // 20%
+        utilizationLevels[1] = 500 * 1e18; // 50%
+        utilizationLevels[2] = 800 * 1e18; // 80% (optimal)
+        utilizationLevels[3] = 900 * 1e18; // 90%
+        utilizationLevels[4] = 950 * 1e18; // 95%
 
         for (uint256 i = 0; i < utilizationLevels.length; i++) {
             uint256 totalBorrow = utilizationLevels[i];
-            
+
             uint256 borrowRate = InterestRateModel.calculateBorrowRate(
                 totalSupply,
                 totalBorrow,
                 standardParams
             );
-            
+
             uint256 supplyRate = InterestRateModel.calculateSupplyRate(
                 borrowRate,
                 totalSupply,
@@ -476,10 +606,16 @@ contract InterestRateModelTest is Test {
             );
 
             // Spread should always be positive (borrow > supply)
-            assertTrue(borrowRate >= supplyRate, "Borrow rate should be >= supply rate");
-            
+            assertTrue(
+                borrowRate >= supplyRate,
+                "Borrow rate should be >= supply rate"
+            );
+
             // At higher utilization, rates should generally be higher
-            assertTrue(borrowRate >= standardParams.baseRate, "Rate should be >= base rate");
+            assertTrue(
+                borrowRate >= standardParams.baseRate,
+                "Rate should be >= base rate"
+            );
         }
     }
 }

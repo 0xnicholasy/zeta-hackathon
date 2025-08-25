@@ -5,12 +5,6 @@
 ### 1. Arbitrary transferFrom in CrossChainOperations
 **File**: `contracts/libraries/CrossChainOperations.sol:276-299`
 **Issue**: `handleGasTokenTransfer` uses arbitrary `from` in transferFrom
-```solidity
-success = IERC20(params.gasZRC20).transferFrom(user, address(this), params.gasFee)
-```
-**Risk**: HIGH - This allows arbitrary users to be specified as the `from` address
-**Fix Required**: Add proper validation that `user` is `msg.sender` or authorized
-
 ### 2. ABI EncodePacked Hash Collision
 **File**: `contracts/DepositContract.sol`
 **Functions**: 
@@ -20,12 +14,6 @@ success = IERC20(params.gasZRC20).transferFrom(user, address(this), params.gasFe
 - `repayEth()` (lines 314-347)
 
 **Issue**: All functions use `abi.encodePacked()` with multiple dynamic arguments:
-```solidity
-message = abi.encodePacked(abi.encode(supply, onBehalfOf), new bytes(128 - abi.encode(supply, onBehalfOf).length))
-```
-**Risk**: MEDIUM - Potential hash collision vulnerability
-**Fix Required**: Use `abi.encode()` instead or ensure proper separation of dynamic data
-
 ## Medium Priority Issues (Financial/Logic Concerns)
 
 ### 3. Division Before Multiplication (Precision Loss)
@@ -95,10 +83,9 @@ The following issues are in external libraries and should be ignored:
 
 **Total Issues Found**: 116
 **Issues in Our Contracts**: 15
-**Critical Security Issues**: 2
-**Medium Priority Issues**: 4
-**Low Priority Issues**: 9
-
+**Critical Security Issues**: 1
+**Medium Priority Issues**: 3
+**Low Priority Issues**: 2
 ## Recommended Action Plan
 
 1. **Immediate**: Fix arbitrary transferFrom in CrossChainOperations

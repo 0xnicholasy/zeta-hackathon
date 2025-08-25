@@ -36,7 +36,12 @@ library CoreCalculations {
         if (decimals < 18) {
             // Scale up: multiply by 10^(18-decimals)
             // Example: 1000 USDC (6 decimals) → 1000 * 10^12 = 1e15 (18 decimals)
-            normalizedAmount = amount * (10 ** (18 - decimals));
+            uint256 multiplier = 10 ** (18 - decimals);
+            require(
+                amount <= type(uint256).max / multiplier,
+                "CoreCalculations: normalization overflow"
+            );
+            normalizedAmount = amount * multiplier;
         } else if (decimals > 18) {
             // Scale down: divide by 10^(decimals-18)
             // Example: some theoretical token with 24 decimals → divide by 10^6
@@ -131,6 +136,10 @@ library CoreCalculations {
         require(price <= MAX_VALID_PRICE, "CoreCalculations: price too high");
 
         // Calculate normalized amount: usdValue * PRECISION / price
+        require(
+            usdValue <= type(uint256).max / PRECISION,
+            "CoreCalculations: amount calculation overflow"
+        );
         uint256 normalizedAmount = (usdValue * PRECISION) / price;
 
         // Denormalize to asset's native decimals
@@ -142,7 +151,7 @@ library CoreCalculations {
      * @notice Validates if a price is within acceptable bounds
      * @dev Checks price against minimum and maximum thresholds to prevent:
      *      - Flash loan price manipulation attacks
-     *      - Overflow errors in calculations  
+     *      - Overflow errors in calculations
      *      - Division by zero or near-zero values
      * @param price The price to validate (in 18 decimal precision)
      * @return isValid True if price is within acceptable bounds
@@ -169,7 +178,10 @@ library CoreCalculations {
         }
 
         // Check for potential overflow before multiplication
-        require(a <= type(uint256).max / b, "CoreCalculations: multiplication overflow");
+        require(
+            a <= type(uint256).max / b,
+            "CoreCalculations: multiplication overflow"
+        );
 
         // Perform multiplication and maintain precision
         result = (a * b) / PRECISION;
@@ -196,6 +208,10 @@ library CoreCalculations {
         }
 
         // Scale numerator to maintain precision, then divide
+        require(
+            a <= type(uint256).max / PRECISION,
+            "CoreCalculations: division scaling overflow"
+        );
         result = (a * PRECISION) / b;
     }
 
@@ -216,7 +232,10 @@ library CoreCalculations {
         }
 
         // Ensure percentage is reasonable (not over 100% in most cases, but allow for bonuses)
-        require(percentage <= 10 * PRECISION, "CoreCalculations: percentage too high");
+        require(
+            percentage <= 10 * PRECISION,
+            "CoreCalculations: percentage too high"
+        );
 
         result = (value * percentage) / PRECISION;
     }
@@ -250,12 +269,14 @@ library CoreCalculations {
      * @param asset The address of the ERC20 token
      * @return decimals The number of decimals for the asset (defaults to 18 if not available)
      */
-    function getAssetDecimals(address asset) internal view returns (uint8 decimals) {
+    function getAssetDecimals(
+        address asset
+    ) internal view returns (uint8 decimals) {
         // Handle zero address explicitly
         if (asset == address(0)) {
             return 18;
         }
-        
+
         try IERC20Metadata(asset).decimals() returns (uint8 d) {
             decimals = d;
         } catch {
@@ -276,8 +297,11 @@ library CoreCalculations {
         uint256[] memory values,
         uint256[] memory weights
     ) internal pure returns (uint256 weightedAverage) {
-        require(values.length == weights.length, "CoreCalculations: array length mismatch");
-        
+        require(
+            values.length == weights.length,
+            "CoreCalculations: array length mismatch"
+        );
+
         if (values.length == 0) {
             return 0;
         }
@@ -286,6 +310,14 @@ library CoreCalculations {
         uint256 denominator = 0;
 
         for (uint256 i = 0; i < values.length; i++) {
+            // Skip zero weights to avoid division by zero in the overflow check
+            if (weights[i] == 0) {
+                continue;
+            }
+            require(
+                values[i] <= type(uint256).max / weights[i],
+                "CoreCalculations: weighted average overflow"
+            );
             numerator += (values[i] * weights[i]) / PRECISION;
             denominator += weights[i];
         }
@@ -293,7 +325,10 @@ library CoreCalculations {
         if (denominator == 0) {
             return 0;
         }
-
+        require(
+            numerator <= type(uint256).max / PRECISION,
+            "CoreCalculations: weighted average result overflow"
+        );
         weightedAverage = (numerator * PRECISION) / denominator;
     }
 }

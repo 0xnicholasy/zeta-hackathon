@@ -33,6 +33,20 @@ library CrossChainOperations {
     /// @dev Minimum amount threshold to prevent dust transactions
     uint256 private constant MIN_CROSS_CHAIN_AMOUNT = 1e6; // $0.001 USD equivalent
 
+    // Events
+    event CrossChainBorrow(
+        address indexed user,
+        address indexed asset,
+        uint256 amount,
+        uint256 destinationChain
+    );
+    event CrossChainWithdraw(
+        address indexed user,
+        address indexed asset,
+        uint256 amount,
+        uint256 destinationChain
+    );
+
     /**
      * @notice Cross-chain operation parameters
      * @dev Contains all necessary data for cross-chain operations
@@ -84,16 +98,23 @@ library CrossChainOperations {
         address[] storage supportedAssets,
         mapping(address => mapping(address => uint256)) storage userSupplies,
         mapping(address => mapping(address => uint256)) storage userBorrows,
-        mapping(address => IUniversalLendingProtocol.AssetConfig) storage enhancedAssets,
+        mapping(address => IUniversalLendingProtocol.AssetConfig)
+            storage enhancedAssets,
         IPriceOracle priceOracle
     ) internal {
         // Validate asset and amount
-        require(enhancedAssets[asset].isSupported, "CrossChainOperations: asset not supported");
+        require(
+            enhancedAssets[asset].isSupported,
+            "CrossChainOperations: asset not supported"
+        );
         require(amount > 0, "CrossChainOperations: invalid amount");
-        
+
         // Check contract balance
         uint256 contractBalance = IERC20(asset).balanceOf(address(this));
-        require(contractBalance >= amount, "CrossChainOperations: insufficient contract balance");
+        require(
+            contractBalance >= amount,
+            "CrossChainOperations: insufficient contract balance"
+        );
 
         // Validate borrowing capacity
         bool canBorrow = HealthFactorLogic.canBorrow(
@@ -107,7 +128,10 @@ library CrossChainOperations {
             enhancedAssets,
             priceOracle
         );
-        require(canBorrow, "CrossChainOperations: insufficient collateral for borrow");
+        require(
+            canBorrow,
+            "CrossChainOperations: insufficient collateral for borrow"
+        );
 
         // Validate amount vs gas fee
         validateAmountVsGasFee(asset, amount);
@@ -127,8 +151,8 @@ library CrossChainOperations {
         // Execute cross-chain withdrawal
         _executeCrossChainWithdrawal(params, gateway, user, destinationChain);
 
-        // Emit borrow event (assuming event is defined in main contract)
-        // emit Borrow(user, asset, amount);
+        // Emit borrow event
+        emit CrossChainBorrow(user, asset, amount, destinationChain);
     }
 
     /**
@@ -157,17 +181,27 @@ library CrossChainOperations {
         address[] storage supportedAssets,
         mapping(address => mapping(address => uint256)) storage userSupplies,
         mapping(address => mapping(address => uint256)) storage userBorrows,
-        mapping(address => IUniversalLendingProtocol.AssetConfig) storage enhancedAssets,
+        mapping(address => IUniversalLendingProtocol.AssetConfig)
+            storage enhancedAssets,
         IPriceOracle priceOracle
     ) internal {
         // Validate asset and amount
-        require(enhancedAssets[asset].isSupported, "CrossChainOperations: asset not supported");
+        require(
+            enhancedAssets[asset].isSupported,
+            "CrossChainOperations: asset not supported"
+        );
         require(amount > 0, "CrossChainOperations: invalid amount");
-        require(userSupplies[user][asset] >= amount, "CrossChainOperations: insufficient user balance");
+        require(
+            userSupplies[user][asset] >= amount,
+            "CrossChainOperations: insufficient user balance"
+        );
 
         // Check contract balance
         uint256 contractBalance = IERC20(asset).balanceOf(address(this));
-        require(contractBalance >= amount, "CrossChainOperations: insufficient contract balance");
+        require(
+            contractBalance >= amount,
+            "CrossChainOperations: insufficient contract balance"
+        );
 
         // Validate withdrawal capacity
         bool canWithdraw = HealthFactorLogic.canWithdraw(
@@ -181,7 +215,10 @@ library CrossChainOperations {
             enhancedAssets,
             priceOracle
         );
-        require(canWithdraw, "CrossChainOperations: insufficient collateral for withdraw");
+        require(
+            canWithdraw,
+            "CrossChainOperations: insufficient collateral for withdraw"
+        );
 
         // Validate amount vs gas fee
         validateAmountVsGasFee(asset, amount);
@@ -201,8 +238,8 @@ library CrossChainOperations {
         // Execute cross-chain withdrawal
         _executeCrossChainWithdrawal(params, gateway, user, destinationChain);
 
-        // Emit withdraw event (assuming event is defined in main contract)
-        // emit Withdraw(user, asset, amount);
+        // Emit withdraw event
+        emit CrossChainWithdraw(user, asset, amount, destinationChain);
     }
 
     /**
@@ -220,7 +257,10 @@ library CrossChainOperations {
 
         // If asset is the gas token, directly compare
         if (asset == gasZRC20) {
-            require(amount > gasFee, "CrossChainOperations: amount must exceed gas fee");
+            require(
+                amount > gasFee,
+                "CrossChainOperations: amount must exceed gas fee"
+            );
             return;
         }
 
@@ -228,10 +268,19 @@ library CrossChainOperations {
         uint8 assetDecimals = CoreCalculations.getAssetDecimals(asset);
         uint8 gasDecimals = CoreCalculations.getAssetDecimals(gasZRC20);
 
-        uint256 normalizedAmount = CoreCalculations.normalizeToDecimals(amount, assetDecimals);
-        uint256 normalizedGasFee = CoreCalculations.normalizeToDecimals(gasFee, gasDecimals);
+        uint256 normalizedAmount = CoreCalculations.normalizeToDecimals(
+            amount,
+            assetDecimals
+        );
+        uint256 normalizedGasFee = CoreCalculations.normalizeToDecimals(
+            gasFee,
+            gasDecimals
+        );
 
-        require(normalizedAmount > normalizedGasFee, "CrossChainOperations: amount must exceed gas fee value");
+        require(
+            normalizedAmount > normalizedGasFee,
+            "CrossChainOperations: amount must exceed gas fee value"
+        );
     }
 
     /**
@@ -247,12 +296,16 @@ library CrossChainOperations {
     function calculateGasFees(
         address asset,
         uint256 amount
-    ) internal view returns (
-        address gasZRC20,
-        uint256 gasFee,
-        uint256 withdrawalAmount,
-        uint256 approvalAmount
-    ) {
+    )
+        internal
+        view
+        returns (
+            address gasZRC20,
+            uint256 gasFee,
+            uint256 withdrawalAmount,
+            uint256 approvalAmount
+        )
+    {
         (gasZRC20, gasFee) = IZRC20(asset).withdrawGasFee();
 
         if (asset == gasZRC20) {
@@ -277,23 +330,44 @@ library CrossChainOperations {
         CrossChainParams memory params,
         address gateway
     ) internal {
+        // Ensure only the user can perform their own operations
+        require(
+            msg.sender == params.user,
+            "CrossChainOperations: unauthorized operation"
+        );
+
         if (params.asset == params.gasZRC20) {
             // Same token - no additional gas token handling needed
-            IERC20(params.asset).safeIncreaseAllowance(gateway, params.approvalAmount);
+            IERC20(params.asset).safeIncreaseAllowance(
+                gateway,
+                params.approvalAmount
+            );
         } else {
             // Different tokens - handle gas token separately
             IERC20(params.asset).safeIncreaseAllowance(gateway, params.amount);
-            
+
             // SECURITY FIX: Only check and transfer from msg.sender, not arbitrary user
             // Check msg.sender's gas token balance
-            uint256 userGasBalance = IERC20(params.gasZRC20).balanceOf(msg.sender);
-            require(userGasBalance >= params.gasFee, "CrossChainOperations: insufficient gas token balance");
+            uint256 userGasBalance = IERC20(params.gasZRC20).balanceOf(
+                params.user
+            );
+            require(
+                userGasBalance >= params.gasFee,
+                "CrossChainOperations: insufficient gas token balance"
+            );
 
             // Transfer gas tokens from msg.sender to contract - SECURITY: removed arbitrary 'user' parameter
-            IERC20(params.gasZRC20).safeTransferFrom(msg.sender, address(this), params.gasFee);
+            IERC20(params.gasZRC20).safeTransferFrom(
+                params.user,
+                address(this),
+                params.gasFee
+            );
 
             // Approve gas tokens to gateway
-            IERC20(params.gasZRC20).safeIncreaseAllowance(gateway, params.gasFee);
+            IERC20(params.gasZRC20).safeIncreaseAllowance(
+                gateway,
+                params.gasFee
+            );
         }
     }
 
@@ -331,9 +405,18 @@ library CrossChainOperations {
         uint256 destinationChain,
         bytes memory recipient
     ) internal pure {
-        require(asset != address(0), "CrossChainOperations: invalid asset address");
-        require(amount >= MIN_CROSS_CHAIN_AMOUNT, "CrossChainOperations: amount below minimum");
-        require(destinationChain != 0, "CrossChainOperations: invalid destination chain");
+        require(
+            asset != address(0),
+            "CrossChainOperations: invalid asset address"
+        );
+        require(
+            amount >= MIN_CROSS_CHAIN_AMOUNT,
+            "CrossChainOperations: amount below minimum"
+        );
+        require(
+            destinationChain != 0,
+            "CrossChainOperations: invalid destination chain"
+        );
         require(recipient.length > 0, "CrossChainOperations: empty recipient");
     }
 
@@ -349,13 +432,13 @@ library CrossChainOperations {
     function getCrossChainFeeEstimate(
         address asset,
         uint256 amount
-    ) internal view returns (
-        address gasToken,
-        uint256 totalGasFee,
-        uint256 netAmount
-    ) {
+    )
+        internal
+        view
+        returns (address gasToken, uint256 totalGasFee, uint256 netAmount)
+    {
         (gasToken, totalGasFee) = IZRC20(asset).withdrawGasFee();
-        
+
         if (asset == gasToken && amount > totalGasFee) {
             netAmount = amount - totalGasFee;
         } else {
@@ -377,10 +460,11 @@ library CrossChainOperations {
         uint256 minViableRatio
     ) internal view returns (bool isViable) {
         (address gasToken, uint256 gasFee) = IZRC20(asset).withdrawGasFee();
-        
+
         if (asset == gasToken) {
             // Direct comparison for same token
-            uint256 minAmount = (gasFee * (PRECISION + minViableRatio)) / PRECISION;
+            uint256 minAmount = (gasFee * (PRECISION + minViableRatio)) /
+                PRECISION;
             isViable = amount >= minAmount;
         } else {
             // For different tokens, assume operation is viable if above minimum threshold
@@ -412,8 +496,12 @@ library CrossChainOperations {
         params.destinationChain = destinationChain;
         params.recipient = recipient;
 
-        (params.gasZRC20, params.gasFee, params.withdrawalAmount, params.approvalAmount) = 
-            calculateGasFees(asset, amount);
+        (
+            params.gasZRC20,
+            params.gasFee,
+            params.withdrawalAmount,
+            params.approvalAmount
+        ) = calculateGasFees(asset, amount);
 
         // Validate parameters
         validateCrossChainParams(asset, amount, destinationChain, recipient);
@@ -437,7 +525,10 @@ library CrossChainOperations {
         handleGasTokenTransfer(params, address(gateway));
 
         // Create revert options
-        RevertOptions memory revertOptions = createRevertOptions(user, destinationChain);
+        RevertOptions memory revertOptions = createRevertOptions(
+            user,
+            destinationChain
+        );
 
         // Execute gateway withdrawal
         gateway.withdraw(

@@ -35,8 +35,8 @@ contract UserAssetCalculationsTest is Test {
     function setUp() public {
         // Deploy mock tokens
         eth = new MockZRC20("Ethereum", "ETH", 18, INITIAL_BALANCE);
-        usdc = new MockZRC20("USD Coin", "USDC", 6, INITIAL_BALANCE);
-        btc = new MockZRC20("Bitcoin", "BTC", 8, INITIAL_BALANCE);
+        usdc = new MockZRC20("USD Coin", "USDC", 6, 1000000 * 1e6); // 1M USDC
+        btc = new MockZRC20("Bitcoin", "BTC", 8, 1000000 * 1e8); // 1M BTC
 
         // Deploy mock price oracle
         priceOracle = new MockPriceOracle();
@@ -179,7 +179,7 @@ contract UserAssetCalculationsTest is Test {
         );
     }
 
-    function testGetAssetValues_CustomBalances() public {
+    function testGetAssetValues_CustomBalances() public view {
         // Test with custom balances (for simulation purposes)
         uint256 customSupply = 3 * 1e18; // 3 ETH
         uint256 customBorrow = 1 * 1e18; // 1 ETH
@@ -215,7 +215,7 @@ contract UserAssetCalculationsTest is Test {
         assertEq(weightedValue, 5100 * 1e18, "Custom weighted should be $5100");
     }
 
-    function testGetAssetValues_ZeroBalances() public {
+    function testGetAssetValues_ZeroBalances() public view {
         // Test with zero balances
         (
             uint256 collateralValue,
@@ -341,7 +341,7 @@ contract UserAssetCalculationsTest is Test {
         );
     }
 
-    function testCalculateUserAssetData_NoPositions() public {
+    function testCalculateUserAssetData_NoPositions() public view {
         // User has no positions
         UserAssetCalculations.UserAssetData
             memory userData = UserAssetCalculations.calculateUserAssetData(
@@ -578,12 +578,8 @@ contract UserAssetCalculationsTest is Test {
         // Should handle gracefully with zero config
         IUniversalLendingProtocol.AssetConfig memory emptyConfig;
 
-        (
-            uint256 collateralValue,
-            uint256 debtValue,
-            uint256 borrowableValue,
-            uint256 weightedValue
-        ) = UserAssetCalculations.getAssetValues(
+        (, , uint256 borrowableValue, uint256 weightedValue) = UserAssetCalculations
+            .getAssetValues(
                 USER1,
                 unsupportedAsset,
                 1e18,

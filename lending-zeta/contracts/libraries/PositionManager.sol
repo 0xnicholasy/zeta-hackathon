@@ -27,6 +27,9 @@ library PositionManager {
     /// @dev Minimum health factor required for borrowing operations (150% collateralization)
     uint256 private constant MINIMUM_HEALTH_FACTOR = 1.5e18;
 
+    /// @dev Liquidation health factor (120% collateralization)
+    uint256 private constant LIQUIDATION_HEALTH_FACTOR = 1.2e18;
+
     /**
      * @notice Comprehensive user position data structure
      * @dev Contains all relevant information about a user's position
@@ -96,12 +99,13 @@ library PositionManager {
         address[] storage supportedAssets,
         mapping(address => mapping(address => uint256)) storage userSupplies,
         mapping(address => mapping(address => uint256)) storage userBorrows,
-        mapping(address => IUniversalLendingProtocol.AssetConfig) storage enhancedAssets,
+        mapping(address => IUniversalLendingProtocol.AssetConfig)
+            storage enhancedAssets,
         IPriceOracle priceOracle
     ) internal view returns (UserPositionData memory positionData) {
         // Get consolidated asset data
-        UserAssetCalculations.UserAssetData memory assetData = UserAssetCalculations
-            .calculateUserAssetData(
+        UserAssetCalculations.UserAssetData
+            memory assetData = UserAssetCalculations.calculateUserAssetData(
                 user,
                 address(0),
                 0,
@@ -117,18 +121,31 @@ library PositionManager {
         // Set basic position metrics
         positionData.totalCollateralValue = assetData.totalCollateralValue;
         positionData.totalDebtValue = assetData.totalDebtValue;
-        positionData.maxBorrowUsdValue = assetData.totalDebtValue == 0 
-            ? assetData.totalBorrowableCollateral
-            : ((assetData.totalBorrowableCollateral * PRECISION) / MINIMUM_HEALTH_FACTOR) - assetData.totalDebtValue;
-
+        // Calculate how much more can be borrowed while maintaining the minimum health factor
+        // Uses borrowable collateral (collateral factor) for borrowing capacity calculation
+        if (assetData.totalDebtValue == 0) {
+            // For zero-debt positions, max borrowable is the total borrowable collateral
+            positionData.maxBorrowUsdValue = assetData.totalBorrowableCollateral;
+        } else if (assetData.totalBorrowableCollateral > 0) {
+            // For positions with existing debt, calculate remaining capacity at minimum health factor
+            uint256 maxAllowableDebt = (assetData.totalBorrowableCollateral * PRECISION) / MINIMUM_HEALTH_FACTOR;
+            // Calculate remaining borrowing capacity
+            positionData.maxBorrowUsdValue = maxAllowableDebt > assetData.totalDebtValue
+                ? maxAllowableDebt - assetData.totalDebtValue
+                : 0;
+        } else {
+            positionData.maxBorrowUsdValue = 0;
+        }
         // Calculate health factor
         positionData.healthFactor = assetData.totalDebtValue == 0
             ? type(uint256).max
-            : (assetData.totalWeightedCollateral * PRECISION) / assetData.totalDebtValue;
+            : (assetData.totalWeightedCollateral * PRECISION) /
+                assetData.totalDebtValue;
 
         // Calculate weighted liquidation threshold
         positionData.liquidationThreshold = assetData.totalCollateralValue > 0
-            ? assetData.weightedLiquidationThreshold / assetData.totalCollateralValue
+            ? assetData.weightedLiquidationThreshold /
+                assetData.totalCollateralValue
             : 0;
 
         // Count assets with positions
@@ -152,7 +169,7 @@ library PositionManager {
         // Populate asset arrays
         uint256 suppliedIndex = 0;
         uint256 borrowedIndex = 0;
-        
+
         // GAS OPTIMIZATION: Array length already cached as length
         for (uint256 i = 0; i < length; i++) {
             address asset = supportedAssets[i];
@@ -162,26 +179,20 @@ library PositionManager {
             if (suppliedAmount > 0) {
                 positionData.suppliedAssets[suppliedIndex] = asset;
                 positionData.suppliedAmounts[suppliedIndex] = suppliedAmount;
-                
+
                 uint256 price = priceOracle.getPrice(asset);
-                positionData.suppliedValues[suppliedIndex] = CoreCalculations.calculateAssetValue(
-                    suppliedAmount,
-                    asset,
-                    price
-                );
+                positionData.suppliedValues[suppliedIndex] = CoreCalculations
+                    .calculateAssetValue(suppliedAmount, asset, price);
                 suppliedIndex++;
             }
 
             if (borrowedAmount > 0) {
                 positionData.borrowedAssets[borrowedIndex] = asset;
                 positionData.borrowedAmounts[borrowedIndex] = borrowedAmount;
-                
+
                 uint256 price = priceOracle.getPrice(asset);
-                positionData.borrowedValues[borrowedIndex] = CoreCalculations.calculateAssetValue(
-                    borrowedAmount,
-                    asset,
-                    price
-                );
+                positionData.borrowedValues[borrowedIndex] = CoreCalculations
+                    .calculateAssetValue(borrowedAmount, asset, price);
                 borrowedIndex++;
             }
         }
@@ -204,7 +215,8 @@ library PositionManager {
         address asset,
         mapping(address => mapping(address => uint256)) storage userSupplies,
         mapping(address => mapping(address => uint256)) storage userBorrows,
-        mapping(address => IUniversalLendingProtocol.AssetConfig) storage enhancedAssets,
+        mapping(address => IUniversalLendingProtocol.AssetConfig)
+            storage enhancedAssets,
         IPriceOracle priceOracle,
         uint256 contractBalance
     ) internal view returns (AssetPosition memory position) {
@@ -214,13 +226,13 @@ library PositionManager {
 
         if (position.suppliedAmount > 0 || position.borrowedAmount > 0) {
             uint256 price = priceOracle.getPrice(asset);
-            
+
             position.suppliedValue = CoreCalculations.calculateAssetValue(
                 position.suppliedAmount,
                 asset,
                 price
             );
-            
+
             position.borrowedValue = CoreCalculations.calculateAssetValue(
                 position.borrowedAmount,
                 asset,
@@ -228,7 +240,10 @@ library PositionManager {
             );
 
             // Calculate effective collateral value (with collateral factor)
-            position.collateralValue = (position.suppliedValue * enhancedAssets[asset].collateralFactor) / PRECISION;
+            position.collateralValue =
+                (position.suppliedValue *
+                    enhancedAssets[asset].collateralFactor) /
+                PRECISION;
         }
 
         // Calculate maximum borrowable amount (would need full context for accurate calculation)
@@ -259,17 +274,22 @@ library PositionManager {
         address[] storage supportedAssets,
         mapping(address => mapping(address => uint256)) storage userSupplies,
         mapping(address => mapping(address => uint256)) storage userBorrows,
-        mapping(address => IUniversalLendingProtocol.AssetConfig) storage enhancedAssets,
+        mapping(address => IUniversalLendingProtocol.AssetConfig)
+            storage enhancedAssets,
         IPriceOracle priceOracle
-    ) internal view returns (
-        uint256 totalCollateralValue,
-        uint256 totalDebtValue,
-        uint256 availableBorrows,
-        uint256 currentLiquidationThreshold,
-        uint256 healthFactor
-    ) {
-        UserAssetCalculations.UserAssetData memory assetData = UserAssetCalculations
-            .calculateUserAssetData(
+    )
+        internal
+        view
+        returns (
+            uint256 totalCollateralValue,
+            uint256 totalDebtValue,
+            uint256 availableBorrows,
+            uint256 currentLiquidationThreshold,
+            uint256 healthFactor
+        )
+    {
+        UserAssetCalculations.UserAssetData
+            memory assetData = UserAssetCalculations.calculateUserAssetData(
                 user,
                 address(0),
                 0,
@@ -288,18 +308,22 @@ library PositionManager {
 
         if (assetData.totalCollateralValue > 0) {
             // Calculate weighted liquidation threshold
-            currentLiquidationThreshold = assetData.weightedLiquidationThreshold / assetData.totalCollateralValue;
+            currentLiquidationThreshold =
+                assetData.weightedLiquidationThreshold /
+                assetData.totalCollateralValue;
 
-            // Calculate available borrows
-            uint256 requiredCollateral = (totalDebtValue * MINIMUM_HEALTH_FACTOR) / PRECISION;
-            availableBorrows = totalCollateralValue > requiredCollateral 
-                ? totalCollateralValue - requiredCollateral 
+            // Calculate available borrows in USD at MINIMUM_HEALTH_FACTOR
+            uint256 requiredCollateral = (totalDebtValue *
+                MINIMUM_HEALTH_FACTOR) / PRECISION;
+            availableBorrows = totalCollateralValue > requiredCollateral
+                ? totalCollateralValue - requiredCollateral
                 : 0;
 
             // Calculate health factor
-            healthFactor = totalDebtValue == 0 
-                ? type(uint256).max 
-                : (assetData.totalWeightedCollateral * PRECISION) / totalDebtValue;
+            healthFactor = totalDebtValue == 0
+                ? type(uint256).max
+                : (assetData.totalWeightedCollateral * PRECISION) /
+                    totalDebtValue;
         } else {
             currentLiquidationThreshold = 0;
             availableBorrows = 0;
@@ -326,20 +350,22 @@ library PositionManager {
         address[] storage supportedAssets,
         mapping(address => mapping(address => uint256)) storage userSupplies,
         mapping(address => mapping(address => uint256)) storage userBorrows,
-        mapping(address => IUniversalLendingProtocol.AssetConfig) storage enhancedAssets,
+        mapping(address => IUniversalLendingProtocol.AssetConfig)
+            storage enhancedAssets,
         IPriceOracle priceOracle,
         uint256 contractBalance
     ) internal view returns (uint256 maxBorrowAmount) {
-        return HealthFactorLogic.getMaxBorrowableAmount(
-            user,
-            asset,
-            contractBalance,
-            supportedAssets,
-            userSupplies,
-            userBorrows,
-            enhancedAssets,
-            priceOracle
-        );
+        return
+            HealthFactorLogic.getMaxBorrowableAmount(
+                user,
+                asset,
+                contractBalance,
+                supportedAssets,
+                userSupplies,
+                userBorrows,
+                enhancedAssets,
+                priceOracle
+            );
     }
 
     /**
@@ -361,7 +387,8 @@ library PositionManager {
         address[] storage supportedAssets,
         mapping(address => mapping(address => uint256)) storage userSupplies,
         mapping(address => mapping(address => uint256)) storage userBorrows,
-        mapping(address => IUniversalLendingProtocol.AssetConfig) storage enhancedAssets,
+        mapping(address => IUniversalLendingProtocol.AssetConfig)
+            storage enhancedAssets,
         IPriceOracle priceOracle,
         uint256 contractBalance
     ) internal view returns (uint256 maxWithdrawAmount) {
@@ -369,11 +396,13 @@ library PositionManager {
         if (userSupply == 0) return 0;
 
         // Check contract balance limit
-        uint256 contractLimit = contractBalance > userSupply ? userSupply : contractBalance;
+        uint256 contractLimit = contractBalance > userSupply
+            ? userSupply
+            : contractBalance;
 
         // Check if user has no debt - can withdraw full balance
-        UserAssetCalculations.UserAssetData memory assetData = UserAssetCalculations
-            .calculateUserAssetData(
+        UserAssetCalculations.UserAssetData
+            memory assetData = UserAssetCalculations.calculateUserAssetData(
                 user,
                 address(0),
                 0,
@@ -397,7 +426,7 @@ library PositionManager {
 
         while (low <= high) {
             uint256 mid = (low + high) / 2;
-            
+
             bool canWithdraw = HealthFactorLogic.canWithdraw(
                 user,
                 asset,
@@ -441,14 +470,19 @@ library PositionManager {
         address[] storage supportedAssets,
         mapping(address => mapping(address => uint256)) storage userSupplies,
         mapping(address => mapping(address => uint256)) storage userBorrows,
-        mapping(address => IUniversalLendingProtocol.AssetConfig) storage enhancedAssets,
+        mapping(address => IUniversalLendingProtocol.AssetConfig)
+            storage enhancedAssets,
         IPriceOracle priceOracle
-    ) internal view returns (
-        uint256 healthFactor,
-        uint8 healthStatus,
-        uint256 liquidationPrice,
-        uint256 improvementNeeded
-    ) {
+    )
+        internal
+        view
+        returns (
+            uint256 healthFactor,
+            uint8 healthStatus,
+            uint256 liquidationPrice,
+            uint256 improvementNeeded
+        )
+    {
         healthFactor = HealthFactorLogic.calculateHealthFactor(
             user,
             supportedAssets,
@@ -462,17 +496,19 @@ library PositionManager {
 
         // Calculate liquidation price drop percentage
         if (healthFactor != type(uint256).max && healthFactor > 0) {
-            // Liquidation occurs when health factor drops to 1.2
-            // Price drop % = (1 - (1.2 / currentHealthFactor)) * 100
-            uint256 liquidationHealthFactor = 1.2e18;
-            if (healthFactor > liquidationHealthFactor) {
-                liquidationPrice = PRECISION - (liquidationHealthFactor * PRECISION) / healthFactor;
+            // Liquidation occurs when health factor drops to LIQUIDATION_HEALTH_FACTOR
+            // Drop fraction = 1 - (LIQUIDATION_HF / currentHF)
+            if (healthFactor > LIQUIDATION_HEALTH_FACTOR) {
+                liquidationPrice =
+                    PRECISION -
+                    (LIQUIDATION_HEALTH_FACTOR * PRECISION) /
+                    healthFactor;
             }
         }
 
         // Get improvement needed
-        UserAssetCalculations.UserAssetData memory assetData = UserAssetCalculations
-            .calculateUserAssetData(
+        UserAssetCalculations.UserAssetData
+            memory assetData = UserAssetCalculations.calculateUserAssetData(
                 user,
                 address(0),
                 0,
@@ -507,11 +543,15 @@ library PositionManager {
         address[] storage supportedAssets,
         mapping(address => mapping(address => uint256)) storage userSupplies,
         mapping(address => mapping(address => uint256)) storage userBorrows
-    ) internal view returns (
-        address[] memory activeAssets,
-        bool[] memory hasSupply,
-        bool[] memory hasBorrow
-    ) {
+    )
+        internal
+        view
+        returns (
+            address[] memory activeAssets,
+            bool[] memory hasSupply,
+            bool[] memory hasBorrow
+        )
+    {
         // Count active assets
         uint256 activeCount = 0;
         // GAS OPTIMIZATION: Cache array length to save gas
@@ -535,7 +575,7 @@ library PositionManager {
             address asset = supportedAssets[i];
             uint256 supply = userSupplies[user][asset];
             uint256 borrow = userBorrows[user][asset];
-            
+
             if (supply > 0 || borrow > 0) {
                 activeAssets[index] = asset;
                 hasSupply[index] = supply > 0;
