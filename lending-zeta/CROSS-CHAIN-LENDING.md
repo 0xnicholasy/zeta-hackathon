@@ -27,8 +27,8 @@ graph TB
     
     subgraph "ZetaChain Universal EVM"
         GW[ZetaChain Gateway]
-        SLP[SimpleLendingProtocol]
         ULP[UniversalLendingProtocol]
+        LIB[Modular Libraries]
         ZRC[ZRC-20 Tokens]
         OR[Price Oracle]
     end
@@ -45,9 +45,9 @@ graph TB
     DC4 --> GW
     DC5 --> GW
     DC6 --> GW
-    GW --> SLP
     GW --> ULP
-    SLP --> ZRC
+    ULP --> LIB
+    ULP --> ZRC
     ULP --> ZRC
     ULP --> OR
 ```

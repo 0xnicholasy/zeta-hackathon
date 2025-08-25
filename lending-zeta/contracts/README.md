@@ -1,50 +1,38 @@
 # ZetaChain Cross-Chain Lending Protocol Contracts
 
-This directory contains the smart contracts for the ZetaChain cross-chain lending protocol, including both SimpleLendingProtocol and UniversalLendingProtocol implementations with cross-chain functionality.
+This directory contains the smart contracts for the ZetaChain cross-chain lending protocol, featuring the UniversalLendingProtocol implementation with advanced cross-chain functionality.
 
 ## Contract Structure
 
 ### Core Contracts
 
-1. **SimpleLendingProtocol.sol** - Basic lending protocol implementation with fixed interest rates and cross-chain support
-2. **UniversalLendingProtocol.sol** - Advanced lending protocol with dynamic interest rates, enhanced risk management, and cross-chain operations
-3. **SimpleLendingProtocolBase.sol** - Base contract with shared functionality between both protocols
-4. **DepositContract.sol** - Handles cross-chain deposits from external chains (Arbitrum, Ethereum) to ZetaChain
-5. **PriceOracle.sol** - Price oracle for real-time asset pricing with external oracle integration
-6. **Universal.sol** - Universal contract base for ZetaChain cross-chain operations
+1. **UniversalLendingProtocol.sol** - Advanced lending protocol with dynamic interest rates, enhanced risk management, and cross-chain operations
+2. **DepositContract.sol** - Handles cross-chain deposits from external chains (Arbitrum, Ethereum) to ZetaChain
+3. **PriceOracle.sol** - Price oracle for real-time asset pricing with external oracle integration
+4. **Universal.sol** - Universal contract base for ZetaChain cross-chain operations
 
 ### Interfaces
 
-1. **ISimpleLendingProtocol.sol** - Interface for SimpleLendingProtocol with core lending functions
-2. **IUniversalLendingProtocol.sol** - Interface for UniversalLendingProtocol with advanced features
-3. **IPriceOracle.sol** - Interface for price oracle with external price feed integration
-4. **IZRC20.sol** - Interface for ZRC-20 tokens with cross-chain capabilities
+1. **IUniversalLendingProtocol.sol** - Interface for UniversalLendingProtocol with advanced features and core lending functions
+2. **IPriceOracle.sol** - Interface for price oracle with external price feed integration
+3. **IZRC20.sol** - Interface for ZRC-20 tokens with cross-chain capabilities
 
 ### Libraries
 
-1. **InterestRateModel.sol** - Dynamic interest rate calculation logic with utilization-based rates
-2. **LiquidationLogic.sol** - Liquidation calculation logic with collateral factors and thresholds
-3. **UserAssetCalculations.sol** - User account data calculations including health factors and borrowing capacity
+1. **CoreCalculations.sol** - Decimal normalization and asset value calculation utilities
+2. **HealthFactorLogic.sol** - Health factor calculations and borrowing/withdrawal validation logic
+3. **PositionManager.sol** - User position data aggregation and capacity calculations
+4. **CrossChainOperations.sol** - Cross-chain borrow and withdraw operations via ZetaChain Gateway
+5. **InterestRateModel.sol** - Dynamic interest rate calculation logic with utilization-based rates
+6. **LiquidationLogic.sol** - Liquidation calculation logic with collateral factors and thresholds
+7. **UserAssetCalculations.sol** - User account data calculations including health factors and borrowing capacity
 
 ### Mocks (Testing Only)
 
 1. **MockPriceOracle.sol** - Mock price oracle for testing scenarios
 2. **MockZRC20.sol** - Mock ZRC-20 token for testing cross-chain functionality
 
-## Key Differences
-
-### SimpleLendingProtocol
-
-- **Fixed Interest Rates**: Uses fixed interest rates with no dynamic adjustment based on utilization
-- **Basic Asset Management**: Assets are added with a fixed price in USD  
-- **Simple Health Factor Calculation**: Health factor is calculated using fixed collateral factors
-- **Fixed Price Model**: Asset prices are set manually by administrators
-- **Cross-Chain Support**: Supports cross-chain deposits from external chains and withdrawals to any supported chain
-- **Gateway Integration**: Implements ZetaChain's Universal Contract interface for cross-chain operations
-- **ZRC-20 Assets**: Works with ZRC-20 tokens representing assets from different chains (ETH.ARBI, USDC.ARBI, ETH.ETH, USDC.ETH)
-- **No Reserve System**: Does not implement a reserve system for protocol revenue
-
-### UniversalLendingProtocol
+## UniversalLendingProtocol Features
 
 The UniversalLendingProtocol design is inspired by Aave's architecture, particularly in the following aspects:
 
@@ -165,7 +153,7 @@ Both protocols implement the same core lending operations with similar interface
 
 ### Administrative Functions
 - `addAsset()` - Add a new supported ZRC-20 asset with configuration
-- `updatePrice()` - Update the price of an existing asset (SimpleLendingProtocol)
+- `updatePrice()` - Update the price of an existing asset (administrative function)
 - `setPriceOracle()` - Update the external price oracle address (UniversalLendingProtocol)
 - `setAllowedSourceChain()` - Configure which chains are allowed for cross-chain deposits (UniversalLendingProtocol)
 - `mapZRC20Asset()` - Map ZRC-20 assets to their source chain and symbol (UniversalLendingProtocol)
@@ -175,8 +163,7 @@ Both protocols implement the same core lending operations with similar interface
 The protocol uses a multi-chain deployment architecture:
 
 ### ZetaChain Athens Testnet (7001)
-- **SimpleLendingProtocol** - Core lending protocol with basic features
-- **UniversalLendingProtocol** - Advanced lending protocol with dynamic rates and enhanced cross-chain features
+- **UniversalLendingProtocol** - Advanced lending protocol with modular libraries, dynamic rates and enhanced cross-chain features
 - **PriceOracle** - External price oracle integration for real-time asset pricing
 
 ### External Chains (Cross-Chain Deposits)

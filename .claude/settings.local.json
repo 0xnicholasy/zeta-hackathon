@@ -55,7 +55,8 @@
       "Bash(git restore:*)",
       "WebSearch",
       "Bash(git log:*)",
-      "WebFetch(domain:zetachain.blockpi.network)"
+      "WebFetch(domain:zetachain.blockpi.network)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

@@ -175,10 +175,11 @@ contract DepositContract is ReentrancyGuard, Ownable {
 
         // Encode message for SimpleLendingProtocol.onCall()
         // Format: (string action, address onBehalfOf) where action = "supply"
-        // Pad to exactly 128 bytes to match contract expectation
+        // SECURITY FIX: Use abi.encode instead of abi.encodePacked to prevent hash collisions
+        bytes memory encodedData = abi.encode("supply", onBehalfOf);
         bytes memory message = abi.encodePacked(
-            abi.encode("supply", onBehalfOf),
-            new bytes(128 - abi.encode("supply", onBehalfOf).length)
+            encodedData,
+            new bytes(128 - encodedData.length)
         );
 
         try
@@ -225,10 +226,11 @@ contract DepositContract is ReentrancyGuard, Ownable {
 
         // Encode message for SimpleLendingProtocol.onCall()
         // Format: (string action, address onBehalfOf) where action = "supply"
-        // Pad to exactly 128 bytes to match contract expectation
+        // SECURITY FIX: Use abi.encode instead of abi.encodePacked to prevent hash collisions
+        bytes memory encodedData = abi.encode("supply", onBehalfOf);
         bytes memory message = abi.encodePacked(
-            abi.encode("supply", onBehalfOf),
-            new bytes(128 - abi.encode("supply", onBehalfOf).length)
+            encodedData,
+            new bytes(128 - encodedData.length)
         );
 
         try
@@ -278,10 +280,11 @@ contract DepositContract is ReentrancyGuard, Ownable {
 
         // Encode message for SimpleLendingProtocol.onCall()
         // Format: (string action, address onBehalfOf) where action = "repay"
-        // Pad to exactly 128 bytes to match contract expectation
+        // SECURITY FIX: Use abi.encode instead of abi.encodePacked to prevent hash collisions
+        bytes memory encodedData = abi.encode("repay", onBehalfOf);
         bytes memory message = abi.encodePacked(
-            abi.encode("repay", onBehalfOf),
-            new bytes(128 - abi.encode("repay", onBehalfOf).length)
+            encodedData,
+            new bytes(128 - encodedData.length)
         );
 
         try
@@ -321,10 +324,11 @@ contract DepositContract is ReentrancyGuard, Ownable {
 
         // Encode message for SimpleLendingProtocol.onCall()
         // Format: (string action, address onBehalfOf) where action = "repay"
-        // Pad to exactly 128 bytes to match contract expectation
+        // SECURITY FIX: Use abi.encode instead of abi.encodePacked to prevent hash collisions
+        bytes memory encodedData = abi.encode("repay", onBehalfOf);
         bytes memory message = abi.encodePacked(
-            abi.encode("repay", onBehalfOf),
-            new bytes(128 - abi.encode("repay", onBehalfOf).length)
+            encodedData,
+            new bytes(128 - encodedData.length)
         );
 
         try

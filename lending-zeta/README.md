@@ -8,20 +8,23 @@ This directory contains the complete technical implementation of the ZetaChain C
 
 ## Architecture Overview
 
-### Protocol Variants
+### Protocol Design
 
-1. **SimpleLendingProtocol** (`SimpleLendingProtocol.sol`)
-   - Fixed interest rate model
-   - Basic health factor calculations
-   - Cross-chain operations via ZetaChain gateway
-   - Ideal for: Simple lending applications, testing, education
+**UniversalLendingProtocol** (`UniversalLendingProtocol.sol`)
+- Modular architecture with specialized libraries
+- Dynamic kinked interest rate model with RAY precision
+- Advanced weighted health factor calculations
+- Oracle-based pricing with validation
+- Cross-chain operations via ZetaChain gateway
+- Institutional-grade features and gas optimization
+- Ideal for: Production DeFi applications, institutional use
 
-2. **UniversalLendingProtocol** (`UniversalLendingProtocol.sol`)
-   - Dynamic kinked interest rate model with RAY precision
-   - Advanced weighted health factor calculations
-   - Oracle-based pricing with validation
-   - Institutional-grade features and gas optimization
-   - Ideal for: Production DeFi applications, institutional use
+### Modular Library System
+
+1. **CoreCalculations** - Decimal normalization and asset value calculations
+2. **HealthFactorLogic** - Health factor calculations and borrowing validation
+3. **PositionManager** - User position data aggregation and capacity calculations
+4. **CrossChainOperations** - Cross-chain borrow and withdraw operations
 
 ### Core Technology Stack
 
@@ -67,24 +70,7 @@ bun run prettier
 
 ### Deployment Options
 
-#### Option 1: SimpleLendingProtocol (Recommended for testing)
-```bash
-# Deploy to ZetaChain testnet
-bun hardhat run scripts/simple/deploy-and-init-simple.ts --network zeta-testnet
-
-# Deploy cross-chain deposit contracts
-bun hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network arbitrum
-bun hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network ethereum
-bun hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network bsc
-bun hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network polygon
-bun hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network base
-bun hardhat run scripts/deposit-contract/deploy-deposit-contracts.ts --network solana
-
-# Test cross-chain deposits
-bun hardhat run scripts/deposit-contract/simulate-deposit.ts --network arbitrum
-```
-
-#### Option 2: UniversalLendingProtocol (Production-ready)
+#### UniversalLendingProtocol (Production-ready)
 ```bash
 # Deploy advanced protocol
 bun hardhat run scripts/universal/deploy-universal-lending.ts --network zeta-testnet
@@ -101,9 +87,6 @@ bun hardhat run scripts/deposit-contract/simulate-deposit.ts --network arbitrum
 
 #### Automated Deployment (Shell Scripts)
 ```bash
-# Complete SimpleLendingProtocol deployment
-./scripts/redeploy-and-init-simple.sh
-
 # Complete UniversalLendingProtocol deployment
 ./scripts/redeploy-and-init-universal.sh
 ```
@@ -118,7 +101,6 @@ bun hardhat run scripts/deposit-contract/simulate-deposit.ts --network arbitrum
 ### Architecture and Implementation
 - **[CROSS-CHAIN-LENDING.md](./CROSS-CHAIN-LENDING.md)** - Cross-chain flows and gateway integration
 - **[../UNIVERSAL-LENDING-PROTOCOL.md](../UNIVERSAL-LENDING-PROTOCOL.md)** - Advanced protocol features and design
-- **[../README-LENDING.md](../README-LENDING.md)** - Simple protocol implementation details
 
 ### Development and Deployment
 - **[scripts/README.md](./scripts/README.md)** - Deployment scripts and testing utilities
@@ -134,7 +116,7 @@ bun hardhat run scripts/deposit-contract/simulate-deposit.ts --network arbitrum
 ### Supported Networks (Currently Deployed)
 | Network | Chain ID | Role | Deployed Contracts |
 |---------|----------|------|-----------------|
-| **ZetaChain Athens** | 7001 | Main protocol deployment | SimpleLendingProtocol, UniversalLendingProtocol |
+| **ZetaChain Athens** | 7001 | Main protocol deployment | UniversalLendingProtocol |
 | **Ethereum Sepolia** | 11155111 | Cross-chain deposits/withdrawals | DepositContract |
 | **Arbitrum Sepolia** | 421614 | Cross-chain deposits/withdrawals | DepositContract |
 | **BSC Testnet** | 97 | Cross-chain deposits/withdrawals | DepositContract |
@@ -143,7 +125,6 @@ bun hardhat run scripts/deposit-contract/simulate-deposit.ts --network arbitrum
 
 ### Deployed Contract Addresses
 **ZetaChain Athens (7001):**
-- SimpleLendingProtocol: `0xcec503D661A9C56AFa91AcDB4D7A2BFe411a5416`
 - UniversalLendingProtocol: `0xb44df318e14d3a162589f76fbc7642a589879e4b`
 - MockPriceOracle: `0x3611ec20Ab7904E914E1Dbb47F536fE8c54ddC8E`
 
@@ -187,26 +168,24 @@ ZETA: "0x0000000000000000000000000000000000000000"       // Native ZETA
 ```
 lending-zeta/
 ├── contracts/                          # Smart contract implementation
-│   ├── SimpleLendingProtocolBase.sol   # Abstract base contract
-│   ├── SimpleLendingProtocol.sol       # Basic lending implementation
-│   ├── UniversalLendingProtocol.sol    # Advanced lending with dynamic rates
+│   ├── UniversalLendingProtocol.sol    # Main lending protocol
 │   ├── DepositContract.sol             # Cross-chain deposit handling
 │   ├── interfaces/                     # Contract interfaces
-│   │   ├── ISimpleLendingProtocol.sol  # Core protocol interface
-│   │   ├── IUniversalLendingProtocol.sol # Advanced protocol interface
+│   │   ├── IUniversalLendingProtocol.sol # Protocol interface
 │   │   └── IPriceOracle.sol            # Oracle interface
-│   ├── libraries/                      # Optimized calculation libraries
-│   │   ├── InterestRateModel.sol       # Kinked rate model with RAY precision
-│   │   ├── LiquidationLogic.sol        # Liquidation calculations
-│   │   └── UserAssetCalculations.sol   # Gas-optimized asset calculations
+│   ├── libraries/                      # Modular calculation libraries
+│   │   ├── CoreCalculations.sol        # Asset calculations and normalization
+│   │   ├── HealthFactorLogic.sol       # Health factor calculations
+│   │   ├── PositionManager.sol         # Position data management
+│   │   └── CrossChainOperations.sol    # Cross-chain operations
 │   └── mocks/                          # Testing and development contracts
 ├── scripts/                            # Deployment and testing automation
-│   ├── simple/                         # SimpleLendingProtocol operations
 │   ├── universal/                      # UniversalLendingProtocol operations
 │   ├── deposit-contract/               # Cross-chain infrastructure
 │   └── utils/                          # Shared deployment utilities
 ├── test/                               # Foundry test suite
-│   └── Universal.t.sol                 # Comprehensive protocol tests
+│   ├── UniversalLendingProtocol.t.sol  # Main protocol tests
+│   └── libraries/                      # Library-specific tests
 ├── contracts.json                      # Deployed contract addresses registry
 ├── hardhat.config.ts                   # Network and compilation configuration
 └── package.json                        # Dependencies and scripts
@@ -214,24 +193,26 @@ lending-zeta/
 
 ## Core Contract Interactions
 
-### SimpleLendingProtocol Flow
+### Cross-Chain Lending Flow
 ```mermaid
 graph TD
     A[User on External Chain] --> B[DepositContract]
     B --> C[ZetaChain Gateway]
-    C --> D[SimpleLendingProtocol]
-    D --> E[Supply/Borrow/Repay]
-    E --> F[Cross-chain Withdrawal]
+    C --> D[UniversalLendingProtocol]
+    D --> E[Library Calculations]
+    E --> F[Supply/Borrow/Repay]
+    F --> G[Cross-chain Withdrawal]
 ```
 
 ### UniversalLendingProtocol Flow
 ```mermaid
 graph TD
-    A[User Operation] --> B[Interest Rate Update]
+    A[User Operation] --> B[CoreCalculations Library]
     B --> C[Oracle Price Validation]
-    C --> D[Health Factor Calculation]
-    D --> E[Operation Execution]
-    E --> F[Reserve Accumulation]
+    C --> D[HealthFactorLogic Library]
+    D --> E[PositionManager Library]
+    E --> F[Operation Execution]
+    F --> G[CrossChainOperations Library]
 ```
 
 ## Development Guidelines

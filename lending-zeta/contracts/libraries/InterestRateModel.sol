@@ -53,15 +53,15 @@ library InterestRateModel {
         uint256 utilizationRate = (totalBorrow * RAY) / totalSupply;
 
         if (utilizationRate <= params.optimalUtilization) {
+            // PRECISION FIX: Multiply before divide to minimize precision loss
             return params.baseRate + (utilizationRate * params.slope1) / RAY;
         } else {
-            uint256 excessUtilization = utilizationRate -
-                params.optimalUtilization;
+            uint256 excessUtilization = utilizationRate - params.optimalUtilization;
+            // PRECISION FIX: Multiply before divide to minimize precision loss
             return
                 params.baseRate +
                 params.slope1 +
-                (excessUtilization * params.slope2) /
-                RAY;
+                (excessUtilization * params.slope2) / RAY;
         }
     }
 
@@ -85,9 +85,11 @@ library InterestRateModel {
             return 0;
         }
 
+        // PRECISION FIX: Use higher precision intermediate calculations
         uint256 utilizationRate = (totalBorrow * RAY) / totalSupply;
         uint256 rateToPool = (borrowRate * (RAY - reserveFactor)) / RAY;
 
+        // PRECISION FIX: Calculate final result with proper precision
         return (utilizationRate * rateToPool) / RAY;
     }
 

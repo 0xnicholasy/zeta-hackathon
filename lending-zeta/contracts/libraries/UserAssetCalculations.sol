@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import "../interfaces/IPriceOracle.sol";
 import "../interfaces/IUniversalLendingProtocol.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "./CoreCalculations.sol";
 
 /**
  * @title UserAssetCalculations
@@ -14,6 +15,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
  *      All calculations use 1e18 precision for accurate financial computations
  */
 library UserAssetCalculations {
+    using CoreCalculations for uint256;
     /// @dev Precision constant for percentage calculations (1e18 = 100%)
     uint256 private constant PRECISION = 1e18;
 
@@ -134,7 +136,9 @@ library UserAssetCalculations {
             storage enhancedAssets,
         IPriceOracle priceOracle
     ) internal view returns (UserAssetData memory data) {
-        for (uint256 i = 0; i < supportedAssets.length; i++) {
+        // GAS OPTIMIZATION: Cache array length to save gas
+        uint256 length = supportedAssets.length;
+        for (uint256 i = 0; i < length; i++) {
             address asset = supportedAssets[i];
 
             // Determine if we should use custom balances for this asset
@@ -200,7 +204,7 @@ library UserAssetCalculations {
         uint256 validatedPrice
     ) internal view returns (uint256 value) {
         uint8 decimals = IERC20Metadata(asset).decimals();
-        uint256 normalizedAmount = _normalizeToDecimals(amount, decimals);
+        uint256 normalizedAmount = CoreCalculations.normalizeToDecimals(amount, decimals);
         value = (normalizedAmount * validatedPrice) / PRECISION;
     }
 
@@ -226,45 +230,4 @@ library UserAssetCalculations {
         // - Price change rate limits
     }
 
-    /**
-     * @notice Normalize amount to 18 decimals for comparison purposes
-     * @dev Ensures consistent precision across all asset calculations
-     *      Handles assets with different decimal places (e.g., USDC has 6 decimals)
-     * @param amount The amount to normalize
-     * @param decimals The current decimal places of the amount
-     * @return normalizedAmount The amount normalized to 18 decimals
-     */
-    function _normalizeToDecimals(
-        uint256 amount,
-        uint256 decimals
-    ) internal pure returns (uint256 normalizedAmount) {
-        if (decimals < 18) {
-            normalizedAmount = amount * (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            normalizedAmount = amount / (10 ** (decimals - 18));
-        } else {
-            normalizedAmount = amount;
-        }
-    }
-
-    /**
-     * @notice Denormalize amount from 18 decimals to asset's native decimals
-     * @dev Converts normalized amounts back to asset-specific precision
-     *      Used when calculating maximum borrow amounts in specific assets
-     * @param normalizedAmount The normalized amount (18 decimals)
-     * @param decimals The target decimal places
-     * @return amount The denormalized amount in asset's native decimals
-     */
-    function _denormalizeFromDecimals(
-        uint256 normalizedAmount,
-        uint256 decimals
-    ) internal pure returns (uint256 amount) {
-        if (decimals < 18) {
-            amount = normalizedAmount / (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            amount = normalizedAmount * (10 ** (decimals - 18));
-        } else {
-            amount = normalizedAmount;
-        }
-    }
 }

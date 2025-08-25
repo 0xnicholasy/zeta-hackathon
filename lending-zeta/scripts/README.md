@@ -13,14 +13,6 @@ scripts/
 │   ├── verify-assets.ts               # Verify DepositContract asset configuration
 │   ├── script-helpers.ts              # Helper functions for deposit scripts
 │   └── update-lending-protocol-address.ts  # Update lending protocol address reference
-├── simple/                   # SimpleLendingProtocol deployment and operations
-│   ├── deploy-and-init-simple.ts      # Deploy and initialize SimpleLendingProtocol
-│   ├── verify-assets.ts               # Verify supported assets in SimpleLendingProtocol
-│   ├── supply-test-amount.ts          # Supply test tokens for testing
-│   ├── borrow-cross-chain.ts          # Test cross-chain borrowing operations
-│   ├── check-balances.ts              # Check user balances across assets
-│   ├── provide-gas-tokens.ts          # Provide gas tokens for cross-chain operations
-│   └── withdraw-all-fixed.ts          # Withdraw all supplied assets
 ├── universal/                # UniversalLendingProtocol deployment and operations
 │   ├── deploy-universal-lending.ts    # Deploy and initialize UniversalLendingProtocol
 │   ├── check-oracle-prices.ts         # Check external oracle price feeds
@@ -30,21 +22,11 @@ scripts/
 ├── utils/                   # Shared deployment utilities
 │   └── deployment-utils.ts            # Common deployment and verification utilities
 ├── check-balances.ts        # Global balance checking across all protocols
-├── redeploy-and-init-simple.sh        # Shell script for complete SimpleLendingProtocol redeployment
 ├── redeploy-and-init-universal.sh     # Shell script for complete UniversalLendingProtocol redeployment
 └── package-scripts.json     # NPM script shortcuts for common operations
 ```
 
 ## Usage Examples
-
-### Deploy SimpleLendingProtocol (ZetaChain)
-```bash
-# Deploy and initialize SimpleLendingProtocol with ZRC-20 assets
-npx hardhat run scripts/simple/deploy-and-init-simple.ts --network zeta-testnet
-
-# Complete redeployment using shell script
-./scripts/redeploy-and-init-simple.sh
-```
 
 ### Deploy UniversalLendingProtocol (ZetaChain) 
 ```bash
@@ -107,8 +89,7 @@ npx hardhat run scripts/universal/update-oracle-prices.ts --network zeta-testnet
 The project includes comprehensive NPM scripts for common operations. Refer to `package-scripts.json` for full configuration:
 
 ### Protocol Deployment Scripts
-- **SimpleLendingProtocol Deployment**: Complete deployment and initialization on ZetaChain
-- **UniversalLendingProtocol Deployment**: Advanced protocol deployment with dynamic features
+- **UniversalLendingProtocol Deployment**: Advanced protocol deployment with dynamic features and modular libraries
 - **DepositContract Deployment**: Cross-chain deposit contract deployment on external chains
 
 ### Testing and Simulation Scripts  
@@ -131,10 +112,7 @@ The project includes comprehensive NPM scripts for common operations. Refer to `
 
 1. **Deploy Main Protocol on ZetaChain**
    ```bash
-   # Option A: Deploy SimpleLendingProtocol (Basic features)
-   npx hardhat run scripts/simple/deploy-and-init-simple.ts --network zeta-testnet
-   
-   # Option B: Deploy UniversalLendingProtocol (Advanced features)
+   # Deploy UniversalLendingProtocol (Production-ready with modular libraries)
    npx hardhat run scripts/universal/deploy-universal-lending.ts --network zeta-testnet
    ```
 
@@ -185,10 +163,9 @@ The script organization is designed to comprehensively test cross-chain lending 
 - **Gateway Integration**: Test ZetaChain Gateway functionality for cross-chain operations
 
 ### Protocol Testing and Operations
-- **SimpleLendingProtocol Testing**: Basic lending operations with fixed rates
-- **UniversalLendingProtocol Testing**: Advanced lending with dynamic rates and enhanced features
+- **UniversalLendingProtocol Testing**: Advanced lending with dynamic rates, modular libraries, and enhanced features
 - **Cross-Chain Borrowing**: Test borrowing assets and withdrawing to external chains
-- **Oracle Integration**: Test external price oracle functionality (UniversalLendingProtocol)
+- **Oracle Integration**: Test external price oracle functionality
 
 ## Detailed Script Descriptions
 
@@ -199,15 +176,6 @@ The script organization is designed to comprehensively test cross-chain lending 
 - **verify-assets.ts**: Validate DepositContract asset configuration
 - **update-lending-protocol-address.ts**: Update reference to main lending protocol address
 - **script-helpers.ts**: Shared utility functions for deposit contract operations
-
-### SimpleLendingProtocol Scripts (`simple/`)
-- **deploy-and-init-simple.ts**: Deploy and initialize with ZRC-20 asset support
-- **supply-test-amount.ts**: Supply test tokens for protocol testing
-- **borrow-cross-chain.ts**: Test cross-chain borrowing functionality
-- **check-balances.ts**: Monitor user balances across all supported assets
-- **provide-gas-tokens.ts**: Provide gas tokens for cross-chain transaction fees
-- **withdraw-all-fixed.ts**: Withdraw all supplied assets from the protocol
-- **verify-assets.ts**: Verify supported ZRC-20 assets configuration
 
 ### UniversalLendingProtocol Scripts (`universal/`)
 - **deploy-universal-lending.ts**: Deploy with advanced features and oracle integration

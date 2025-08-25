@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import "./ISimpleLendingProtocol.sol";
-
-interface IUniversalLendingProtocol is ISimpleLendingProtocol {
+interface IUniversalLendingProtocol {
+    // Asset configuration struct - unified from previous Asset and AssetConfig
+    struct Asset {
+        bool isSupported;
+    }
     struct AssetConfig {
         bool isSupported;
         uint256 collateralFactor;
@@ -15,9 +17,33 @@ interface IUniversalLendingProtocol is ISimpleLendingProtocol {
         uint256 totalBorrow;
     }
 
+    // Core errors
+    error AssetNotSupported(address asset);
+    error InvalidAmount();
+    error InsufficientBalance();
+    error InsufficientLiquidity();
+    error InsufficientCollateral();
+    error InsufficientGasFee(address gasToken, uint256 required, uint256 available);
+    error HealthFactorTooLow();
+    error Unauthorized();
+
     // Additional errors for Universal protocol
     error ChainNotAllowed(uint256 chainId);
     error WithdrawalFailed();
+
+    // Core events
+    event Supply(address indexed user, address indexed asset, uint256 amount);
+    event Borrow(address indexed user, address indexed asset, uint256 amount);
+    event Repay(address indexed user, address indexed asset, uint256 amount);
+    event Withdraw(address indexed user, address indexed asset, uint256 amount);
+    event Liquidate(
+        address indexed liquidator,
+        address indexed user,
+        address indexed collateralAsset,
+        address debtAsset,
+        uint256 repayAmount,
+        uint256 liquidatedCollateral
+    );
 
     // Cross-chain specific events
     event CrossChainDeposit(
@@ -52,6 +78,51 @@ interface IUniversalLendingProtocol is ISimpleLendingProtocol {
         string symbol
     );
 
+    // Core lending functions
+    function supply(address asset, uint256 amount, address onBehalfOf) external;
+    function borrow(address asset, uint256 amount, address to) external;
+    function repay(address asset, uint256 amount, address onBehalfOf) external;
+    function withdraw(address asset, uint256 amount, address to) external;
+    function liquidate(
+        address user,
+        address collateralAsset,
+        address debtAsset,
+        uint256 repayAmount
+    ) external;
+
+    // Core view functions
+    function getAssetConfig(address asset) external view returns (Asset memory);
+    function getSupplyBalance(address user, address asset) external view returns (uint256);
+    function getBorrowBalance(address user, address asset) external view returns (uint256);
+    function getHealthFactor(address user) external view returns (uint256);
+    function getTotalCollateralValue(address user) external view returns (uint256);
+    function getTotalDebtValue(address user) external view returns (uint256);
+    function getCollateralValue(address user, address asset) external view returns (uint256);
+    function getDebtValue(address user, address asset) external view returns (uint256);
+    function canBorrow(address user, address asset, uint256 amount) external view returns (bool);
+    function canWithdraw(address user, address asset, uint256 amount) external view returns (bool);
+    function isLiquidatable(address user) external view returns (bool);
+    function maxAvailableBorrowsInUsd(address user) external view returns (uint256);
+    function maxAvailableBorrows(address user, address asset) external view returns (uint256);
+    function getHealthFactorAfterBorrow(address user, address asset, uint256 amount) external view returns (uint256);
+    function getHealthFactorAfterRepay(address user, address asset, uint256 amount) external view returns (uint256);
+    function getHealthFactorAfterWithdraw(address user, address asset, uint256 amount) external view returns (uint256);
+    function getUserPositionData(
+        address user
+    ) external view returns (
+        uint256 totalCollateralValue,
+        uint256 totalDebtValue,
+        uint256 healthFactor,
+        uint256 maxBorrowUsdValue,
+        uint256 liquidationThreshold,
+        address[] memory suppliedAssets,
+        uint256[] memory suppliedAmounts,
+        uint256[] memory suppliedValues,
+        address[] memory borrowedAssets,
+        uint256[] memory borrowedAmounts,
+        uint256[] memory borrowedValues
+    );
+
     // Enhanced admin functions for Universal protocol
     function setAllowedSourceChain(uint256 chainId, bool allowed) external;
 
@@ -78,8 +149,7 @@ interface IUniversalLendingProtocol is ISimpleLendingProtocol {
         string calldata symbol
     ) external view returns (address);
 
-    // getAssetConfig is inherited from ISimpleLendingProtocol
-    // UniversalLendingProtocol will have its own enhanced version
+    // Enhanced view functions for Universal protocol  
     function getUserAccountData(
         address user
     )

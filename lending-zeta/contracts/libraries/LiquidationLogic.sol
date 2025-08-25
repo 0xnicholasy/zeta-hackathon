@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import "../interfaces/IPriceOracle.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "./CoreCalculations.sol";
 
 /**
  * @title LiquidationLogic
@@ -13,6 +14,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
  *      All calculations use 1e18 precision for accurate financial computations
  */
 library LiquidationLogic {
+    using CoreCalculations for uint256;
     /// @dev Precision constant for percentage calculations (1e18 = 100%)
     uint256 private constant PRECISION = 1e18;
 
@@ -89,7 +91,7 @@ library LiquidationLogic {
         uint8 decimals = IERC20Metadata(asset).decimals();
         
         // Normalize amount to 18 decimals
-        uint256 normalizedAmount = _normalizeToDecimals(amount, decimals);
+        uint256 normalizedAmount = CoreCalculations.normalizeToDecimals(amount, decimals);
         
         uint256 result = (normalizedAmount * price * collateralFactor) / (PRECISION * PRECISION);
         return result;
@@ -114,7 +116,7 @@ library LiquidationLogic {
         uint8 decimals = IERC20Metadata(asset).decimals();
         
         // Normalize amount to 18 decimals
-        uint256 normalizedAmount = _normalizeToDecimals(amount, decimals);
+        uint256 normalizedAmount = CoreCalculations.normalizeToDecimals(amount, decimals);
         
         uint256 result = (normalizedAmount * validatedPrice * collateralFactor) / (PRECISION * PRECISION);
         return result;
@@ -139,7 +141,7 @@ library LiquidationLogic {
         uint8 decimals = IERC20Metadata(asset).decimals();
         
         // Normalize amount to 18 decimals
-        uint256 normalizedAmount = _normalizeToDecimals(amount, decimals);
+        uint256 normalizedAmount = CoreCalculations.normalizeToDecimals(amount, decimals);
         
         uint256 result = (normalizedAmount * price) / PRECISION;
         return result;
@@ -162,7 +164,7 @@ library LiquidationLogic {
         uint8 decimals = IERC20Metadata(asset).decimals();
         
         // Normalize amount to 18 decimals
-        uint256 normalizedAmount = _normalizeToDecimals(amount, decimals);
+        uint256 normalizedAmount = CoreCalculations.normalizeToDecimals(amount, decimals);
         
         uint256 result = (normalizedAmount * validatedPrice) / PRECISION;
         return result;
@@ -239,7 +241,7 @@ library LiquidationLogic {
         uint8 collateralDecimals = IERC20Metadata(collateralAsset).decimals();
         
         // Normalize debt amount to 18 decimals for consistent calculation
-        uint256 normalizedDebtToCover = _normalizeToDecimals(debtToCover, debtDecimals);
+        uint256 normalizedDebtToCover = CoreCalculations.normalizeToDecimals(debtToCover, debtDecimals);
         
         // Calculate collateral amount in normalized 18 decimal precision
         uint256 normalizedCollateralAmount = (normalizedDebtToCover * debtPrice) / collateralPrice;
@@ -249,7 +251,7 @@ library LiquidationLogic {
             (normalizedCollateralAmount * liquidationBonus) / PRECISION;
         
         // Denormalize to collateral asset's native decimals
-        return _denormalizeFromDecimals(normalizedCollateralWithBonus, collateralDecimals);
+        return CoreCalculations.denormalizeFromDecimals(normalizedCollateralWithBonus, collateralDecimals);
     }
 
     /**
@@ -269,42 +271,4 @@ library LiquidationLogic {
             newHealthFactor >= MINIMUM_HEALTH_FACTOR;
     }
 
-    /**
-     * @dev Normalize amount to 18 decimals for comparison purposes
-     * @param amount The amount to normalize
-     * @param decimals The current decimal places of the amount
-     * @return normalizedAmount The amount normalized to 18 decimals
-     */
-    function _normalizeToDecimals(
-        uint256 amount,
-        uint256 decimals
-    ) internal pure returns (uint256 normalizedAmount) {
-        if (decimals < 18) {
-            normalizedAmount = amount * (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            normalizedAmount = amount / (10 ** (decimals - 18));
-        } else {
-            normalizedAmount = amount;
-        }
-    }
-
-    /**
-     * @notice Denormalize amount from 18 decimals back to target decimals
-     * @dev Converts normalized amounts back to asset's native precision
-     * @param normalizedAmount The amount in 18 decimal precision
-     * @param decimals The target decimal places
-     * @return amount The amount in target decimals
-     */
-    function _denormalizeFromDecimals(
-        uint256 normalizedAmount,
-        uint256 decimals
-    ) internal pure returns (uint256 amount) {
-        if (decimals < 18) {
-            amount = normalizedAmount / (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            amount = normalizedAmount * (10 ** (decimals - 18));
-        } else {
-            amount = normalizedAmount;
-        }
-    }
 }
