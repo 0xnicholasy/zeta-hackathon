@@ -1,4 +1,4 @@
-# Contract Refactor Plan: Removing SimpleLending and Modularizing UniversalLendingProtocol
+# Contract Refactor Plan: Removing SimpleLending and Modularizing UniversalLendingProtocol (Completed)
 
 ## Executive Summary
 

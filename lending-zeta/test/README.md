@@ -11,11 +11,11 @@ This directory contains comprehensive tests for the ZetaChain Cross-Chain Lendin
 | └─ CoreCalculations | `libraries/CoreCalculations.t.sol` | 100% | 300+ | 48 tests |
 | └─ HealthFactorLogic | `libraries/HealthFactorLogic.t.sol` | 100% | 400+ | 34 tests |
 | └─ PositionManager | `libraries/PositionManager.t.sol` | 100% | 350+ | 26 tests |
-| └─ UserAssetCalculations | `libraries/UserAssetCalculations.t.sol` | 100% | 250+ | 24 tests |
-| └─ LiquidationLogic | `libraries/LiquidationLogic.t.sol` | 100% | 200+ | 32 tests |
-| └─ InterestRateModel | `libraries/InterestRateModel.t.sol` | 100% | 180+ | 28 tests |
+| └─ UserAssetCalculations | `libraries/UserAssetCalculations.t.sol` | 100% | 250+ | 19 tests |
+| └─ LiquidationLogic | `libraries/LiquidationLogic.t.sol` | 100% | 200+ | 19 tests |
+| └─ InterestRateModel | `libraries/InterestRateModel.t.sol` | 100+ | 180+ | 27 tests |
 | **Cross-Chain** | `DepositContract.t.sol` | 100% | 150+ | 23 tests |
-| **Total** | **7 test suites** | **100%** | **2,880+ lines** | **296 tests** |
+| **Total** | **8 test suites** | **100%** | **2,880+ lines** | **277 tests** |
 
 ## 🏗️ Architecture Overview
 
@@ -164,7 +164,7 @@ The test suite validates a modular lending protocol with the following component
 
 ---
 
-#### **UserAssetCalculations Library** (24 tests)
+#### **UserAssetCalculations Library** (19 tests)
 **Purpose**: Heavy calculation functions for user asset data with optimization focus
 
 ##### Asset Value Calculations (8 tests)
@@ -173,7 +173,7 @@ The test suite validates a modular lending protocol with the following component
 - ✅ Collateral factor applications
 - ✅ Weighted threshold calculations
 
-##### Aggregated User Data (10 tests)
+##### Aggregated User Data (8 tests)
 - ✅ Single and multi-asset data aggregation
 - ✅ Borrowable collateral calculations
 - ✅ Weighted collateral computations
@@ -191,28 +191,28 @@ The test suite validates a modular lending protocol with the following component
 
 ---
 
-#### **LiquidationLogic Library** (32 tests)
+#### **LiquidationLogic Library** (19 tests)
 **Purpose**: Core liquidation mechanics and collateral seizure calculations
 
-##### Health Factor Logic (6 tests)
+##### Health Factor Logic (4 tests)
 - ✅ Health factor calculations with liquidation thresholds
 - ✅ Position liquidation eligibility
 - ✅ Critical and healthy position detection
 - ✅ Edge cases: no debt, no collateral
 
-##### Liquidation Amount Calculations (12 tests)
+##### Liquidation Amount Calculations (7 tests)
 - ✅ Cross-decimal liquidation amounts (USDC/ETH, BTC/USDC)
 - ✅ Liquidation bonus applications
 - ✅ Same-asset liquidations
 - ✅ Very small and large liquidation amounts
 
-##### Precision & Cross-Decimal Tests (6 tests)
+##### Precision & Cross-Decimal Tests (5 tests)
 - ✅ High precision cross-decimal calculations
 - ✅ Asset decimal handling (6, 8, 18 decimals)
 - ✅ Precision boundary testing
 - ✅ Rounding behavior validation
 
-##### Integration Scenarios (8 tests)
+##### Integration Scenarios (3 tests)
 - ✅ Complete liquidation workflows
 - ✅ Health factor improvement post-liquidation
 - ✅ Maximum liquidation calculations
@@ -220,7 +220,7 @@ The test suite validates a modular lending protocol with the following component
 
 ---
 
-#### **InterestRateModel Library** (28 tests)
+#### **InterestRateModel Library** (27 tests)
 **Purpose**: Variable interest rate calculations using kinked rate model
 
 ##### Basic Rate Calculations (8 tests)
@@ -247,7 +247,7 @@ The test suite validates a modular lending protocol with the following component
 - ✅ Multiple time period calculations
 - ✅ Zero rate and time edge cases
 
-##### Parameter Variations (6 tests)
+##### Parameter Variations (5 tests)
 - ✅ Aggressive parameter testing (high rates)
 - ✅ Conservative parameter testing (low rates)
 - ✅ Boundary condition testing
@@ -368,7 +368,7 @@ testBoundary_LimitCondition()
 ### Expected Results
 
 All test suites should pass with:
-- **296 tests passing**
+- **277 tests passing**
 - **0 tests failing**
 - **100% line coverage**
 - **Gas costs within expected ranges**
