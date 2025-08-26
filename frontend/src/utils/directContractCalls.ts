@@ -200,7 +200,7 @@ export async function getAssetPrice(assetAddress: string): Promise<bigint> {
     }
     if (!assetAddress || Number(assetAddress) === 0) {
       // eslint-disable-next-line no-console
-      console.error('Asset address is required');
+      console.error('Asset address is required, provided assetAddress: ', assetAddress);
       return BigInt(0);
     }
 

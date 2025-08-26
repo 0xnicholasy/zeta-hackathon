@@ -107,6 +107,13 @@ export function ZetaWithdrawDialog({ isOpen, onClose, selectedAsset }: ZetaWithd
     setAmount(e.target.value);
   }, []);
 
+  // Handle retry after failure
+  const handleRetry = useCallback(() => {
+    txActions.resetContract();
+    txActions.setCurrentStep('input');
+    txActions.setIsSubmitting(false);
+  }, [txActions]);
+
   // Handle withdraw transaction success
   useEffect(() => {
     if (contractState.isTransactionSuccess && txState.currentStep === 'withdrawing') {
@@ -137,6 +144,7 @@ export function ZetaWithdrawDialog({ isOpen, onClose, selectedAsset }: ZetaWithd
       currentStep={txState.currentStep}
       isSubmitting={txState.isSubmitting}
       onSubmit={() => { void handleSubmit() }}
+      onRetry={handleRetry}
       isValidAmount={Boolean(isValidAmount)}
       isConnected={Boolean(address)}
       submitButtonText="Withdraw on Zeta"

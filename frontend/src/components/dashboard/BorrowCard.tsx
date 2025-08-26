@@ -11,6 +11,7 @@ import { BorrowDialog } from './BorrowDialog';
 import { RepayDialog } from './RepayDialog';
 import { ZetaBorrowDialog } from './ZetaBorrowDialog';
 import { ZetaRepayDialog } from './ZetaRepayDialog';
+import { TransactionErrorBoundary } from '../ui/transaction-error-boundary';
 import { getBorrowableAssets, type BorrowableAssetData } from '../../utils/directContractCalls';
 import { SupportedChain } from '../../contracts/deployments';
 
@@ -313,38 +314,74 @@ export function BorrowCard({ userAssets, refetchUserData }: BorrowCardProps) {
             {
                 selectedAsset && (
                     <>
-                        <BorrowDialog
-                            isOpen={isBorrowDialogOpen}
+                        <TransactionErrorBoundary
+                            fallbackTitle="Borrow Transaction Error"
                             onClose={handleDialogClose}
-                            selectedAsset={selectedAsset}
-                            {...(refetchUserData && { refetchUserData })}
-                        />
-                        <RepayDialog
-                            isOpen={isRepayDialogOpen}
+                            onRetry={() => {
+                                setIsBorrowDialogOpen(false);
+                                setSelectedAsset(null);
+                            }}
+                        >
+                            <BorrowDialog
+                                isOpen={isBorrowDialogOpen}
+                                onClose={handleDialogClose}
+                                selectedAsset={selectedAsset}
+                                {...(refetchUserData && { refetchUserData })}
+                            />
+                        </TransactionErrorBoundary>
+                        <TransactionErrorBoundary
+                            fallbackTitle="Repay Transaction Error"
                             onClose={handleDialogClose}
-                            selectedAsset={selectedAsset}
-                            {...(refetchUserData && { refetchUserData })}
-                        />
+                            onRetry={() => {
+                                setIsRepayDialogOpen(false);
+                                setSelectedAsset(null);
+                            }}
+                        >
+                            <RepayDialog
+                                isOpen={isRepayDialogOpen}
+                                onClose={handleDialogClose}
+                                selectedAsset={selectedAsset}
+                                {...(refetchUserData && { refetchUserData })}
+                            />
+                        </TransactionErrorBoundary>
                     </>
                 )
             }
 
             {selectedAssetForZetaBorrow && (
-                <ZetaBorrowDialog
-                    isOpen={isZetaBorrowDialogOpen}
+                <TransactionErrorBoundary
+                    fallbackTitle="Zeta Borrow Transaction Error"
                     onClose={() => setIsZetaBorrowDialogOpen(false)}
-                    selectedAsset={selectedAssetForZetaBorrow}
-                    {...(refetchUserData && { refetchUserData })}
-                />
+                    onRetry={() => {
+                        setIsZetaBorrowDialogOpen(false);
+                        setSelectedAssetForZetaBorrow(null);
+                    }}
+                >
+                    <ZetaBorrowDialog
+                        isOpen={isZetaBorrowDialogOpen}
+                        onClose={() => setIsZetaBorrowDialogOpen(false)}
+                        selectedAsset={selectedAssetForZetaBorrow}
+                        {...(refetchUserData && { refetchUserData })}
+                    />
+                </TransactionErrorBoundary>
             )}
 
             {selectedAssetForZetaRepay && (
-                <ZetaRepayDialog
-                    isOpen={isZetaRepayDialogOpen}
+                <TransactionErrorBoundary
+                    fallbackTitle="Zeta Repay Transaction Error"
                     onClose={() => setIsZetaRepayDialogOpen(false)}
-                    selectedAsset={selectedAssetForZetaRepay}
-                    {...(refetchUserData && { refetchUserData })}
-                />
+                    onRetry={() => {
+                        setIsZetaRepayDialogOpen(false);
+                        setSelectedAssetForZetaRepay(null);
+                    }}
+                >
+                    <ZetaRepayDialog
+                        isOpen={isZetaRepayDialogOpen}
+                        onClose={() => setIsZetaRepayDialogOpen(false)}
+                        selectedAsset={selectedAssetForZetaRepay}
+                        {...(refetchUserData && { refetchUserData })}
+                    />
+                </TransactionErrorBoundary>
             )}
         </Card >
     );

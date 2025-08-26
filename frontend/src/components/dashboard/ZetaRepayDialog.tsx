@@ -141,6 +141,13 @@ export function ZetaRepayDialog({ isOpen, onClose, selectedAsset, refetchUserDat
     setAmount(e.target.value);
   }, []);
 
+  // Handle retry after failure
+  const handleRetry = useCallback(() => {
+    txActions.resetContract();
+    txActions.setCurrentStep('input');
+    txActions.setIsSubmitting(false);
+  }, [txActions]);
+
   // Handle approval transaction success -> proceed to repay
   useEffect(() => {
     if (contractState.isApprovalSuccess && txState.currentStep === 'approving') {
@@ -184,6 +191,7 @@ export function ZetaRepayDialog({ isOpen, onClose, selectedAsset, refetchUserDat
       currentStep={txState.currentStep}
       isSubmitting={txState.isSubmitting}
       onSubmit={() => { void handleSubmit() }}
+      onRetry={handleRetry}
       isValidAmount={validation.isValid}
       isConnected={Boolean(address)}
       submitButtonText="Repay on Zeta"

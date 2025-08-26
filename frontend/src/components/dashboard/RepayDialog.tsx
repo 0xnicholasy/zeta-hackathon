@@ -253,6 +253,13 @@ export function RepayDialog({
         setAmount(e.target.value);
     }, []);
 
+    // Handle retry after failure
+    const handleRetry = useCallback(() => {
+        txActions.resetContract();
+        txActions.setCurrentStep('input');
+        txActions.setIsSubmitting(false);
+    }, [txActions]);
+
     // Handle approval transaction success -> proceed to repay
     useEffect(() => {
         if (contractState.isApprovalSuccess && txState.currentStep === 'approving') {
@@ -285,20 +292,18 @@ export function RepayDialog({
             txActions.setCurrentStep('input');
             txActions.setIsSubmitting(false);
 
-            // Auto-proceed with the transaction after network switch
-            setTimeout(() => {
-                if (amount && selectedAsset && amountBigInt && depositContract) {
-                    txActions.setIsSubmitting(true);
-                    const isNativeToken = selectedAsset.unit === 'ETH';
-                    if (isNativeToken) {
-                        txActions.setCurrentStep('repay');
-                        void handleRepay();
-                    } else {
-                        txActions.setCurrentStep('approve');
-                        handleApproveToken();
-                    }
+            // Auto-proceed with the transaction immediately
+            if (amount && selectedAsset && amountBigInt && depositContract) {
+                txActions.setIsSubmitting(true);
+                const isNativeToken = selectedAsset.unit === 'ETH';
+                if (isNativeToken) {
+                    txActions.setCurrentStep('repay');
+                    void handleRepay();
+                } else {
+                    txActions.setCurrentStep('approve');
+                    handleApproveToken();
                 }
-            }, 500); // Small delay to ensure network switch is complete
+            }
         }
     }, [txState.currentStep, isOnCorrectNetwork, amount, selectedAsset, amountBigInt, depositContract, txActions, handleRepay, handleApproveToken]);
 
@@ -316,6 +321,7 @@ export function RepayDialog({
             currentStep={txState.currentStep}
             isSubmitting={txState.isSubmitting}
             onSubmit={() => { void handleSubmit() }}
+            onRetry={handleRetry}
             isValidAmount={validation.isValid && !hasInvalidChain}
             isConnected={Boolean(address)}
             submitButtonText={!isOnCorrectNetwork ? `Switch to ${targetNetworkConfig?.name || 'Network'}` : "Repay"}

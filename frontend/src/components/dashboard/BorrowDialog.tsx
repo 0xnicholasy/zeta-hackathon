@@ -19,7 +19,7 @@ import { type UserAssetData } from './types';
 import { UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
 import { getHealthFactorColorClass, formatHealthFactor } from '../../utils/healthFactorUtils';
 import { isValidSolanaAddress } from '../../lib/solana-utils';
-import { utils } from 'ethers';
+import { solanaAddressToHexBytes, addressToHexBytes } from '@/utils/viemHelpers';
 import { FaClipboard } from 'react-icons/fa';
 
 interface BorrowDialogProps {
@@ -108,12 +108,11 @@ export function BorrowDialog({
     // Convert recipient address to bytes for contract call
     const getRecipientBytes = useCallback((): `0x${string}` => {
         if (isDestinationSolana) {
-            // For Solana addresses, convert to UTF-8 bytes (as per withdraw-all-sol-crosschain.ts:172)
-            return utils.hexlify(utils.toUtf8Bytes(recipientAddress)) as `0x${string}`;
+            // For Solana addresses, convert to UTF-8 bytes
+            return solanaAddressToHexBytes(recipientAddress);
         } else {
-            // For EVM addresses, ensure it's properly formatted as hex
-            // The address is already a hex string, just ensure it's lowercase
-            return recipientAddress.toLowerCase() as `0x${string}`;
+            // For EVM addresses, use as hex directly
+            return addressToHexBytes(recipientAddress);
         }
     }, [recipientAddress, isDestinationSolana]);
 
@@ -300,34 +299,32 @@ export function BorrowDialog({
             txActions.setCurrentStep('input');
             txActions.setIsSubmitting(false);
 
-            // Auto-proceed with the borrow transaction after network switch
-            setTimeout(() => {
-                if (amount && selectedAsset && amountBigInt && universalLendingProtocol) {
-                    // Check if approval is needed first
-                    if (gasApproval.needsApproval && gasApproval.gasTokenAddress) {
-                        txActions.setCurrentStep('approve');
-                        const approvalCall = getGasTokenApprovalContractCall(
-                            gasApproval.gasTokenAddress,
-                            safeEVMAddressOrZeroAddress(universalLendingProtocol)
-                        );
-                        txActions.writeContract(approvalCall);
-                    } else {
-                        // No approval needed, proceed with borrow
-                        txActions.setCurrentStep('borrow');
-                        txActions.writeContract({
-                            address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
-                            abi: lendingProtocolAbi,
-                            functionName: 'borrowCrossChain',
-                            args: [
-                                selectedAsset.address,
-                                amountBigInt,
-                                BigInt(selectedAsset.externalChainId),
-                                getRecipientBytes(),
-                            ],
-                        });
-                    }
+            // Auto-proceed with the borrow transaction immediately
+            if (amount && selectedAsset && amountBigInt && universalLendingProtocol) {
+                // Check if approval is needed first
+                if (gasApproval.needsApproval && gasApproval.gasTokenAddress) {
+                    txActions.setCurrentStep('approve');
+                    const approvalCall = getGasTokenApprovalContractCall(
+                        gasApproval.gasTokenAddress,
+                        safeEVMAddressOrZeroAddress(universalLendingProtocol)
+                    );
+                    txActions.writeContract(approvalCall);
+                } else {
+                    // No approval needed, proceed with borrow
+                    txActions.setCurrentStep('borrow');
+                    txActions.writeContract({
+                        address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
+                        abi: lendingProtocolAbi,
+                        functionName: 'borrowCrossChain',
+                        args: [
+                            selectedAsset.address,
+                            amountBigInt,
+                            BigInt(selectedAsset.externalChainId),
+                            getRecipientBytes(),
+                        ],
+                    });
                 }
-            }, 500); // Small delay to ensure network switch is complete
+            }
         }
     }, [txState.currentStep, isOnZetaChain, amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, gasApproval, getRecipientBytes]);
 

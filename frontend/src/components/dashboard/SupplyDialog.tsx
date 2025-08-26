@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { parseUnits } from 'viem';
 import { Button } from '../ui/button';
@@ -6,13 +6,16 @@ import { Input } from '../ui/input';
 import { BaseTransactionDialog } from '../ui/base-transaction-dialog';
 import { TransactionStatus } from '../ui/transaction-status';
 import { TransactionSummary } from '../ui/transaction-summary';
-import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
 import { useContracts } from '../../hooks/useContracts';
-import { useTransactionFlow } from '../../hooks/useTransactionFlow';
+import { useSimpleTransactionDialog } from '../../hooks/useStandardizedTransactionDialog';
 import { type SupportedChainId } from '../../contracts/deployments';
 import type { TokenBalance } from '../../hooks/useMultiChainBalances';
 import { safeEVMAddress, safeEVMAddressOrZeroAddress } from '@/types/address';
 import { DepositContract__factory, ERC20__factory } from '@/contracts/typechain-types';
+import { validateAmountInput } from '@/utils/inputValidation';
+import { CategorizedErrorDisplay } from '../ui/categorized-error-display';
+import { TransactionSimulationDisplay } from '../ui/transaction-simulation-display';
+import { useAutoSimulation } from '@/hooks/useAutoSimulation';
 
 interface SupplyDialogProps {
   isOpen: boolean;
@@ -26,24 +29,62 @@ interface SupplyDialogProps {
 const depositContractAbi = DepositContract__factory.abi;
 const erc20Abi = ERC20__factory.abi;
 
-export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: SupplyDialogProps) {
-  const [amount, setAmount] = useState('');
 
-  // Custom hooks
-  const crossChain = useCrossChainTracking();
-  const transactionFlow = useTransactionFlow();
+export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: SupplyDialogProps) {
   const { address } = useAccount();
   const { depositContract } = useContracts(chainId);
 
-  // Destructure transaction flow state
+  // Use standardized dialog management with simulation
+  const dialog = useSimpleTransactionDialog({
+    transactionType: 'supply',
+    onClose,
+    resetOnClose: true,
+    enableSimulation: true
+  });
+
+  const { state, stableCallbacks, transactionFlow, crossChain, computed } = dialog;
   const { state: txState, actions: txActions, contractState } = transactionFlow;
 
 
   // Computed values
   const isNativeToken = selectedToken?.isNative ?? false;
   const maxAmount = selectedToken?.formattedBalance ?? '0';
-  const amountBigInt = amount && selectedToken ? parseUnits(amount, selectedToken.decimals) : BigInt(0);
-  const isValidAmount = Boolean(amount && parseFloat(amount) > 0 && parseFloat(amount) <= parseFloat(maxAmount));
+  const amountBigInt = state.amount && selectedToken && state.validation.isValid ?
+    parseUnits(state.amount, selectedToken.decimals) : BigInt(0);
+
+  // Comprehensive validation
+  const validateCurrentAmount = useCallback(() => {
+    if (!selectedToken || !state.amount) {
+      stableCallbacks.clearValidation();
+      return;
+    }
+
+    const validation = validateAmountInput(state.amount, {
+      decimals: selectedToken.decimals,
+      maxAmount: selectedToken.formattedBalance,
+      minAmount: '0.000001', // Minimum meaningful amount
+      tokenSymbol: selectedToken.tokenSymbol,
+      allowZero: false
+    });
+
+    stableCallbacks.setValidation(validation);
+  }, [state.amount, selectedToken, stableCallbacks.clearValidation, stableCallbacks.setValidation]);
+
+  // Validate on amount change
+  useEffect(() => {
+    validateCurrentAmount();
+  }, [validateCurrentAmount]);
+
+  // Auto-simulation when amount changes
+  useAutoSimulation({
+    amount: state.amount,
+    assetAddress: selectedToken?.tokenAddress ?? '',
+    decimals: selectedToken?.decimals ?? 18,
+    enabled: Boolean(selectedToken && address && selectedToken.tokenAddress),
+    runSimulation: stableCallbacks.runSimulation
+  });
+
+  const isValidAmount = computed.isValidForSubmission;
 
   // Handle deposit function
   const handleDeposit = useCallback(async () => {
@@ -71,13 +112,13 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
   // Handle max click
   const handleMaxClick = useCallback(() => {
     if (selectedToken) {
-      setAmount(selectedToken.formattedBalance);
+      stableCallbacks.setAmount(selectedToken.formattedBalance);
     }
-  }, [selectedToken]);
+  }, [selectedToken, stableCallbacks.setAmount]);
 
   // Handle submit
   const handleSubmit = useCallback(async () => {
-    if (!address || !amount || !selectedToken || !amountBigInt || !depositContract) return;
+    if (!address || !state.amount || !selectedToken || !amountBigInt || !depositContract) return;
 
     txActions.setIsSubmitting(true);
     txActions.resetContract();
@@ -108,15 +149,15 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
       txActions.setIsSubmitting(false);
       txActions.setCurrentStep('input');
     }
-  }, [address, amount, selectedToken, amountBigInt, isNativeToken, depositContract, txActions]);
+  }, [address, state.amount, selectedToken, amountBigInt, isNativeToken, depositContract, txActions]);
 
-  // Handle close
-  const handleClose = useCallback(() => {
-    setAmount('');
-    txActions.reset();
-    crossChain.reset();
-    onClose();
-  }, [onClose, txActions, crossChain]);
+  // Use standardized close handler from the dialog hook
+  const handleClose = stableCallbacks.closeDialog;
+
+  // Wrapper for async submit function to match dialog interface
+  const handleSubmitWrapper = useCallback(() => {
+    void handleSubmit();
+  }, [handleSubmit]);
 
   // Get step text
   const getStepText = useCallback(() => {
@@ -144,10 +185,17 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
     }
   }, [txState.currentStep, crossChain.status]);
 
-  // Handle amount change
+  // Handle amount change - use standardized action
   const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setAmount(e.target.value);
-  }, []);
+    stableCallbacks.setAmount(e.target.value);
+  }, [stableCallbacks.setAmount]);
+
+  // Handle retry after failure
+  const handleRetry = useCallback(() => {
+    txActions.resetContract();
+    txActions.setCurrentStep('input');
+    txActions.setIsSubmitting(false);
+  }, [txActions]);
 
   // Handle approval transaction success -> proceed to deposit
   useEffect(() => {
@@ -169,6 +217,15 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
   // Early return AFTER all hooks have been called
   if (!selectedToken || !depositContract) return null;
 
+  // Sync dialog state with prop
+  useEffect(() => {
+    if (isOpen && !state.isOpen) {
+      stableCallbacks.openDialog();
+    } else if (!isOpen && state.isOpen) {
+      stableCallbacks.closeDialog();
+    }
+  }, [isOpen, state.isOpen, stableCallbacks.openDialog, stableCallbacks.closeDialog]);
+
   return (
     <BaseTransactionDialog
       isOpen={isOpen}
@@ -179,8 +236,8 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
       sourceChain={selectedToken.chainName}
       currentStep={txState.currentStep}
       isSubmitting={txState.isSubmitting}
-      /* simplest: just pass the memoised function – the caller can `void` it */
-      onSubmit={handleSubmit as unknown as () => void}
+      onSubmit={handleSubmitWrapper}
+      onRetry={handleRetry}
       isValidAmount={isValidAmount}
       isConnected={Boolean(address)}
       submitButtonText="Supply"
@@ -196,7 +253,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
             <div className="relative">
               <Input
                 type="number"
-                value={amount}
+                value={state.amount}
                 onChange={handleAmountChange}
                 placeholder="0.00"
                 step="any"
@@ -212,6 +269,26 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
                 MAX
               </Button>
             </div>
+
+            {/* Validation Messages */}
+            <div className="min-h-[1.25rem]">
+              {state.validation.hasErrors && state.validation.errorMessage && (
+                <div className="text-xs text-destructive flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 text-center">⚠</span>
+                  {state.validation.errorMessage}
+                </div>
+              )}
+              {state.validation.hasWarnings && state.validation.warningMessages && (
+                <div className="space-y-1">
+                  {state.validation.warningMessages.map((warning, index) => (
+                    <div key={index} className="text-xs text-yellow-600 flex items-center gap-1">
+                      <span className="inline-block w-3 h-3 text-center">⚠</span>
+                      {warning}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Network Info */}
@@ -226,11 +303,18 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
             </div>
           </div>
 
+          {/* Transaction Simulation */}
+          <TransactionSimulationDisplay
+            simulation={state.simulation}
+            currentAmount={state.amount}
+            className="mb-4"
+          />
+
           {/* Transaction Summary */}
-          {amount && (
+          {state.amount && (
             <TransactionSummary
               transactionType="supply"
-              amount={amount}
+              amount={state.amount}
               tokenSymbol={selectedToken.tokenSymbol}
               className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20"
             />
@@ -238,16 +322,12 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
 
           {/* Error Display */}
           {contractState.error && (
-            <div className="p-3 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20 text-sm break-words max-w-full">
-              <div className="text-red-800 dark:text-red-200 font-medium">
-                Transaction Failed
-              </div>
-              <div className="text-red-700 dark:text-red-300 mt-1 break-words overflow-hidden text-wrap max-w-full">
-                {contractState.error.message.length > 200
-                  ? `${contractState.error.message.substring(0, 200)}...`
-                  : contractState.error.message}
-              </div>
-            </div>
+            <CategorizedErrorDisplay
+              error={contractState.error}
+              onRetry={handleRetry}
+              showTechnicalDetails={process.env['NODE_ENV'] === 'development'}
+              className="text-sm"
+            />
           )}
         </div>
       )}

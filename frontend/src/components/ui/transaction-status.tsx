@@ -19,6 +19,7 @@ interface TransactionStatusProps<T extends TransactionType = TransactionType> {
     crossChain?: ReturnType<typeof useCrossChainTracking>;
     gasTokenInfo?: { amount: bigint; needsApproval: boolean } | null;
     gasTokenSymbol?: string;
+    gasTokenDecimals?: number;
     transactionType?: T;
 }
 
@@ -44,6 +45,7 @@ export function TransactionStatus<T extends TransactionType = TransactionType>({
     crossChain,
     gasTokenInfo,
     gasTokenSymbol = 'ETH',
+    gasTokenDecimals = 18,
     transactionType = 'supply' as T,
 }: TransactionStatusProps<T>) {
     const destinationChainName = getChainDisplayNameFromId(chainId);
@@ -74,7 +76,7 @@ export function TransactionStatus<T extends TransactionType = TransactionType>({
                 </div>
                 {gasTokenInfo && transactionType === 'withdraw' && (
                     <div className="mt-2 text-sm text-muted-foreground text-center">
-                        Approving {gasTokenInfo.amount.toString()} {gasTokenSymbol}
+                        Approving {(Number(gasTokenInfo.amount) / Math.pow(10, gasTokenDecimals)).toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 6 })} {gasTokenSymbol} for withdrawal fees
                     </div>
                 )}
             </div>
@@ -89,11 +91,11 @@ export function TransactionStatus<T extends TransactionType = TransactionType>({
                 <div className="text-center text-sm text-muted-foreground">
                     {currentStep === 'checkWithdraw' && 'Validating withdrawal eligibility...'}
                     {currentStep === 'checkGas' && 'Checking gas token requirements...'}
-                    {currentStep === 'approving' && 'Waiting for approval transaction...'}
-                    {currentStep === 'depositing' && 'Waiting for deposit transaction...'}
-                    {currentStep === 'withdrawing' && 'Waiting for withdrawal transaction...'}
-                    {currentStep === 'borrowing' && 'Waiting for borrow transaction...'}
-                    {currentStep === 'repaying' && 'Waiting for repay transaction...'}
+                    {currentStep === 'approving' && 'Waiting for approval confirmation...'}
+                    {currentStep === 'depositing' && `Waiting for ${transactionType === 'supply' ? 'supply' : 'deposit'} confirmation...`}
+                    {currentStep === 'withdrawing' && 'Waiting for withdrawal confirmation...'}
+                    {currentStep === 'borrowing' && 'Waiting for borrow confirmation...'}
+                    {currentStep === 'repaying' && 'Waiting for repay confirmation...'}
                 </div>
 
                 {/* Show transaction hashes */}

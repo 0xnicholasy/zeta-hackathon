@@ -438,6 +438,14 @@ export function useZetaChainBalances() {
 
       for (const [tokenSymbol, tokenBalance] of Object.entries(processedZetaBalances)) {
         if (!isMounted) return;
+        if (!tokenBalance.tokenAddress || isZeroAddress(tokenBalance.tokenAddress)) {
+          console.log('Token address is zero, skipping price update for', tokenSymbol);
+          updatedBalances[tokenSymbol] = {
+            ...tokenBalance,
+            price: '0',
+            usdValue: '0',
+          };
+        }
         try {
           const priceInWei = await getAssetPrice(tokenBalance.tokenAddress);
           const priceInUSD = Number(formatUnits(priceInWei, 18));

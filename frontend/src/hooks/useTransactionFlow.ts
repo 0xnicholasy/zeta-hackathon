@@ -92,7 +92,7 @@ export function useTransactionFlow<T extends TransactionType>(initialStep: Steps
         setApprovalHash(null);
         setTransactionHash(null);
         resetContract();
-    }, [resetContract]);
+    }, []); // Remove resetContract from dependencies to prevent infinite loop
 
     // Update current hash when writeContract returns new hash
     useEffect(() => {

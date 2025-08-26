@@ -10,6 +10,7 @@ import { SupplyDialog } from './SupplyDialog';
 import { WithdrawDialog } from './WithdrawDialog';
 import { ZetaSupplyDialog } from './ZetaSupplyDialog';
 import { ZetaWithdrawDialog } from './ZetaWithdrawDialog';
+import { TransactionErrorBoundary } from '../ui/transaction-error-boundary';
 import type { UserAssetData } from './types';
 import type { TokenBalance } from '../../hooks/useMultiChainBalances';
 import { useZetaChainBalances } from '../../hooks/useMultiChainBalances';
@@ -304,33 +305,73 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                 )}
             </CardContent>
 
-            <SupplyDialog
-                isOpen={isSupplyDialogOpen}
+            <TransactionErrorBoundary
+                fallbackTitle="Supply Transaction Error"
                 onClose={() => setIsSupplyDialogOpen(false)}
-                selectedToken={selectedToken}
-                chainId={chainId}
-                {...(refetchUserData && { refetchUserData })}
-            />
+                onRetry={() => {
+                    // Reset any transaction state that might need resetting
+                    setIsSupplyDialogOpen(false);
+                    // Could add additional reset logic here if needed
+                }}
+            >
+                <SupplyDialog
+                    isOpen={isSupplyDialogOpen}
+                    onClose={() => setIsSupplyDialogOpen(false)}
+                    selectedToken={selectedToken}
+                    chainId={chainId}
+                    {...(refetchUserData && { refetchUserData })}
+                />
+            </TransactionErrorBoundary>
 
-            {selectedAssetForWithdraw && <WithdrawDialog
-                isOpen={isWithdrawDialogOpen}
-                onClose={() => setIsWithdrawDialogOpen(false)}
-                selectedAsset={selectedAssetForWithdraw}
-                {...(refetchUserData && { refetchUserData })}
-            />}
+            {selectedAssetForWithdraw && (
+                <TransactionErrorBoundary
+                    fallbackTitle="Withdraw Transaction Error"
+                    onClose={() => setIsWithdrawDialogOpen(false)}
+                    onRetry={() => {
+                        setIsWithdrawDialogOpen(false);
+                    }}
+                >
+                    <WithdrawDialog
+                        isOpen={isWithdrawDialogOpen}
+                        onClose={() => setIsWithdrawDialogOpen(false)}
+                        selectedAsset={selectedAssetForWithdraw}
+                        {...(refetchUserData && { refetchUserData })}
+                    />
+                </TransactionErrorBoundary>
+            )}
 
-            {selectedAssetForZetaSupply && <ZetaSupplyDialog
-                isOpen={isZetaSupplyDialogOpen}
-                onClose={() => setIsZetaSupplyDialogOpen(false)}
-                selectedAsset={selectedAssetForZetaSupply}
-                {...(refetchUserData && { refetchUserData })}
-            />}
+            {selectedAssetForZetaSupply && (
+                <TransactionErrorBoundary
+                    fallbackTitle="Zeta Supply Transaction Error"
+                    onClose={() => setIsZetaSupplyDialogOpen(false)}
+                    onRetry={() => {
+                        setIsZetaSupplyDialogOpen(false);
+                    }}
+                >
+                    <ZetaSupplyDialog
+                        isOpen={isZetaSupplyDialogOpen}
+                        onClose={() => setIsZetaSupplyDialogOpen(false)}
+                        selectedAsset={selectedAssetForZetaSupply}
+                        {...(refetchUserData && { refetchUserData })}
+                    />
+                </TransactionErrorBoundary>
+            )}
 
-            {selectedAssetForZetaWithdraw && <ZetaWithdrawDialog
-                isOpen={isZetaWithdrawDialogOpen}
-                onClose={() => setIsZetaWithdrawDialogOpen(false)}
-                selectedAsset={selectedAssetForZetaWithdraw}
-            />}
+            {selectedAssetForZetaWithdraw && (
+                <TransactionErrorBoundary
+                    fallbackTitle="Zeta Withdraw Transaction Error"
+                    onClose={() => setIsZetaWithdrawDialogOpen(false)}
+                    onRetry={() => {
+                        setIsZetaWithdrawDialogOpen(false);
+                    }}
+                >
+                    <ZetaWithdrawDialog
+                        isOpen={isZetaWithdrawDialogOpen}
+                        onClose={() => setIsZetaWithdrawDialogOpen(false)}
+                        selectedAsset={selectedAssetForZetaWithdraw}
+                    />
+                </TransactionErrorBoundary>
+            )}
         </Card>
     );
 }

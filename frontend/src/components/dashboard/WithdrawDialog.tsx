@@ -15,8 +15,8 @@ import { getChainDisplayName, getGasTokenSymbol, getGasTokenDecimals } from '../
 import { safeEVMAddressOrZeroAddress } from '@/types/address';
 import { type UserAssetData } from './types';
 import { ERC20__factory, UniversalLendingProtocol__factory } from '@/contracts/typechain-types';
-import { utils } from 'ethers';
 import { isAddress } from 'viem';
+import { solanaAddressToHexBytes, addressToHexBytes } from '@/utils/viemHelpers';
 import { isValidSolanaAddress } from '../../lib/solana-utils';
 import { FaClipboard } from 'react-icons/fa';
 
@@ -150,6 +150,13 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
         setAmount(e.target.value);
     }, []);
 
+    // Handle retry after failure
+    const handleRetry = useCallback(() => {
+        txActions.resetContract();
+        txActions.setCurrentStep('input');
+        txActions.setIsSubmitting(false);
+    }, [txActions]);
+
     // Handle recipient address change
     const handleRecipientAddressChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         setRecipientAddress(e.target.value);
@@ -177,11 +184,11 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
             // Convert recipient address to hex bytes for contract call
             let recipientBytes: `0x${string}`;
             if (isDestinationSolana) {
-                // For Solana addresses, convert to UTF-8 bytes (as per withdraw-all-sol-crosschain.ts:172)
-                recipientBytes = utils.hexlify(utils.toUtf8Bytes(recipientAddress)) as `0x${string}`;
+                // For Solana addresses, convert to UTF-8 bytes
+                recipientBytes = solanaAddressToHexBytes(recipientAddress);
             } else {
-                // For EVM addresses, hexlify directly 
-                recipientBytes = utils.hexlify(recipientAddress) as `0x${string}`;
+                // For EVM addresses, use as hex directly
+                recipientBytes = addressToHexBytes(recipientAddress);
             }
 
             txActions.writeContract({
@@ -234,12 +241,10 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
     // Handle approve success -> proceed to withdrawal
     useEffect(() => {
         if (contractState.isApprovalSuccess && txState.currentStep === 'approving') {
-            // Add a small delay to ensure the approval state is fully processed
-            setTimeout(() => {
-                void handleWithdraw();
-            }, 100);
+            // Proceed immediately to withdrawal without timeout
+            void handleWithdraw();
         }
-    }, [contractState.isApprovalSuccess, txState.currentStep, handleWithdraw, txActions]);
+    }, [contractState.isApprovalSuccess, txState.currentStep, handleWithdraw]);
 
     // Handle withdraw transaction success
     useEffect(() => {
@@ -279,6 +284,7 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                 }
             }}
             onApprove={handleApproveToken}
+            onRetry={handleRetry}
             isValidAmount={Boolean(isValidAmount && validation.isValid && isValidRecipient)}
             isConnected={Boolean(address)}
             submitButtonText="Withdraw"
@@ -502,6 +508,8 @@ export function WithdrawDialog({ isOpen, onClose, selectedAsset }: WithdrawDialo
                 chainId={SupportedChain.ZETA_TESTNET}
                 crossChain={crossChain}
                 gasTokenInfo={validation.gasTokenInfo.needsApproval ? validation.gasTokenInfo : null}
+                gasTokenSymbol={gasTokenSymbol}
+                gasTokenDecimals={gasTokenDecimals}
                 transactionType="withdraw"
             />
         </BaseTransactionDialog>

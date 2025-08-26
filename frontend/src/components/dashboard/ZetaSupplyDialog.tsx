@@ -145,6 +145,13 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset, refetchUserDa
     setAmount(e.target.value);
   }, []);
 
+  // Handle retry after failure
+  const handleRetry = useCallback(() => {
+    txActions.resetContract();
+    txActions.setCurrentStep('input');
+    txActions.setIsSubmitting(false);
+  }, [txActions]);
+
   // Handle approval transaction success -> proceed to supply
   useEffect(() => {
     if (contractState.isApprovalSuccess && txState.currentStep === 'approving') {
@@ -180,6 +187,7 @@ export function ZetaSupplyDialog({ isOpen, onClose, selectedAsset, refetchUserDa
       currentStep={txState.currentStep}
       isSubmitting={txState.isSubmitting}
       onSubmit={() => void handleSubmit()}
+      onRetry={handleRetry}
       isValidAmount={isValidAmount}
       isConnected={Boolean(address)}
       submitButtonText="Supply on Zeta"
