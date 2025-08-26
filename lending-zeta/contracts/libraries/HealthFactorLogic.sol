@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import "./CoreCalculations.sol";
+import "./ProtocolConstants.sol";
 import "./UserAssetCalculations.sol";
 import "../interfaces/IPriceOracle.sol";
 import "../interfaces/IUniversalLendingProtocol.sol";
@@ -17,24 +18,13 @@ import "../interfaces/IUniversalLendingProtocol.sol";
 library HealthFactorLogic {
     using CoreCalculations for uint256;
     using UserAssetCalculations for *;
-
-    /// @dev Precision constant for percentage calculations (1e18 = 100%)
-    uint256 private constant PRECISION = 1e18;
-
-    /// @dev Minimum health factor required for borrowing operations (150% collateralization)
-    uint256 private constant MINIMUM_HEALTH_FACTOR = 1.5e18;
-
-    /// @dev Liquidation threshold - positions below 120% collateralization can be liquidated
-    uint256 private constant LIQUIDATION_THRESHOLD = 1.2e18;
-
-    /// @dev Maximum health factor value to represent infinite health (no debt)
-    uint256 private constant MAX_HEALTH_FACTOR = type(uint256).max;
+    using ProtocolConstants for *;
 
     /**
      * @notice Calculates the current health factor for a user
      * @dev Health factor = (totalWeightedCollateral) / totalDebtValue
      *      Uses liquidation thresholds as weights for collateral value
-     *      Returns MAX_HEALTH_FACTOR if user has no debt
+     *      Returns ProtocolConstants.MAX_HEALTH_FACTOR if user has no debt
      * @param user The user address to calculate health factor for
      * @param supportedAssets Array of all supported asset addresses
      * @param userSupplies Mapping of user supplies from main contract
@@ -68,11 +58,11 @@ library HealthFactorLogic {
 
         // Return max health factor if no debt exists
         if (assetData.totalDebtValue == 0) {
-            return MAX_HEALTH_FACTOR;
+            return ProtocolConstants.MAX_HEALTH_FACTOR;
         }
 
         // Calculate health factor: weighted collateral / total debt
-        healthFactor = (assetData.totalWeightedCollateral * PRECISION) / assetData.totalDebtValue;
+        healthFactor = (assetData.totalWeightedCollateral * ProtocolConstants.PRECISION) / assetData.totalDebtValue;
     }
 
     /**
@@ -118,11 +108,11 @@ library HealthFactorLogic {
 
         // Return max health factor if no debt exists after modification
         if (assetData.totalDebtValue == 0) {
-            return MAX_HEALTH_FACTOR;
+            return ProtocolConstants.MAX_HEALTH_FACTOR;
         }
 
         // Calculate health factor with modifications
-        newHealthFactor = (assetData.totalWeightedCollateral * PRECISION) / assetData.totalDebtValue;
+        newHealthFactor = (assetData.totalWeightedCollateral * ProtocolConstants.PRECISION) / assetData.totalDebtValue;
     }
 
     /**
@@ -179,7 +169,7 @@ library HealthFactorLogic {
         );
 
         // Allow borrow if health factor remains above minimum threshold
-        return healthFactor >= MINIMUM_HEALTH_FACTOR;
+        return healthFactor >= ProtocolConstants.MINIMUM_HEALTH_FACTOR;
     }
 
     /**
@@ -260,7 +250,7 @@ library HealthFactorLogic {
         );
 
         // Allow withdrawal if health factor remains above minimum threshold
-        return healthFactor >= MINIMUM_HEALTH_FACTOR;
+        return healthFactor >= ProtocolConstants.MINIMUM_HEALTH_FACTOR;
     }
 
     /**
@@ -293,7 +283,7 @@ library HealthFactorLogic {
         );
 
         // Position is liquidatable if health factor is below threshold and not infinite
-        return healthFactor < LIQUIDATION_THRESHOLD && healthFactor != MAX_HEALTH_FACTOR;
+        return healthFactor < ProtocolConstants.LIQUIDATION_THRESHOLD && healthFactor != ProtocolConstants.MAX_HEALTH_FACTOR;
     }
 
     /**
@@ -335,7 +325,7 @@ library HealthFactorLogic {
         }
 
         // Calculate maximum total debt allowed while maintaining minimum health factor
-        uint256 maxTotalDebt = (assetData.totalBorrowableCollateral * PRECISION) / MINIMUM_HEALTH_FACTOR;
+        uint256 maxTotalDebt = (assetData.totalBorrowableCollateral * ProtocolConstants.PRECISION) / ProtocolConstants.MINIMUM_HEALTH_FACTOR;
 
         // Subtract current debt to get additional borrowing capacity
         if (maxTotalDebt <= assetData.totalDebtValue) {
@@ -415,7 +405,7 @@ library HealthFactorLogic {
         uint256 newHealthFactor
     ) internal pure returns (bool isImproved) {
         // Health factor must improve and reach minimum threshold
-        isImproved = newHealthFactor > oldHealthFactor && newHealthFactor >= MINIMUM_HEALTH_FACTOR;
+        isImproved = newHealthFactor > oldHealthFactor && newHealthFactor >= ProtocolConstants.MINIMUM_HEALTH_FACTOR;
     }
 
     /**
@@ -425,11 +415,11 @@ library HealthFactorLogic {
      * @return status Risk status: 0=Healthy, 1=Risky, 2=Liquidatable, 3=No Debt
      */
     function getHealthFactorStatus(uint256 healthFactor) internal pure returns (uint8 status) {
-        if (healthFactor == MAX_HEALTH_FACTOR) {
+        if (healthFactor == ProtocolConstants.MAX_HEALTH_FACTOR) {
             return 3; // No debt - infinite health
-        } else if (healthFactor >= MINIMUM_HEALTH_FACTOR) {
+        } else if (healthFactor >= ProtocolConstants.MINIMUM_HEALTH_FACTOR) {
             return 0; // Healthy - above minimum required
-        } else if (healthFactor >= LIQUIDATION_THRESHOLD) {
+        } else if (healthFactor >= ProtocolConstants.LIQUIDATION_THRESHOLD) {
             return 1; // Risky - between liquidation threshold and minimum
         } else {
             return 2; // Liquidatable - below liquidation threshold
@@ -447,15 +437,15 @@ library HealthFactorLogic {
         uint256 currentHealthFactor,
         uint256 totalDebtValue
     ) internal pure returns (uint256 improvementNeeded) {
-        if (currentHealthFactor >= MINIMUM_HEALTH_FACTOR || totalDebtValue == 0) {
+        if (currentHealthFactor >= ProtocolConstants.MINIMUM_HEALTH_FACTOR || totalDebtValue == 0) {
             return 0;
         }
 
         // Calculate additional collateral value needed
         // Formula: neededCollateral = (totalDebt * minHealthFactor) - currentCollateral
-        // Since currentCollateral = (currentHealthFactor * totalDebt) / PRECISION
-        uint256 currentWeightedCollateral = (currentHealthFactor * totalDebtValue) / PRECISION;
-        uint256 neededWeightedCollateral = (MINIMUM_HEALTH_FACTOR * totalDebtValue) / PRECISION;
+        // Since currentCollateral = (currentHealthFactor * totalDebt) / ProtocolConstants.PRECISION
+        uint256 currentWeightedCollateral = (currentHealthFactor * totalDebtValue) / ProtocolConstants.PRECISION;
+        uint256 neededWeightedCollateral = (ProtocolConstants.MINIMUM_HEALTH_FACTOR * totalDebtValue) / ProtocolConstants.PRECISION;
 
         improvementNeeded = neededWeightedCollateral - currentWeightedCollateral;
     }

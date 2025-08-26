@@ -39,7 +39,7 @@ contract LiquidationLogicTest is Test {
 
     // ==================== Health Factor Calculation Tests ====================
 
-    function testCalculateHealthFactor_HealthyPosition() public {
+    function testCalculateHealthFactor_HealthyPosition() public pure {
         uint256 totalCollateralValue = 5000 * 1e18; // $5000
         uint256 totalDebtValue = 2000 * 1e18;       // $2000
         uint256 liquidationThreshold = 85e16;       // 0.85 in 1e18 precision
@@ -54,7 +54,7 @@ contract LiquidationLogicTest is Test {
         assertEq(healthFactor, 2125e15, "Health factor should be 2.125");
     }
 
-    function testCalculateHealthFactor_CriticalPosition() public {
+    function testCalculateHealthFactor_CriticalPosition() public pure {
         uint256 totalCollateralValue = 3000 * 1e18; // $3000
         uint256 totalDebtValue = 2500 * 1e18;       // $2500
         uint256 liquidationThreshold = 80e16;       // 0.80 in 1e18 precision
@@ -70,7 +70,7 @@ contract LiquidationLogicTest is Test {
         assertTrue(healthFactor < LIQUIDATION_THRESHOLD, "Position should be liquidatable");
     }
 
-    function testCalculateHealthFactor_NoDebt() public {
+    function testCalculateHealthFactor_NoDebt() public pure {
         uint256 totalCollateralValue = 5000 * 1e18; // $5000
         uint256 totalDebtValue = 0;                 // No debt
         uint256 liquidationThreshold = 85e16;       // 0.85 in 1e18 precision
@@ -85,7 +85,7 @@ contract LiquidationLogicTest is Test {
         assertEq(healthFactor, type(uint256).max, "No debt should have infinite health factor");
     }
 
-    function testCalculateHealthFactor_NoCollateral() public {
+    function testCalculateHealthFactor_NoCollateral() public pure {
         uint256 totalCollateralValue = 0;           // No collateral
         uint256 totalDebtValue = 1000 * 1e18;      // $1000 debt
         uint256 liquidationThreshold = 85e16;       // 0.85 in 1e18 precision
@@ -102,7 +102,7 @@ contract LiquidationLogicTest is Test {
 
     // ==================== Collateral Value Calculation Tests ====================
 
-    function testCalculateCollateralValue_ETH() public {
+    function testCalculateCollateralValue_ETH() public view {
         uint256 ethAmount = 2 * 1e18; // 2 ETH
         uint256 collateralFactor = 80e16; // 80% collateral factor
 
@@ -117,7 +117,7 @@ contract LiquidationLogicTest is Test {
         assertEq(collateralValue, 3200 * 1e18, "ETH collateral value should be $3200");
     }
 
-    function testCalculateCollateralValue_USDC() public {
+    function testCalculateCollateralValue_USDC() public view {
         uint256 usdcAmount = 5000 * 1e6; // 5000 USDC (6 decimals)
         uint256 collateralFactor = 90e16; // 90% collateral factor
 
@@ -132,7 +132,7 @@ contract LiquidationLogicTest is Test {
         assertEq(collateralValue, 4500 * 1e18, "USDC collateral value should be $4500");
     }
 
-    function testCalculateCollateralValue_BTC() public {
+    function testCalculateCollateralValue_BTC() public view {
         uint256 btcAmount = 1e7; // 0.1 BTC (8 decimals)
         uint256 collateralFactor = 75e16; // 75% collateral factor
 
@@ -147,7 +147,7 @@ contract LiquidationLogicTest is Test {
         assertEq(collateralValue, 3750 * 1e18, "BTC collateral value should be $3750");
     }
 
-    function testCalculateCollateralValue_ZeroAmount() public {
+    function testCalculateCollateralValue_ZeroAmount() public view {
         uint256 collateralValue = LiquidationLogic.calculateCollateralValue(
             address(eth),
             0, // Zero amount
@@ -158,7 +158,7 @@ contract LiquidationLogicTest is Test {
         assertEq(collateralValue, 0, "Zero amount should result in zero collateral value");
     }
 
-    function testCalculateCollateralValue_ZeroCollateralFactor() public {
+    function testCalculateCollateralValue_ZeroCollateralFactor() public view {
         uint256 ethAmount = 1 * 1e18; // 1 ETH
         uint256 collateralFactor = 0; // No collateral factor
 
@@ -174,7 +174,7 @@ contract LiquidationLogicTest is Test {
 
     // ==================== Debt Value Calculation Tests ====================
 
-    function testCalculateDebtValue_ETH() public {
+    function testCalculateDebtValue_ETH() public view {
         uint256 ethAmount = 1 * 1e18; // 1 ETH debt
 
         uint256 debtValue = LiquidationLogic.calculateDebtValue(
@@ -187,7 +187,7 @@ contract LiquidationLogicTest is Test {
         assertEq(debtValue, 2000 * 1e18, "ETH debt value should be $2000");
     }
 
-    function testCalculateDebtValue_USDC() public {
+    function testCalculateDebtValue_USDC() public view {
         uint256 usdcAmount = 1500 * 1e6; // 1500 USDC (6 decimals)
 
         uint256 debtValue = LiquidationLogic.calculateDebtValue(
@@ -200,7 +200,7 @@ contract LiquidationLogicTest is Test {
         assertEq(debtValue, 1500 * 1e18, "USDC debt value should be $1500");
     }
 
-    function testCalculateDebtValue_ZeroAmount() public {
+    function testCalculateDebtValue_ZeroAmount() public view {
         uint256 debtValue = LiquidationLogic.calculateDebtValue(
             address(eth),
             0, // Zero debt
@@ -212,7 +212,7 @@ contract LiquidationLogicTest is Test {
 
     // ==================== Liquidation Amount Calculation Tests ====================
 
-    function testCalculateLiquidationAmount_StandardCase() public {
+    function testCalculateLiquidationAmount_StandardCase() public view {
         uint256 debtToCover = 500 * 1e6;           // 500 USDC (6 decimals)
         uint256 debtPrice = USDC_PRICE;            // $1
         uint256 collateralPrice = ETH_PRICE;       // $2000
@@ -237,7 +237,7 @@ contract LiquidationLogicTest is Test {
         assertEq(liquidatedCollateral, expectedCollateral, "Liquidated collateral should be 0.2625 ETH");
     }
 
-    function testCalculateLiquidationAmount_SameAsset() public {
+    function testCalculateLiquidationAmount_SameAsset() public view {
         // Test liquidation where debt and collateral are the same asset
         uint256 debtToCover = 1000 * 1e6;         // 1000 USDC
         uint256 debtPrice = USDC_PRICE;           // $1
@@ -260,7 +260,7 @@ contract LiquidationLogicTest is Test {
         assertEq(liquidatedCollateral, expectedCollateral, "Same asset liquidation should be 1080 USDC");
     }
 
-    function testCalculateLiquidationAmount_ZeroDebt() public {
+    function testCalculateLiquidationAmount_ZeroDebt() public view {
         uint256 liquidatedCollateral = LiquidationLogic.calculateLiquidationAmount(
             0, // Zero debt
             USDC_PRICE,
@@ -273,7 +273,7 @@ contract LiquidationLogicTest is Test {
         assertEq(liquidatedCollateral, 0, "Zero debt should result in zero collateral");
     }
 
-    function testCalculateLiquidationAmount_ZeroBonus() public {
+    function testCalculateLiquidationAmount_ZeroBonus() public view {
         uint256 debtToCover = 1000 * 1e18;        // 1000 ETH
         uint256 debtPrice = ETH_PRICE;            // $2000
         uint256 collateralPrice = ETH_PRICE;      // $2000
@@ -296,7 +296,7 @@ contract LiquidationLogicTest is Test {
 
     // ==================== Cross-Decimal Precision Tests ====================
 
-    function testCalculateLiquidationAmount_CrossDecimalPrecision() public {
+    function testCalculateLiquidationAmount_CrossDecimalPrecision() public view {
         // Test precision with assets having different decimals
         uint256 debtToCover = 1 * 1e8;            // 1 BTC (8 decimals)
         uint256 debtPrice = BTC_PRICE;            // $50000
@@ -324,7 +324,7 @@ contract LiquidationLogicTest is Test {
 
     // ==================== Integration Tests ====================
 
-    function testIntegration_LiquidationScenario() public {
+    function testIntegration_LiquidationScenario() public view {
         // Complete liquidation scenario
         uint256 collateralValue = 3000 * 1e18;    // $3000 ETH collateral
         uint256 debtValue = 2600 * 1e18;          // $2600 USDC debt
@@ -360,7 +360,7 @@ contract LiquidationLogicTest is Test {
         assertEq(liquidatedCollateral, expectedCollateral, "Liquidated collateral should be 0.6825 ETH");
     }
 
-    function testIntegration_HealthFactorAfterLiquidation() public {
+    function testIntegration_HealthFactorAfterLiquidation() public pure {
         // Test health factor improvement after liquidation
         uint256 initialCollateral = 4000 * 1e18;  // $4000
         uint256 initialDebt = 3200 * 1e18;        // $3200

@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import "./CoreCalculations.sol";
 import "./UserAssetCalculations.sol";
 import "./HealthFactorLogic.sol";
+import "./ProtocolConstants.sol";
 import "../interfaces/IPriceOracle.sol";
 import "../interfaces/IUniversalLendingProtocol.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -20,15 +21,8 @@ library PositionManager {
     using CoreCalculations for uint256;
     using UserAssetCalculations for *;
     using HealthFactorLogic for *;
+    using ProtocolConstants for *;
 
-    /// @dev Precision constant for percentage calculations (1e18 = 100%)
-    uint256 private constant PRECISION = 1e18;
-
-    /// @dev Minimum health factor required for borrowing operations (150% collateralization)
-    uint256 private constant MINIMUM_HEALTH_FACTOR = 1.5e18;
-
-    /// @dev Liquidation health factor (120% collateralization)
-    uint256 private constant LIQUIDATION_HEALTH_FACTOR = 1.2e18;
 
     /**
      * @notice Comprehensive user position data structure
@@ -128,7 +122,7 @@ library PositionManager {
             positionData.maxBorrowUsdValue = assetData.totalBorrowableCollateral;
         } else if (assetData.totalBorrowableCollateral > 0) {
             // For positions with existing debt, calculate remaining capacity at minimum health factor
-            uint256 maxAllowableDebt = (assetData.totalBorrowableCollateral * PRECISION) / MINIMUM_HEALTH_FACTOR;
+            uint256 maxAllowableDebt = (assetData.totalBorrowableCollateral * ProtocolConstants.PRECISION) / ProtocolConstants.MINIMUM_HEALTH_FACTOR;
             // Calculate remaining borrowing capacity
             positionData.maxBorrowUsdValue = maxAllowableDebt > assetData.totalDebtValue
                 ? maxAllowableDebt - assetData.totalDebtValue
@@ -139,7 +133,7 @@ library PositionManager {
         // Calculate health factor
         positionData.healthFactor = assetData.totalDebtValue == 0
             ? type(uint256).max
-            : (assetData.totalWeightedCollateral * PRECISION) /
+            : (assetData.totalWeightedCollateral * ProtocolConstants.PRECISION) /
                 assetData.totalDebtValue;
 
         // Calculate weighted liquidation threshold
@@ -243,7 +237,7 @@ library PositionManager {
             position.collateralValue =
                 (position.suppliedValue *
                     enhancedAssets[asset].collateralFactor) /
-                PRECISION;
+                ProtocolConstants.PRECISION;
         }
 
         // Calculate maximum borrowable amount (would need full context for accurate calculation)
@@ -312,9 +306,9 @@ library PositionManager {
                 assetData.weightedLiquidationThreshold /
                 assetData.totalCollateralValue;
 
-            // Calculate available borrows in USD at MINIMUM_HEALTH_FACTOR
+            // Calculate available borrows in USD at ProtocolConstants.MINIMUM_HEALTH_FACTOR
             uint256 requiredCollateral = (totalDebtValue *
-                MINIMUM_HEALTH_FACTOR) / PRECISION;
+                ProtocolConstants.MINIMUM_HEALTH_FACTOR) / ProtocolConstants.PRECISION;
             availableBorrows = totalCollateralValue > requiredCollateral
                 ? totalCollateralValue - requiredCollateral
                 : 0;
@@ -322,7 +316,7 @@ library PositionManager {
             // Calculate health factor
             healthFactor = totalDebtValue == 0
                 ? type(uint256).max
-                : (assetData.totalWeightedCollateral * PRECISION) /
+                : (assetData.totalWeightedCollateral * ProtocolConstants.PRECISION) /
                     totalDebtValue;
         } else {
             currentLiquidationThreshold = 0;
@@ -496,12 +490,12 @@ library PositionManager {
 
         // Calculate liquidation price drop percentage
         if (healthFactor != type(uint256).max && healthFactor > 0) {
-            // Liquidation occurs when health factor drops to LIQUIDATION_HEALTH_FACTOR
+            // Liquidation occurs when health factor drops to ProtocolConstants.LIQUIDATION_HEALTH_FACTOR
             // Drop fraction = 1 - (LIQUIDATION_HF / currentHF)
-            if (healthFactor > LIQUIDATION_HEALTH_FACTOR) {
+            if (healthFactor > ProtocolConstants.LIQUIDATION_HEALTH_FACTOR) {
                 liquidationPrice =
-                    PRECISION -
-                    (LIQUIDATION_HEALTH_FACTOR * PRECISION) /
+                    ProtocolConstants.PRECISION -
+                    (ProtocolConstants.LIQUIDATION_HEALTH_FACTOR * ProtocolConstants.PRECISION) /
                     healthFactor;
             }
         }

@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./interfaces/IUniversalLendingProtocol.sol";
 import "./interfaces/IPriceOracle.sol";
+import "./libraries/ProtocolConstants.sol";
 import "./libraries/CoreCalculations.sol";
 import "./libraries/HealthFactorLogic.sol";
 import "./libraries/PositionManager.sol";
@@ -43,10 +44,7 @@ contract UniversalLendingProtocol is
     using LiquidationLogic for *;
     using UserAssetCalculations for *;
 
-    // ============ Constants ============
-    uint256 private constant PRECISION = 1e18;
-    uint256 private constant RESERVE_FACTOR = 0.1e18; // 10%
-    uint256 private constant MIN_VALID_PRICE = 1e6;
+    using ProtocolConstants for *;
 
     // ============ Additional Events ============
     event CrossChainOperationReverted(
@@ -122,12 +120,12 @@ contract UniversalLendingProtocol is
         uint256 liquidationBonus
     ) external onlyOwner {
         require(!assets[asset].isSupported, "Asset already supported");
-        require(collateralFactor <= PRECISION, "Invalid collateral factor");
+        require(collateralFactor <= ProtocolConstants.PRECISION, "Invalid collateral factor");
         require(
-            liquidationThreshold <= PRECISION,
+            liquidationThreshold <= ProtocolConstants.PRECISION,
             "Invalid liquidation threshold"
         );
-        require(liquidationBonus <= PRECISION, "Invalid liquidation bonus");
+        require(liquidationBonus <= ProtocolConstants.PRECISION, "Invalid liquidation bonus");
 
         if (!isAssetAdded[asset]) {
             supportedAssets.push(asset);
@@ -177,7 +175,7 @@ contract UniversalLendingProtocol is
 
     function _getValidatedPrice(address asset) internal view returns (uint256) {
         uint256 price = priceOracle.getPrice(asset);
-        require(price >= MIN_VALID_PRICE, "Invalid price: too low");
+        require(price >= ProtocolConstants.MIN_VALID_PRICE, "Invalid price: too low");
         return price;
     }
 
@@ -503,7 +501,7 @@ contract UniversalLendingProtocol is
             asset,
             price
         );
-        return (assetValue * assets[asset].collateralFactor) / PRECISION;
+        return (assetValue * assets[asset].collateralFactor) / ProtocolConstants.PRECISION;
     }
 
     function getUserAccountData(
@@ -576,15 +574,15 @@ contract UniversalLendingProtocol is
         if (timeElapsed == 0) return;
 
         if (assetConfig.totalBorrow > 0 && assetConfig.borrowRate > 0) {
-            // PRECISION FIX: Multiply before divide to minimize precision loss
+            // ProtocolConstants.PRECISION FIX: Multiply before divide to minimize precision loss
             // Calculate interest accrued with higher precision
             uint256 interestAccrued = (assetConfig.totalBorrow *
                 assetConfig.borrowRate *
-                timeElapsed) / (365 days * PRECISION);
+                timeElapsed) / (365 days * ProtocolConstants.PRECISION);
             assetConfig.totalBorrow += interestAccrued;
-            // PRECISION FIX: Calculate reserve amount with proper precision
-            uint256 reserveAmount = (interestAccrued * RESERVE_FACTOR) /
-                PRECISION;
+            // ProtocolConstants.PRECISION FIX: Calculate reserve amount with proper precision
+            uint256 reserveAmount = (interestAccrued * ProtocolConstants.RESERVE_FACTOR) /
+                ProtocolConstants.PRECISION;
             totalReserves[asset] += reserveAmount;
         }
 
@@ -610,10 +608,10 @@ contract UniversalLendingProtocol is
     ) internal view returns (uint256 borrowRate, uint256 supplyRate) {
         InterestRateModel.RateParams memory params = InterestRateModel
             .RateParams({
-                baseRate: 0.02e18,
-                slope1: 0.04e18,
-                slope2: 0.75e18,
-                optimalUtilization: 0.8e18
+                baseRate: ProtocolConstants.BASE_RATE,
+                slope1: ProtocolConstants.RATE_SLOPE_1,
+                slope2: ProtocolConstants.RATE_SLOPE_2,
+                optimalUtilization: ProtocolConstants.OPTIMAL_UTILIZATION
             });
 
         borrowRate = InterestRateModel.calculateBorrowRate(
@@ -625,7 +623,7 @@ contract UniversalLendingProtocol is
             borrowRate,
             assetConfig.totalSupply,
             assetConfig.totalBorrow,
-            RESERVE_FACTOR
+            ProtocolConstants.RESERVE_FACTOR
         );
     }
 
@@ -720,12 +718,12 @@ contract UniversalLendingProtocol is
                     liquidatedCollateral,
                     collateralAsset,
                     _getValidatedPrice(collateralAsset)
-                ) * PRECISION) /
+                ) * ProtocolConstants.PRECISION) /
                 (CoreCalculations.calculateAssetValue(
                     1,
                     debtAsset,
                     _getValidatedPrice(debtAsset)
-                ) * (PRECISION + assets[collateralAsset].liquidationBonus));
+                ) * (ProtocolConstants.PRECISION + assets[collateralAsset].liquidationBonus));
             if (maxRepayAmount > userDebt) maxRepayAmount = userDebt;
         }
     }

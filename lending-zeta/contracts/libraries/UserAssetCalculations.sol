@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import "./ProtocolConstants.sol";
 import "../interfaces/IPriceOracle.sol";
 import "../interfaces/IUniversalLendingProtocol.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -15,9 +16,8 @@ import "./CoreCalculations.sol";
  *      All calculations use 1e18 precision for accurate financial computations
  */
 library UserAssetCalculations {
+    using ProtocolConstants for *;
     using CoreCalculations for uint256;
-    /// @dev Precision constant for percentage calculations (1e18 = 100%)
-    uint256 private constant PRECISION = 1e18;
 
     /**
      * @notice Consolidated asset data structure to eliminate repetitive calculations
@@ -91,10 +91,10 @@ library UserAssetCalculations {
             );
             borrowableCollateral =
                 (collateralValue * assetConfig.collateralFactor) /
-                PRECISION;
+                ProtocolConstants.PRECISION;
             weightedCollateral =
                 (collateralValue * assetConfig.liquidationThreshold) /
-                PRECISION;
+                ProtocolConstants.PRECISION;
         }
 
         // Calculate debt value
@@ -205,7 +205,7 @@ library UserAssetCalculations {
     ) internal view returns (uint256 value) {
         uint8 decimals = IERC20Metadata(asset).decimals();
         uint256 normalizedAmount = CoreCalculations.normalizeToDecimals(amount, decimals);
-        value = (normalizedAmount * validatedPrice) / PRECISION;
+        value = (normalizedAmount * validatedPrice) / ProtocolConstants.PRECISION;
     }
 
     /**

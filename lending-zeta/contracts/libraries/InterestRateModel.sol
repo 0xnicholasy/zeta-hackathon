@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import "./ProtocolConstants.sol";
+
 /**
  * @title InterestRateModel
  * @author ZetaChain Cross-Chain Lending Protocol
@@ -10,17 +12,7 @@ pragma solidity 0.8.26;
  *      All rates are expressed in RAY precision (1e27) for high accuracy
  */
 library InterestRateModel {
-    /// @dev Seconds in a year for interest rate calculations
-    uint256 private constant SECONDS_PER_YEAR = 365 days;
-
-    /// @dev RAY precision constant (1e27) for high-precision calculations
-    uint256 private constant RAY = 1e27;
-
-    /// @dev Maximum time delta to avoid overflow in extreme scenarios (100 years)
-    uint256 private constant MAX_TIME_DELTA = 100 * 365 days;
-
-    /// @dev Half RAY for rounding
-    uint256 private constant HALF_RAY = RAY / 2;
+    using ProtocolConstants for *;
 
     /**
      * @notice Parameters defining the interest rate curve for an asset
@@ -56,11 +48,11 @@ library InterestRateModel {
             return params.baseRate;
         }
 
-        uint256 utilizationRate = (totalBorrow * RAY) / totalSupply;
+        uint256 utilizationRate = (totalBorrow * ProtocolConstants.RAY) / totalSupply;
 
         if (utilizationRate <= params.optimalUtilization) {
             // PRECISION FIX: Multiply before divide to minimize precision loss
-            return params.baseRate + (utilizationRate * params.slope1) / RAY;
+            return params.baseRate + (utilizationRate * params.slope1) / ProtocolConstants.RAY;
         } else {
             uint256 excessUtilization = utilizationRate -
                 params.optimalUtilization;
@@ -69,7 +61,7 @@ library InterestRateModel {
                 params.baseRate +
                 params.slope1 +
                 (excessUtilization * params.slope2) /
-                RAY;
+                ProtocolConstants.RAY;
         }
     }
 
@@ -94,11 +86,11 @@ library InterestRateModel {
         }
 
         // PRECISION FIX: Use higher precision intermediate calculations
-        uint256 utilizationRate = (totalBorrow * RAY) / totalSupply;
-        uint256 rateToPool = (borrowRate * (RAY - reserveFactor)) / RAY;
+        uint256 utilizationRate = (totalBorrow * ProtocolConstants.RAY) / totalSupply;
+        uint256 rateToPool = (borrowRate * (ProtocolConstants.RAY - reserveFactor)) / ProtocolConstants.RAY;
 
         // PRECISION FIX: Calculate final result with proper precision
-        return (utilizationRate * rateToPool) / RAY;
+        return (utilizationRate * rateToPool) / ProtocolConstants.RAY;
     }
 
     /**
@@ -117,23 +109,23 @@ library InterestRateModel {
     ) internal view returns (uint256) {
         // Explicitly handle zero rate to avoid unnecessary math and rounding
         if (rate == 0) {
-            return RAY;
+            return ProtocolConstants.RAY;
         }
 
         uint256 exp = block.timestamp - lastUpdateTimestamp;
         if (exp == 0) {
-            return RAY;
+            return ProtocolConstants.RAY;
         }
 
         // Clamp extreme time deltas to avoid overflow and unrealistic growth
-        if (exp > MAX_TIME_DELTA) {
-            exp = MAX_TIME_DELTA;
+        if (exp > ProtocolConstants.MAX_TIME_DELTA) {
+            exp = ProtocolConstants.MAX_TIME_DELTA;
         }
 
         // Convert annual rate (RAY) to per-second rate (RAY), then compute discrete compounding:
         // compound = (1 + rate_per_second) ^ exp
-        uint256 ratePerSecond = rate / SECONDS_PER_YEAR; // in RAY
-        uint256 base = RAY + ratePerSecond; // base in RAY
+        uint256 ratePerSecond = rate / ProtocolConstants.SECONDS_PER_YEAR; // in RAY
+        uint256 base = ProtocolConstants.RAY + ratePerSecond; // base in RAY
 
         return _rayPow(base, exp);
     }
@@ -141,12 +133,12 @@ library InterestRateModel {
     /// @dev Fixed-point multiply in RAY with rounding: (a * b) / RAY
     function _rayMul(uint256 a, uint256 b) private pure returns (uint256) {
         if (a == 0 || b == 0) return 0;
-        return (a * b + HALF_RAY) / RAY;
+        return (a * b + ProtocolConstants.HALF_RAY) / ProtocolConstants.RAY;
     }
 
     /// @dev Exponentiation by squaring for RAY fixed-point base. Computes base^exp in RAY.
     function _rayPow(uint256 base, uint256 exp) private pure returns (uint256) {
-        uint256 result = RAY;
+        uint256 result = ProtocolConstants.RAY;
         uint256 currentBase = base;
         uint256 n = exp;
 

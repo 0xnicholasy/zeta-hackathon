@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "./ProtocolConstants.sol";
 
 /**
  * @title CoreCalculations
@@ -12,14 +13,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
  *      All calculations use 1e18 precision for accurate financial computations
  */
 library CoreCalculations {
-    /// @dev Precision constant for percentage and value calculations (1e18 = 100%)
-    uint256 internal constant PRECISION = 1e18;
-
-    /// @dev Minimum valid price to prevent manipulation and zero-price attacks
-    uint256 internal constant MIN_VALID_PRICE = 1e6; // $0.000001 USD
-
-    /// @dev Maximum valid price to prevent overflow and unrealistic values
-    uint256 internal constant MAX_VALID_PRICE = 1e30; // $1 trillion USD
+    using ProtocolConstants for *;
 
     /**
      * @notice Normalizes an amount to 18 decimal places for consistent calculations
@@ -80,7 +74,7 @@ library CoreCalculations {
 
     /**
      * @notice Calculates the USD value of an asset amount using current price
-     * @dev Formula: value = (normalizedAmount * price) / PRECISION
+     * @dev Formula: value = (normalizedAmount * price) / ProtocolConstants.PRECISION
      *      Normalizes the asset amount to 18 decimals before calculation
      *      Returns value in 18 decimal USD precision for consistency
      * @param amount The amount of the asset (in asset's native decimals)
@@ -99,22 +93,22 @@ library CoreCalculations {
         }
 
         // Validate price is within reasonable bounds
-        require(price >= MIN_VALID_PRICE, "CoreCalculations: price too low");
-        require(price <= MAX_VALID_PRICE, "CoreCalculations: price too high");
+        require(price >= ProtocolConstants.MIN_VALID_PRICE, "CoreCalculations: price too low");
+        require(price <= ProtocolConstants.MAX_VALID_PRICE, "CoreCalculations: price too high");
 
         // Get asset decimals and normalize amount
         uint8 decimals = IERC20Metadata(asset).decimals();
         uint256 normalizedAmount = normalizeToDecimals(amount, decimals);
 
-        // Calculate USD value: normalizedAmount * price / PRECISION
-        // Division by PRECISION accounts for price being in 18 decimal format
-        value = (normalizedAmount * price) / PRECISION;
+        // Calculate USD value: normalizedAmount * price / ProtocolConstants.PRECISION
+        // Division by ProtocolConstants.PRECISION accounts for price being in 18 decimal format
+        value = (normalizedAmount * price) / ProtocolConstants.PRECISION;
     }
 
     /**
      * @notice Calculates the asset amount for a given USD value at current price
      * @dev Reverse calculation of calculateAssetValue()
-     *      Formula: amount = (usdValue * PRECISION) / price
+     *      Formula: amount = (usdValue * ProtocolConstants.PRECISION) / price
      *      Useful for determining how much of an asset can be bought with USD
      * @param usdValue The USD value to convert (in 18 decimal precision)
      * @param asset The address of the asset (to get decimal information)
@@ -132,15 +126,15 @@ library CoreCalculations {
         }
 
         // Validate price is within reasonable bounds
-        require(price >= MIN_VALID_PRICE, "CoreCalculations: price too low");
-        require(price <= MAX_VALID_PRICE, "CoreCalculations: price too high");
+        require(price >= ProtocolConstants.MIN_VALID_PRICE, "CoreCalculations: price too low");
+        require(price <= ProtocolConstants.MAX_VALID_PRICE, "CoreCalculations: price too high");
 
-        // Calculate normalized amount: usdValue * PRECISION / price
+        // Calculate normalized amount: usdValue * ProtocolConstants.PRECISION / price
         require(
-            usdValue <= type(uint256).max / PRECISION,
+            usdValue <= type(uint256).max / ProtocolConstants.PRECISION,
             "CoreCalculations: amount calculation overflow"
         );
-        uint256 normalizedAmount = (usdValue * PRECISION) / price;
+        uint256 normalizedAmount = (usdValue * ProtocolConstants.PRECISION) / price;
 
         // Denormalize to asset's native decimals
         uint8 decimals = IERC20Metadata(asset).decimals();
@@ -157,7 +151,7 @@ library CoreCalculations {
      * @return isValid True if price is within acceptable bounds
      */
     function validatePrice(uint256 price) internal pure returns (bool isValid) {
-        isValid = price >= MIN_VALID_PRICE && price <= MAX_VALID_PRICE;
+        isValid = price >= ProtocolConstants.MIN_VALID_PRICE && price <= ProtocolConstants.MAX_VALID_PRICE;
     }
 
     /**
@@ -184,7 +178,7 @@ library CoreCalculations {
         );
 
         // Perform multiplication and maintain precision
-        result = (a * b) / PRECISION;
+        result = (a * b) / ProtocolConstants.PRECISION;
     }
 
     /**
@@ -209,15 +203,15 @@ library CoreCalculations {
 
         // Scale numerator to maintain precision, then divide
         require(
-            a <= type(uint256).max / PRECISION,
+            a <= type(uint256).max / ProtocolConstants.PRECISION,
             "CoreCalculations: division scaling overflow"
         );
-        result = (a * PRECISION) / b;
+        result = (a * ProtocolConstants.PRECISION) / b;
     }
 
     /**
      * @notice Calculates percentage of a value with precision
-     * @dev Formula: result = (value * percentage) / PRECISION
+     * @dev Formula: result = (value * percentage) / ProtocolConstants.PRECISION
      *      Both inputs should be in 18 decimal precision
      * @param value The base value (in 18 decimal precision)
      * @param percentage The percentage to apply (in 18 decimal precision, e.g., 0.1e18 = 10%)
@@ -233,11 +227,11 @@ library CoreCalculations {
 
         // Ensure percentage is reasonable (not over 100% in most cases, but allow for bonuses)
         require(
-            percentage <= 10 * PRECISION,
+            percentage <= 10 * ProtocolConstants.PRECISION,
             "CoreCalculations: percentage too high"
         );
 
-        result = (value * percentage) / PRECISION;
+        result = (value * percentage) / ProtocolConstants.PRECISION;
     }
 
     /**
@@ -318,7 +312,7 @@ library CoreCalculations {
                 values[i] <= type(uint256).max / weights[i],
                 "CoreCalculations: weighted average overflow"
             );
-            numerator += (values[i] * weights[i]) / PRECISION;
+            numerator += (values[i] * weights[i]) / ProtocolConstants.PRECISION;
             denominator += weights[i];
         }
 
@@ -326,9 +320,9 @@ library CoreCalculations {
             return 0;
         }
         require(
-            numerator <= type(uint256).max / PRECISION,
+            numerator <= type(uint256).max / ProtocolConstants.PRECISION,
             "CoreCalculations: weighted average result overflow"
         );
-        weightedAverage = (numerator * PRECISION) / denominator;
+        weightedAverage = (numerator * ProtocolConstants.PRECISION) / denominator;
     }
 }

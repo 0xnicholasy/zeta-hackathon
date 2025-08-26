@@ -7,6 +7,7 @@ import "@zetachain/protocol-contracts/contracts/Revert.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "./ProtocolConstants.sol";
 import "./CoreCalculations.sol";
 import "./HealthFactorLogic.sol";
 import "../interfaces/IUniversalLendingProtocol.sol";
@@ -23,15 +24,7 @@ library CrossChainOperations {
     using SafeERC20 for IERC20;
     using CoreCalculations for uint256;
     using HealthFactorLogic for *;
-
-    /// @dev Precision constant for percentage calculations (1e18 = 100%)
-    uint256 private constant PRECISION = 1e18;
-
-    /// @dev Default gas limit for revert operations
-    uint256 private constant DEFAULT_REVERT_GAS_LIMIT = 300000;
-
-    /// @dev Minimum amount threshold to prevent dust transactions
-    uint256 private constant MIN_CROSS_CHAIN_AMOUNT = 1e6; // $0.001 USD equivalent
+    using ProtocolConstants for *;
 
     // Events
     event CrossChainBorrow(
@@ -387,7 +380,7 @@ library CrossChainOperations {
             callOnRevert: true,
             abortAddress: user,
             revertMessage: abi.encode(destinationChain),
-            onRevertGasLimit: DEFAULT_REVERT_GAS_LIMIT
+            onRevertGasLimit: ProtocolConstants.DEFAULT_REVERT_GAS_LIMIT
         });
     }
 
@@ -410,7 +403,7 @@ library CrossChainOperations {
             "CrossChainOperations: invalid asset address"
         );
         require(
-            amount >= MIN_CROSS_CHAIN_AMOUNT,
+            amount >= ProtocolConstants.MIN_CROSS_CHAIN_AMOUNT,
             "CrossChainOperations: amount below minimum"
         );
         require(
@@ -463,13 +456,13 @@ library CrossChainOperations {
 
         if (asset == gasToken) {
             // Direct comparison for same token
-            uint256 minAmount = (gasFee * (PRECISION + minViableRatio)) /
-                PRECISION;
+            uint256 minAmount = (gasFee * (ProtocolConstants.PRECISION + minViableRatio)) /
+                ProtocolConstants.PRECISION;
             isViable = amount >= minAmount;
         } else {
             // For different tokens, assume operation is viable if above minimum threshold
             // More sophisticated implementation would compare USD values
-            isViable = amount >= MIN_CROSS_CHAIN_AMOUNT;
+            isViable = amount >= ProtocolConstants.MIN_CROSS_CHAIN_AMOUNT;
         }
     }
 

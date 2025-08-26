@@ -15,14 +15,7 @@ import "./CoreCalculations.sol";
  */
 library LiquidationLogic {
     using CoreCalculations for uint256;
-    /// @dev Precision constant for percentage calculations (1e18 = 100%)
-    uint256 private constant PRECISION = 1e18;
-
-    /// @dev Liquidation threshold - positions below 120% collateralization can be liquidated
-    uint256 private constant LIQUIDATION_THRESHOLD = 1.2e18; // 120%
-
-    /// @dev Minimum health factor required for borrowing operations (150% collateralization)
-    uint256 private constant MINIMUM_HEALTH_FACTOR = 1.5e18; // 150%
+    using ProtocolConstants for *;
 
     /**
      * @notice Parameters required for executing a liquidation
@@ -32,7 +25,7 @@ library LiquidationLogic {
      * @param user Address of the user being liquidated
      * @param debtToCover Amount of debt to repay (in debt asset units)
      * @param collateralAmount Amount of collateral to seize (in collateral asset units)
-     * @param liquidationBonus Bonus percentage for liquidator (in PRECISION units, e.g., 0.05e18 = 5%)
+     * @param liquidationBonus Bonus percentage for liquidator (in ProtocolConstants.PRECISION units, e.g., 0.05e18 = 5%)
      */
     struct LiquidationParams {
         address collateralAsset;
@@ -72,12 +65,12 @@ library LiquidationLogic {
 
     /**
      * @notice Calculates the USD value of collateral considering collateral factor
-     * @dev Value = normalizedAmount * price * collateralFactor / PRECISION^2
+     * @dev Value = normalizedAmount * price * collateralFactor / ProtocolConstants.PRECISION^2
      *      Collateral factor determines how much of the asset can be used as collateral
      *      Normalizes token amount to 18 decimals for consistent calculations
      * @param asset Address of the ZRC-20 collateral asset
      * @param amount Amount of the asset (in asset's native decimals)
-     * @param collateralFactor Percentage of asset value that counts as collateral (in PRECISION)
+     * @param collateralFactor Percentage of asset value that counts as collateral (in ProtocolConstants.PRECISION)
      * @param oracle Price oracle contract for getting asset prices
      * @return collateralValue USD value of collateral (in 1e18 precision)
      */
@@ -93,17 +86,17 @@ library LiquidationLogic {
         // Normalize amount to 18 decimals
         uint256 normalizedAmount = CoreCalculations.normalizeToDecimals(amount, decimals);
         
-        uint256 result = (normalizedAmount * price * collateralFactor) / (PRECISION * PRECISION);
+        uint256 result = (normalizedAmount * price * collateralFactor) / (ProtocolConstants.PRECISION * ProtocolConstants.PRECISION);
         return result;
     }
 
     /**
      * @notice Calculates the USD value of collateral using validated price
      * @dev Secure version that accepts pre-validated price to prevent stale price usage
-     *      Value = normalizedAmount * validatedPrice * collateralFactor / PRECISION^2
+     *      Value = normalizedAmount * validatedPrice * collateralFactor / ProtocolConstants.PRECISION^2
      * @param asset Address of the ZRC-20 collateral asset
      * @param amount Amount of the asset (in asset's native decimals)
-     * @param collateralFactor Percentage of asset value that counts as collateral (in PRECISION)
+     * @param collateralFactor Percentage of asset value that counts as collateral (in ProtocolConstants.PRECISION)
      * @param validatedPrice Pre-validated asset price (in 1e18 precision)
      * @return collateralValue USD value of collateral (in 1e18 precision)
      */
@@ -118,13 +111,13 @@ library LiquidationLogic {
         // Normalize amount to 18 decimals
         uint256 normalizedAmount = CoreCalculations.normalizeToDecimals(amount, decimals);
         
-        uint256 result = (normalizedAmount * validatedPrice * collateralFactor) / (PRECISION * PRECISION);
+        uint256 result = (normalizedAmount * validatedPrice * collateralFactor) / (ProtocolConstants.PRECISION * ProtocolConstants.PRECISION);
         return result;
     }
 
     /**
      * @notice Calculates the USD value of debt
-     * @dev Value = normalizedAmount * price / PRECISION
+     * @dev Value = normalizedAmount * price / ProtocolConstants.PRECISION
      *      Debt is always counted at full value (no discount applied)
      *      Normalizes token amount to 18 decimals for consistent calculations
      * @param asset Address of the ZRC-20 debt asset
@@ -143,14 +136,14 @@ library LiquidationLogic {
         // Normalize amount to 18 decimals
         uint256 normalizedAmount = CoreCalculations.normalizeToDecimals(amount, decimals);
         
-        uint256 result = (normalizedAmount * price) / PRECISION;
+        uint256 result = (normalizedAmount * price) / ProtocolConstants.PRECISION;
         return result;
     }
 
     /**
      * @notice Calculates the USD value of debt using validated price
      * @dev Secure version that accepts pre-validated price to prevent stale price usage
-     *      Value = normalizedAmount * validatedPrice / PRECISION
+     *      Value = normalizedAmount * validatedPrice / ProtocolConstants.PRECISION
      * @param asset Address of the ZRC-20 debt asset
      * @param amount Amount of debt (in asset's native decimals)
      * @param validatedPrice Pre-validated asset price (in 1e18 precision)
@@ -166,7 +159,7 @@ library LiquidationLogic {
         // Normalize amount to 18 decimals
         uint256 normalizedAmount = CoreCalculations.normalizeToDecimals(amount, decimals);
         
-        uint256 result = (normalizedAmount * validatedPrice) / PRECISION;
+        uint256 result = (normalizedAmount * validatedPrice) / ProtocolConstants.PRECISION;
         return result;
     }
 
@@ -187,7 +180,7 @@ library LiquidationLogic {
         uint256 userDebt
     ) internal pure returns (bool) {
         return
-            healthFactor < LIQUIDATION_THRESHOLD &&
+            healthFactor < ProtocolConstants.LIQUIDATION_THRESHOLD &&
             debtToCover > 0 &&
             debtToCover <= userDebt;
     }
@@ -199,7 +192,7 @@ library LiquidationLogic {
      * @param debtToCover Amount of debt being repaid (in debt asset units)
      * @param debtPrice USD price of debt asset (in 1e18 precision)
      * @param collateralPrice USD price of collateral asset (in 1e18 precision)
-     * @param liquidationBonus Bonus percentage for liquidator (in PRECISION units)
+     * @param liquidationBonus Bonus percentage for liquidator (in ProtocolConstants.PRECISION units)
      * @return collateralAmount Amount of collateral to transfer to liquidator
      */
     function calculateLiquidationAmount(
@@ -212,7 +205,7 @@ library LiquidationLogic {
         return
             collateralAmount +
             (collateralAmount * liquidationBonus) /
-            PRECISION;
+            ProtocolConstants.PRECISION;
     }
 
     /**
@@ -223,7 +216,7 @@ library LiquidationLogic {
      * @param debtToCover Amount of debt being repaid (in debt asset's native decimals)
      * @param debtPrice USD price of debt asset (in 1e18 precision)
      * @param collateralPrice USD price of collateral asset (in 1e18 precision)
-     * @param liquidationBonus Bonus percentage for liquidator (in PRECISION units)
+     * @param liquidationBonus Bonus percentage for liquidator (in ProtocolConstants.PRECISION units)
      * @param debtAsset Address of debt asset (for decimal handling)
      * @param collateralAsset Address of collateral asset (for decimal handling)
      * @return collateralAmount Amount of collateral to transfer to liquidator (in collateral asset's native decimals)
@@ -248,7 +241,7 @@ library LiquidationLogic {
         
         // Apply liquidation bonus
         uint256 normalizedCollateralWithBonus = normalizedCollateralAmount +
-            (normalizedCollateralAmount * liquidationBonus) / PRECISION;
+            (normalizedCollateralAmount * liquidationBonus) / ProtocolConstants.PRECISION;
         
         // Denormalize to collateral asset's native decimals
         return CoreCalculations.denormalizeFromDecimals(normalizedCollateralWithBonus, collateralDecimals);
@@ -268,7 +261,7 @@ library LiquidationLogic {
     ) internal pure returns (bool) {
         return
             newHealthFactor > oldHealthFactor &&
-            newHealthFactor >= MINIMUM_HEALTH_FACTOR;
+            newHealthFactor >= ProtocolConstants.MINIMUM_HEALTH_FACTOR;
     }
 
 }

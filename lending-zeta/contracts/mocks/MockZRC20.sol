@@ -36,7 +36,7 @@ contract MockZRC20 is ERC20, IZRC20 {
     }
 
     function withdraw(
-        bytes memory to,
+        bytes memory /* to */,
         uint256 amount
     ) external override returns (bool) {
         require(balanceOf(msg.sender) >= amount, "Insufficient balance");
