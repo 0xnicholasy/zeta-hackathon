@@ -57,7 +57,8 @@ export function useGasTokenApproval({
         args: safeAddress ? [safeAddress] : undefined,
         query: {
             enabled: Boolean(gasTokenAddress && safeAddress),
-            refetchInterval: 10000,
+            refetchInterval: 30000, // Reduced from 10s to 30s
+            staleTime: 20000, // Consider data fresh for 20s
         },
     });
 
@@ -69,7 +70,8 @@ export function useGasTokenApproval({
         args: safeAddress && universalLendingProtocol ? [safeAddress, universalLendingProtocol] as const : undefined,
         query: {
             enabled: Boolean(gasTokenAddress && safeAddress && universalLendingProtocol),
-            refetchInterval: 10000,
+            refetchInterval: 30000, // Reduced from 10s to 30s
+            staleTime: 20000, // Consider data fresh for 20s
         },
     });
 

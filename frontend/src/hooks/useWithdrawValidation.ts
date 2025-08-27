@@ -77,7 +77,8 @@ export function useWithdrawValidation({
         ] : undefined,
         query: {
             enabled: Boolean(selectedAsset && amountBigInt > 0),
-            refetchInterval: 10000,
+            refetchInterval: 30000, // Reduced from 10s to 30s
+            staleTime: 20000, // Consider data fresh for 20s
         },
     });
 
@@ -89,7 +90,8 @@ export function useWithdrawValidation({
         args: selectedAsset ? [selectedAsset.address] : undefined,
         query: {
             enabled: Boolean(selectedAsset),
-            refetchInterval: 10000,
+            refetchInterval: 30000, // Reduced from 10s to 30s
+            staleTime: 20000, // Consider data fresh for 20s
         },
     });
 
@@ -118,7 +120,8 @@ export function useWithdrawValidation({
         args: [userAddress],
         query: {
             enabled: Boolean(!isZeroAddress(gasTokenAddress) && !isGasToken),
-            refetchInterval: 10000,
+            refetchInterval: 30000, // Reduced from 10s to 30s
+            staleTime: 20000, // Consider data fresh for 20s
         },
     });
 
@@ -142,7 +145,8 @@ export function useWithdrawValidation({
         args: [userAddress, universalLendingProtocol],
         query: {
             enabled: Boolean(!isZeroAddress(gasTokenAddress) && !isGasToken),
-            refetchInterval: 10000,
+            refetchInterval: 30000, // Reduced from 10s to 30s
+            staleTime: 20000, // Consider data fresh for 20s
         },
     });
 

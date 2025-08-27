@@ -4,7 +4,7 @@ import { SolanaWalletButton } from '../../wallet/SolanaWalletButton';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export function SolanaNotConnectedState() {
-  const hasWallets = typeof window !== 'undefined' && Boolean((window as any).solana || (window as any).phantom?.solana);
+  const hasWallets = typeof window !== 'undefined' && Boolean((window as any).solana ?? (window as any).phantom?.solana);
 
   if (!hasWallets) {
     return (

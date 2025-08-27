@@ -12,7 +12,7 @@ import { Header } from '../components/dashboard/Header';
 import { EVMAddress, isEVMAddress } from '@/types/address';
 import { UniversalLendingProtocol__factory } from '../contracts/typechain-types';
 import { FaWallet, FaExclamationTriangle, FaCheckCircle, FaArrowLeft, FaPlus, FaTrash } from 'react-icons/fa';
-import { LiquidationDialog } from '../components/liquidation/LiquidationDialog';
+import { LazyLiquidationDialog as LiquidationDialog } from '../components/dialog/LazyDialogs';
 import { HourglassLoader } from '../components/ui/hourglass-loader';
 
 interface TrackedAddress {

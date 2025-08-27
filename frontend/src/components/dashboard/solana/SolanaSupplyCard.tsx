@@ -4,7 +4,8 @@ import { Button } from '../../ui/button';
 import { TokenNetworkIcon } from '../../ui/token-network-icon';
 import { Spinner } from '../../ui/spinner';
 import { FaPlus, FaArrowLeft } from 'react-icons/fa';
-import { SolanaSupplyDialog, type SolanaToken } from './SolanaSupplyDialog';
+import { LazySolanaSupplyDialog as SolanaSupplyDialog } from '../../dialog/LazyDialogs';
+import { type SolanaToken } from './SolanaSupplyDialog';
 import { Link } from 'react-router-dom';
 
 interface SolanaSupplyCardProps {

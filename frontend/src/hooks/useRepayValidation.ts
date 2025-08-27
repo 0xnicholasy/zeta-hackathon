@@ -60,7 +60,8 @@ export function useRepayValidation({
         args: selectedAsset ? [userAddress, selectedAsset.address] : undefined,
         query: {
             enabled: Boolean(selectedAsset),
-            refetchInterval: 10000,
+            refetchInterval: 30000, // Reduced from 10s to 30s
+            staleTime: 20000, // Consider data fresh for 20s
         },
     });
 
@@ -71,7 +72,8 @@ export function useRepayValidation({
         functionName: 'getUserPositionData',
         args: [userAddress],
         query: {
-            refetchInterval: 10000,
+            refetchInterval: 30000, // Reduced from 10s to 30s
+            staleTime: 20000, // Consider data fresh for 20s
         },
     });
 
@@ -83,7 +85,8 @@ export function useRepayValidation({
         args: selectedAsset ? [selectedAsset.address] : undefined,
         query: {
             enabled: Boolean(selectedAsset),
-            refetchInterval: 10000,
+            refetchInterval: 30000, // Reduced from 10s to 30s
+            staleTime: 20000, // Consider data fresh for 20s
         },
     });
 
@@ -109,7 +112,8 @@ export function useRepayValidation({
         chainId: isLocal ? SupportedChain.ZETA_TESTNET : selectedAsset?.externalChainId,
         query: {
             enabled: Boolean(address && selectedAsset && foreignTokenAddress !== undefined),
-            refetchInterval: 10000,
+            refetchInterval: 30000, // Reduced from 10s to 30s
+            staleTime: 20000, // Consider data fresh for 20s
         },
     });
 

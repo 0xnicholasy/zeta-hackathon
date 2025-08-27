@@ -68,7 +68,7 @@ export function ChainIcon({
     const sizeConfig = SIZE_CONFIG[resolvedSize];
 
     return (
-        <div className={`${sizeConfig.container} bg-gradient-to-br from-zeta-400 to-zeta-600 rounded-full flex items-center justify-center ${fallbackClassName || ''}`}>
+        <div className={`${sizeConfig.container} bg-gradient-to-br from-zeta-400 to-zeta-600 rounded-full flex items-center justify-center ${fallbackClassName ?? ''}`}>
             <span className={`text-white font-bold ${sizeConfig.text}`}>
                 {chain.charAt(0).toUpperCase()}
             </span>

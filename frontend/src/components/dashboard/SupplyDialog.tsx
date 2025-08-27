@@ -216,18 +216,19 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
 
   // Prevent circular dialog synchronization - only sync when prop changes, not internal state
   const prevIsOpenRef = useRef(isOpen);
-  
+
   useEffect(() => {
     // Only sync when the prop actually changes (external control)
     if (prevIsOpenRef.current !== isOpen) {
       prevIsOpenRef.current = isOpen;
-      
+
       if (isOpen && !state.isOpen) {
         stableCallbacks.openDialog();
       } else if (!isOpen && state.isOpen) {
         stableCallbacks.closeDialog();
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, state.isOpen]); // Don't include stableCallbacks to avoid infinite loops
 
   // Early return AFTER all hooks have been called

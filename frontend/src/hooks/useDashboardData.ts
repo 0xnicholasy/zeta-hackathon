@@ -3,12 +3,14 @@ import { useAccount, useReadContracts } from 'wagmi';
 import { formatUnits } from 'viem';
 import { useContracts } from './useContracts';
 import { useMultiChainBalances } from './useMultiChainBalances';
+import { useOptimizedQueries } from './useOptimizedQueries';
 import { SupportedChain, getTokenAddress } from '../contracts/deployments';
 import { CHAIN_TOKEN_MAPPINGS } from '@/utils/chainUtils';
 import { UniversalLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/UniversalLendingProtocol__factory';
 import type { UserAssetData } from '../components/dashboard/types';
 import { safeEVMAddress, safeEVMAddressOrZeroAddress } from '@/types/address';
 import { ERC20__factory, IPriceOracle__factory } from '@/contracts/typechain-types';
+import { STALE_TIME_CONFIG } from '../config/queryConfig';
 
 // Helper function to get source chain name from chain ID
 function getSourceChainName(chainId: number): string {
@@ -43,6 +45,9 @@ export function useDashboardData() {
     // Get multi-chain balances for user wallet balances
     const { balances: externalBalances, isLoading: isLoadingExternalBalances } = useMultiChainBalances();
 
+    // Use optimized queries for cache management
+    const { invalidateUserQueries, prefetchUserData } = useOptimizedQueries();
+
     // Define all available assets using chain token mappings
     const allAssets = useMemo(() => {
         const assets = CHAIN_TOKEN_MAPPINGS.flatMap(mapping => [
@@ -69,7 +74,7 @@ export function useDashboardData() {
     }, [allAssets]);
 
     // Get user supplies and borrows
-    const { data: userSupplies, refetch: refetchUserSupplies } = useReadContracts({
+    const { data: userSupplies } = useReadContracts({
         contracts: assetAddresses.map(asset => ({
             address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
             abi: UniversalLendingProtocol__factory.abi,
@@ -79,12 +84,14 @@ export function useDashboardData() {
         })),
         query: {
             enabled: Boolean(universalLendingProtocol) && Boolean(address) && isConnected,
-            // Refetch to keep balances current
-            refetchInterval: 15000, // 15 seconds
+            // Use optimized stale time for user balance data
+            staleTime: STALE_TIME_CONFIG.USER_BALANCES,
+            // Disable automatic refetch interval - rely on stale time and user actions
+            refetchInterval: false,
         },
     });
 
-    const { data: userBorrows, refetch: refetchUserBorrows } = useReadContracts({
+    const { data: userBorrows } = useReadContracts({
         contracts: assetAddresses.map(asset => ({
             address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
             abi: UniversalLendingProtocol__factory.abi,
@@ -94,8 +101,10 @@ export function useDashboardData() {
         })),
         query: {
             enabled: Boolean(universalLendingProtocol) && Boolean(address) && isConnected,
-            // Refetch to keep balances current  
-            refetchInterval: 15000, // 15 seconds
+            // Use optimized stale time for user balance data  
+            staleTime: STALE_TIME_CONFIG.USER_BALANCES,
+            // Disable automatic refetch interval - rely on stale time and user actions
+            refetchInterval: false,
         },
     });
 
@@ -109,6 +118,8 @@ export function useDashboardData() {
         })),
         query: {
             enabled: assetAddresses.length > 0 && Boolean(universalLendingProtocol),
+            // Asset configs change rarely - use long stale time
+            staleTime: STALE_TIME_CONFIG.ASSET_CONFIGS,
         },
     });
 
@@ -123,8 +134,10 @@ export function useDashboardData() {
         })),
         query: {
             enabled: assetAddresses.length > 0 && Boolean(priceOracle),
-            // Refetch prices regularly to keep them current
-            refetchInterval: 10000, // 10 seconds - same as Stats component
+            // Use optimized price data stale time
+            staleTime: STALE_TIME_CONFIG.ASSET_PRICES,
+            // Disable automatic refetch interval - rely on stale time
+            refetchInterval: false,
         },
     });
 
@@ -144,7 +157,7 @@ export function useDashboardData() {
     //     },
     // });
 
-    const { data: userAccountData, refetch: refetchUserAccountData } = useReadContracts({
+    const { data: userAccountData } = useReadContracts({
         contracts: [{
             address: safeEVMAddress(universalLendingProtocol),
             abi: UniversalLendingProtocol__factory.abi,
@@ -154,8 +167,10 @@ export function useDashboardData() {
         }],
         query: {
             enabled: Boolean(universalLendingProtocol) && Boolean(address) && isConnected,
-            // Refetch periodically to ensure health factor stays updated with price changes
-            refetchInterval: 10000, // 10 seconds
+            // Use optimized user position stale time
+            staleTime: STALE_TIME_CONFIG.USER_POSITIONS,
+            // Disable automatic refetch interval - rely on stale time
+            refetchInterval: false,
         },
     });
 
@@ -169,6 +184,8 @@ export function useDashboardData() {
         })),
         query: {
             enabled: assetAddresses.length > 0,
+            // Token decimals are static - use very long stale time
+            staleTime: STALE_TIME_CONFIG.CONTRACT_METADATA,
         },
     });
 
@@ -334,15 +351,24 @@ export function useDashboardData() {
         }
     }, [userAccountData]);
 
-    // Create a refetch function that refetches all user data
+    // Create an optimized refetch function that uses cache invalidation
     const refetchUserData = useCallback(async () => {
-        await Promise.all([
-            refetchUserSupplies(),
-            refetchUserBorrows(),
-            refetchUserAccountData(),
-            refetchAssetPrices(),
-        ]);
-    }, [refetchUserSupplies, refetchUserBorrows, refetchUserAccountData, refetchAssetPrices]);
+        if (!address) return;
+        
+        // Use optimized cache invalidation instead of individual refetches
+        await invalidateUserQueries(address);
+        
+        // Also refetch asset prices since they might have changed
+        await refetchAssetPrices();
+    }, [address, invalidateUserQueries, refetchAssetPrices]);
+
+    // Prefetch user data on connection for better UX
+    useEffect(() => {
+        if (isConnected && address && assetAddresses.length > 0) {
+            const chains = Object.keys(externalBalances).map(Number);
+            prefetchUserData(address, assetAddresses, chains).catch(console.error);
+        }
+    }, [isConnected, address, assetAddresses, externalBalances, prefetchUserData]);
 
     return {
         userAssets,

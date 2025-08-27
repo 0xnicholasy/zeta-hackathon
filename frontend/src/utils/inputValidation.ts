@@ -26,8 +26,29 @@ export interface AmountValidationOptions {
  */
 export function validateAmountInput(
     input: string,
+    decimals: number,
+    maxAmount?: string,
+    minAmount?: string
+): ValidationResult;
+export function validateAmountInput(
+    input: string,
     options: AmountValidationOptions
+): ValidationResult;
+export function validateAmountInput(
+    input: string,
+    decimalsOrOptions: number | AmountValidationOptions,
+    maxAmount?: string,
+    minAmount?: string
 ): ValidationResult {
+    // Handle overloaded signatures
+    const options: AmountValidationOptions = typeof decimalsOrOptions === 'number' 
+        ? {
+            decimals: decimalsOrOptions,
+            maxAmount,
+            minAmount,
+            tokenSymbol: ''
+          }
+        : decimalsOrOptions;
     const {
         decimals,
         maxAmount,

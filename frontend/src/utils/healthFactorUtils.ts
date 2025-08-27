@@ -47,15 +47,16 @@ export const isLiquidatable = (healthFactor: string): boolean => {
 };
 
 /**
- * Check if health factor is below recommended threshold (1.5)
+ * Check if health factor is below recommended threshold
  * @param healthFactor - The health factor as formatted string
+ * @param recommendedThreshold - The recommended threshold as formatted string (default 2.0)
  * @returns true if below recommended
  */
-export const isBelowRecommended = (healthFactor: string): boolean => {
+export const isBelowRecommended = (healthFactor: string, recommendedThreshold: string = '2.0'): boolean => {
   if (healthFactor === 'Infinity' || healthFactor === '∞') {
     return false;
   }
-  return compareHealthFactors(healthFactor, '1.5') < 0;
+  return compareHealthFactors(healthFactor, recommendedThreshold) < 0;
 };
 
 /**
@@ -69,7 +70,7 @@ export const getHealthFactorColorClassFromString = (healthFactor: string): strin
   }
   if (compareHealthFactors(healthFactor, '1.2') < 0) {
     return 'text-red-600 dark:text-red-400';
-  } else if (compareHealthFactors(healthFactor, '1.5') < 0) {
+  } else if (compareHealthFactors(healthFactor, '2.0') <= 0) {
     return 'text-yellow-600 dark:text-yellow-400';
   } else {
     return 'text-green-600 dark:text-green-400';
@@ -85,13 +86,20 @@ export const formatHealthFactorFromString = (healthFactor: string): string => {
   if (healthFactor === 'Infinity' || healthFactor === '∞') {
     return '∞';
   }
-  // For display only; rounding is acceptable here
-  const [whole, frac = ''] = healthFactor.split('.');
-  if (!whole || whole.length > 3) {
+  
+  // Handle invalid input
+  const numValue = parseFloat(healthFactor);
+  if (isNaN(numValue)) {
+    return '0.00';
+  }
+  
+  // Handle very large values (>= 999.9 treated as infinity)
+  if (numValue >= 999.9) {
     return '∞';
   }
-  const truncatedFrac = frac.padEnd(2, '0').slice(0, 2);
-  return `${whole}.${truncatedFrac}`;
+  
+  // Format to 2 decimal places
+  return numValue.toFixed(2);
 };
 
 // Legacy Number-based utilities (deprecated - use string-based versions for precision)
