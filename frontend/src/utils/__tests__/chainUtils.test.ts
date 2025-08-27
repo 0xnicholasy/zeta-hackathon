@@ -95,10 +95,10 @@ describe('chainUtils', () => {
       expect(getChainIdFromSourceChain('BSC Testnet')).toBe(SupportedChain.BSC_TESTNET);
     });
 
-    it('should return default fallback for unknown chains', () => {
-      expect(getChainIdFromSourceChain('unknown')).toBe(SupportedChain.ARBITRUM_SEPOLIA);
-      expect(getChainIdFromSourceChain('invalid-chain')).toBe(SupportedChain.ARBITRUM_SEPOLIA);
-      expect(getChainIdFromSourceChain('')).toBe(SupportedChain.ARBITRUM_SEPOLIA);
+    it('should throw error for unknown chains', () => {
+      expect(() => getChainIdFromSourceChain('unknown')).toThrow('getChainIdFromSourceChain: Unknown chain string: unknown');
+      expect(() => getChainIdFromSourceChain('invalid-chain')).toThrow('getChainIdFromSourceChain: Unknown chain string: invalid-chain');
+      expect(() => getChainIdFromSourceChain('')).toThrow('getChainIdFromSourceChain: Unknown chain string: ');
     });
   });
 
@@ -118,9 +118,9 @@ describe('chainUtils', () => {
       expect(getChainDisplayName('ZetaChain')).toBe('ZetaChain Testnet');
     });
 
-    it('should return original string for unknown chains', () => {
-      expect(getChainDisplayName('unknown-chain')).toBe('unknown-chain');
-      expect(getChainDisplayName('CustomChain')).toBe('CustomChain');
+    it('should throw error for unknown chains', () => {
+      expect(() => getChainDisplayName('unknown-chain')).toThrow('getChainDisplayName: Unknown chain string: unknown-chain');
+      expect(() => getChainDisplayName('customChain')).toThrow('getChainDisplayName: Unknown chain string: customChain');
     });
   });
 
@@ -135,10 +135,10 @@ describe('chainUtils', () => {
       expect(getChainDisplayNameFromId(SupportedChain.SOLANA_DEVNET)).toBe('Solana Devnet');
     });
 
-    it('should return "Unknown Chain" for unsupported chain IDs', () => {
-      expect(getChainDisplayNameFromId(999999)).toBe('Unknown Chain');
-      expect(getChainDisplayNameFromId(0)).toBe('Unknown Chain');
-      expect(getChainDisplayNameFromId(-1)).toBe('Unknown Chain');
+    it('should throw error for unsupported chain IDs', () => {
+      expect(() => getChainDisplayNameFromId(999999)).toThrow('getChainDisplayNameFromId: Unknown chain ID: 999999');
+      expect(() => getChainDisplayNameFromId(0)).toThrow('getChainDisplayNameFromId: Unknown chain ID: 0');
+      expect(() => getChainDisplayNameFromId(-1)).toThrow('getChainDisplayNameFromId: Unknown chain ID: -1');
     });
   });
 
@@ -168,10 +168,10 @@ describe('chainUtils', () => {
       expect(getGasTokenSymbol('BSC')).toBe('BNB.BSC');
     });
 
-    it('should return "Unsupported Network" for unknown chains', () => {
-      expect(getGasTokenSymbol('unknown')).toBe('Unsupported Network');
-      expect(getGasTokenSymbol('avalanche')).toBe('Unsupported Network');
-      expect(getGasTokenSymbol('')).toBe('Unsupported Network');
+    it('should throw error for unknown chains', () => {
+      expect(() => getGasTokenSymbol('unknown')).toThrow('getGasTokenSymbol: Unknown chain string: unknown');
+      expect(() => getGasTokenSymbol('avalanche')).toThrow('getGasTokenSymbol: Unknown chain string: avalanche');
+      expect(() => getGasTokenSymbol('')).toThrow('getGasTokenSymbol: Unknown chain string: ');
     });
   });
 
@@ -279,15 +279,15 @@ describe('chainUtils', () => {
       expect(getZetaTokenSymbol('USDC', SupportedChain.SOLANA_DEVNET)).toBe(TOKEN_SYMBOLS.USDC_SOL);
     });
 
-    it('should return empty string for unsupported tokens', () => {
-      expect(getZetaTokenSymbol('UNKNOWN', SupportedChain.ARBITRUM_SEPOLIA)).toBe('');
-      expect(getZetaTokenSymbol('BTC', SupportedChain.ETHEREUM_SEPOLIA)).toBe('');
-      expect(getZetaTokenSymbol('DAI', SupportedChain.POLYGON_AMOY)).toBe('');
+    it('should throw error for unsupported tokens', () => {
+      expect(() => getZetaTokenSymbol('UNKNOWN', SupportedChain.ARBITRUM_SEPOLIA)).toThrow('getZetaTokenSymbol: Unknown token symbol: UNKNOWN');
+      expect(() => getZetaTokenSymbol('BTC', SupportedChain.ETHEREUM_SEPOLIA)).toThrow('getZetaTokenSymbol: Unknown token symbol: BTC');
+      expect(() => getZetaTokenSymbol('DAI', SupportedChain.POLYGON_AMOY)).toThrow('getZetaTokenSymbol: Unknown token symbol: DAI');
     });
 
-    it('should return empty string for unsupported chains', () => {
-      expect(getZetaTokenSymbol('ETH', 999999)).toBe('');
-      expect(getZetaTokenSymbol('USDC', 0)).toBe('');
+    it('should throw error for unsupported chains', () => {
+      expect(() => getZetaTokenSymbol('ETH', 999999)).toThrow('getZetaTokenSymbol: Unknown chain ID: 999999');
+      expect(() => getZetaTokenSymbol('USDC', 0)).toThrow('getZetaTokenSymbol: Unknown chain ID: 0');
     });
   });
 
@@ -299,14 +299,14 @@ describe('chainUtils', () => {
       expect(getZetaTokenAddress('USDC', SupportedChain.ETHEREUM_SEPOLIA)).toBe('0x4444444444444444444444444444444444444444');
     });
 
-    it('should return null for unsupported tokens', () => {
-      expect(getZetaTokenAddress('UNKNOWN', SupportedChain.ARBITRUM_SEPOLIA)).toBeNull();
-      expect(getZetaTokenAddress('BTC', SupportedChain.ETHEREUM_SEPOLIA)).toBeNull();
+    it('should throw error for unsupported tokens', () => {
+      expect(() => getZetaTokenAddress('UNKNOWN', SupportedChain.ARBITRUM_SEPOLIA)).toThrow('getZetaTokenSymbol: Unknown token symbol: UNKNOWN');
+      expect(() => getZetaTokenAddress('BTC', SupportedChain.ETHEREUM_SEPOLIA)).toThrow('getZetaTokenSymbol: Unknown token symbol: BTC');
     });
 
-    it('should return null for unsupported chains', () => {
-      expect(getZetaTokenAddress('ETH', 999999)).toBeNull();
-      expect(getZetaTokenAddress('USDC', 0)).toBeNull();
+    it('should throw error for unsupported chains', () => {
+      expect(() => getZetaTokenAddress('ETH', 999999)).toThrow('getZetaTokenSymbol: Unknown chain ID: 999999');
+      expect(() => getZetaTokenAddress('USDC', 0)).toThrow('getZetaTokenSymbol: Unknown chain ID: 0');
     });
 
     it('should return null when getTokenAddress returns null', () => {
@@ -361,14 +361,14 @@ describe('chainUtils', () => {
       expect(getTokenInfo('USDC', SupportedChain.ETHEREUM_SEPOLIA)?.isNative).toBe(false);
     });
 
-    it('should return null for unsupported tokens', () => {
-      expect(getTokenInfo('UNKNOWN', SupportedChain.ARBITRUM_SEPOLIA)).toBeNull();
-      expect(getTokenInfo('BTC', SupportedChain.ETHEREUM_SEPOLIA)).toBeNull();
+    it('should throw error for unsupported tokens', () => {
+      expect(() => getTokenInfo('UNKNOWN', SupportedChain.ARBITRUM_SEPOLIA)).toThrow('getZetaTokenSymbol: Unknown token symbol: UNKNOWN');
+      expect(() => getTokenInfo('BTC', SupportedChain.ETHEREUM_SEPOLIA)).toThrow('getZetaTokenSymbol: Unknown token symbol: BTC');
     });
 
-    it('should return null for unsupported chains', () => {
-      expect(getTokenInfo('ETH', 999999)).toBeNull();
-      expect(getTokenInfo('USDC', 0)).toBeNull();
+    it('should throw error for unsupported chains', () => {
+      expect(() => getTokenInfo('ETH', 999999)).toThrow('getZetaTokenSymbol: Unknown chain ID: 999999');
+      expect(() => getTokenInfo('USDC', 0)).toThrow('getZetaTokenSymbol: Unknown chain ID: 0');
     });
   });
 
@@ -390,10 +390,10 @@ describe('chainUtils', () => {
       expect(getSupportedTokensForChain(SupportedChain.SOLANA_DEVNET)).toEqual(['SOL', 'USDC']);
     });
 
-    it('should return empty array for unsupported chains', () => {
-      expect(getSupportedTokensForChain(999999)).toEqual([]);
-      expect(getSupportedTokensForChain(0)).toEqual([]);
-      expect(getSupportedTokensForChain(-1)).toEqual([]);
+    it('should throw error for unsupported chains', () => {
+      expect(() => getSupportedTokensForChain(999999)).toThrow('getSupportedTokensForChain: Unknown chain ID: 999999');
+      expect(() => getSupportedTokensForChain(0)).toThrow('getSupportedTokensForChain: Unknown chain ID: 0');
+      expect(() => getSupportedTokensForChain(-1)).toThrow('getSupportedTokensForChain: Unknown chain ID: -1');
     });
   });
 
@@ -423,9 +423,9 @@ describe('chainUtils', () => {
     });
 
     it('should return false for unsupported chains', () => {
-      expect(isTokenSupportedOnChain('ETH', 999999)).toBe(false);
-      expect(isTokenSupportedOnChain('USDC', 0)).toBe(false);
-      expect(isTokenSupportedOnChain('BTC', -1)).toBe(false);
+      expect(isTokenSupportedOnChain('ETH', 999999)).toThrow("getSupportedTokensForChain: Unknown chain ID: 999999");
+      expect(isTokenSupportedOnChain('USDC', 0)).toThrow("getSupportedTokensForChain: Unknown chain ID: 0");
+      expect(isTokenSupportedOnChain('BTC', -1)).toThrow("getSupportedTokensForChain: Unknown chain ID: -1");
     });
 
     it('should return true for all ZRC-20 tokens on ZetaChain', () => {
@@ -438,19 +438,19 @@ describe('chainUtils', () => {
 
   describe('Edge Cases and Error Handling', () => {
     it('should handle empty strings gracefully', () => {
-      expect(getChainIdFromSourceChain('')).toBe(SupportedChain.ARBITRUM_SEPOLIA);
-      expect(getChainDisplayName('')).toBe('');
-      expect(getGasTokenSymbol('')).toBe('Unsupported Network');
+      expect(() => getChainIdFromSourceChain('')).toThrow('getChainIdFromSourceChain: Unknown chain string: ');
+      expect(() => getChainDisplayName('')).toThrow('getChainDisplayName: Unknown chain string: ');
+      expect(() => getGasTokenSymbol('')).toThrow('getGasTokenSymbol: Unknown chain string: ');
       expect(getGasTokenDecimals('')).toBe(18);
-      expect(getZetaTokenSymbol('', SupportedChain.ARBITRUM_SEPOLIA)).toBe('');
+      expect(() => getZetaTokenSymbol('', SupportedChain.ARBITRUM_SEPOLIA)).toThrow('getZetaTokenSymbol: Unknown token symbol: ');
       expect(isTokenSupportedOnChain('', SupportedChain.ARBITRUM_SEPOLIA)).toBe(false);
     });
 
     it('should handle null/undefined inputs gracefully', () => {
-      expect(getSupportedTokensForChain(null as any)).toEqual([]);
-      expect(getSupportedTokensForChain(undefined as any)).toEqual([]);
-      expect(isTokenSupportedOnChain('ETH', null as any)).toBe(false);
-      expect(isTokenSupportedOnChain('ETH', undefined as any)).toBe(false);
+      expect(() => getSupportedTokensForChain(null as any)).toThrow();
+      expect(() => getSupportedTokensForChain(undefined as any)).toThrow();
+      expect(() => isTokenSupportedOnChain('ETH', null as any)).toThrow();
+      expect(() => isTokenSupportedOnChain('ETH', undefined as any)).toThrow();
     });
 
     it('should be case insensitive where appropriate', () => {
@@ -460,8 +460,8 @@ describe('chainUtils', () => {
     });
 
     it('should handle special characters in chain names', () => {
-      expect(getChainIdFromSourceChain('arbitrum-sepolia')).toBe(SupportedChain.ARBITRUM_SEPOLIA);
-      expect(getChainDisplayName('arbitrum_sepolia')).toBe('arbitrum_sepolia');
+      expect(() => getChainIdFromSourceChain('arbitrum-sepolia')).toThrow('getChainIdFromSourceChain: Unknown chain string: arbitrum-sepolia');
+      expect(() => getChainDisplayName('arbitrum_sepolia')).toThrow('getChainDisplayName: Unknown chain string: arbitrum_sepolia');
     });
   });
 });

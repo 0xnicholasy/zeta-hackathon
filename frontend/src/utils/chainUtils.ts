@@ -269,6 +269,11 @@ export const getSupportedTokensForChain = (chainId: number): string[] => {
  * Check if a token is supported on a specific chain
  */
 export const isTokenSupportedOnChain = (tokenSymbol: string, chainId: number): boolean => {
-    const supportedTokens = getSupportedTokensForChain(chainId);
-    return supportedTokens.includes(tokenSymbol);
+    try {
+        const supportedTokens = getSupportedTokensForChain(chainId);
+        return supportedTokens.includes(tokenSymbol);
+    } catch (error) {
+        console.log(`isTokenSupportedOnChain: ${error}`);
+        return false;
+    }
 };
