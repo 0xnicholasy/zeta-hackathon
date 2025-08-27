@@ -2,6 +2,5 @@
 /* tslint:disable */
 /* eslint-disable */
 export { IPriceOracle__factory } from "./IPriceOracle__factory";
-export { ISimpleLendingProtocol__factory } from "./ISimpleLendingProtocol__factory";
 export { IUniversalLendingProtocol__factory } from "./IUniversalLendingProtocol__factory";
 export { IZRC20__factory } from "./IZRC20__factory";

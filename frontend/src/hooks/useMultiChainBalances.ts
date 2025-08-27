@@ -445,6 +445,7 @@ export function useZetaChainBalances() {
             price: '0',
             usdValue: '0',
           };
+          continue;
         }
         try {
           const priceInWei = await getAssetPrice(tokenBalance.tokenAddress);

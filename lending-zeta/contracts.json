@@ -27,7 +27,7 @@
       "rpc": "https://zetachain-athens-evm.blockpi.network/v1/rpc/public",
       "explorer": "https://athens.explorer.zetachain.com",
       "contracts": {
-        "UniversalLendingProtocol": "0x5bD0EeF491fB64dc0e0729431b43911947Ed0ed2",
+        "UniversalLendingProtocol": "0x0c5CC06d0B696e9250EE60aFf1096025149eceD6",
         "PriceOracle": "0x0000000000000000000000000000000000000000",
         "MockPriceOracle": "0x3611ec20Ab7904E914E1Dbb47F536fE8c54ddC8E",
         "Universal": "0x0000000000000000000000000000000000000000"
@@ -169,7 +169,7 @@
     }
   },
   "deployments": {
-    "lastUpdated": "2025-08-24T01:45:25.271Z",
+    "lastUpdated": "2025-08-27T02:29:07.933Z",
     "deployer": "0xe1C5Bf97A7Ffb50988DeF972E1E242072298a59C"
   }
 }

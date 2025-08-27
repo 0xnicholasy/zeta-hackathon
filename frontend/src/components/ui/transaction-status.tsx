@@ -6,6 +6,7 @@ import { useCrossChainTracking } from '../../hooks/useCrossChainTracking';
 import { EVMTransactionHash, isEVMTransactionHash, isSolanaTransactionHash } from '@/types/address';
 import type { StepsForTransactionType, TransactionType } from '../../types/transactions';
 import { getChainDisplayNameFromId } from '../../utils/chainUtils';
+import { formatUnits } from 'viem';
 
 interface TransactionStatusProps<T extends TransactionType = TransactionType> {
     currentStep: StepsForTransactionType<T>;
@@ -76,7 +77,7 @@ export function TransactionStatus<T extends TransactionType = TransactionType>({
                 </div>
                 {gasTokenInfo && transactionType === 'withdraw' && (
                     <div className="mt-2 text-sm text-muted-foreground text-center">
-                        Approving {(Number(gasTokenInfo.amount) / Math.pow(10, gasTokenDecimals)).toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 6 })} {gasTokenSymbol} for withdrawal fees
+                        Approving {Number(formatUnits(gasTokenInfo.amount, gasTokenDecimals)).toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 6 })} {gasTokenSymbol} for withdrawal fees
                     </div>
                 )}
             </div>

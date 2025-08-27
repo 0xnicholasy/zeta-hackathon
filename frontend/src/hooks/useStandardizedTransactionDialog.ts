@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTransactionFlow } from './useTransactionFlow';
 import { useCrossChainTracking } from './useCrossChainTracking';
 import type { TransactionType } from '../types/transactions';
@@ -150,6 +150,10 @@ export function useStandardizedTransactionDialog<T extends TransactionType>({
         setIsOpen(true);
     }, []);
     
+    // Use refs to avoid dependency issues
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
+
     const closeDialogCallback = useCallback(() => {
         setIsOpen(false);
         
@@ -171,8 +175,9 @@ export function useStandardizedTransactionDialog<T extends TransactionType>({
         }
         
         // Call external close handler
-        onClose?.();
-    }, [resetOnClose]); // Remove onClose to prevent instability
+        onCloseRef.current?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [resetOnClose]);
     
     const setValidationCallback = useCallback((validationResult: ValidationResult) => {
         setValidationState({
@@ -192,8 +197,13 @@ export function useStandardizedTransactionDialog<T extends TransactionType>({
         });
     }, []);
     
+    // Use ref for amount to avoid recreating callback on every amount change
+    const amountRef = useRef(amount);
+    amountRef.current = amount;
+
     const runSimulationCallback = useCallback(async (userAddress: string, assetAddress: string, decimals: number) => {
-        if (!enableSimulation || !amount.trim()) {
+        const currentAmount = amountRef.current;
+        if (!enableSimulation || !currentAmount.trim()) {
             return;
         }
 
@@ -211,14 +221,14 @@ export function useStandardizedTransactionDialog<T extends TransactionType>({
             const result = await simulateTransaction(transactionType as 'supply' | 'borrow' | 'withdraw' | 'repay', {
                 userAddress,
                 assetAddress,
-                amount,
+                amount: currentAmount,
                 decimals
             });
 
             setSimulationState({
                 isSimulating: false,
                 result,
-                lastSimulatedAmount: amount
+                lastSimulatedAmount: currentAmount
             });
 
             // If simulation failed, update validation state
@@ -234,7 +244,7 @@ export function useStandardizedTransactionDialog<T extends TransactionType>({
                 setValidationState(prev => ({
                     ...prev,
                     hasWarnings: true,
-                    warningMessages: [...(prev.warningMessages ?? []), ...result.warnings!]
+                    warningMessages: [...(prev.warningMessages ?? []), ...(result.warnings ?? [])]
                 }));
             }
         } catch (error) {
@@ -244,10 +254,10 @@ export function useStandardizedTransactionDialog<T extends TransactionType>({
                     success: false,
                     error: `Simulation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
                 },
-                lastSimulatedAmount: amount
+                lastSimulatedAmount: currentAmount
             });
         }
-    }, [enableSimulation, amount, transactionType]);
+    }, [enableSimulation, transactionType]);
     
     const clearSimulationCallback = useCallback(() => {
         setSimulationState({
@@ -289,45 +299,87 @@ export function useStandardizedTransactionDialog<T extends TransactionType>({
     
     // Computed values
     const computed = {
-        isValidForSubmission: validation.isValid && Boolean(amount.trim()),
-        hasFormData: Boolean(amount.trim() || recipientAddress.trim()),
-        shouldShowValidation: validation.hasErrors || validation.hasWarnings
-    };
+         isValidForSubmission: validation.isValid &&
+             Boolean(amount.trim()) &&
+             (!transactionSupportsRecipient(transactionType) || Boolean(recipientAddress.trim())),
+         hasFormData: Boolean(amount.trim() || recipientAddress.trim()),
+         shouldShowValidation: validation.hasErrors || validation.hasWarnings
+     };
     
+    // Create stable references to prevent infinite loops
+    const stableOnCloseRef = useRef(onClose);
+    stableOnCloseRef.current = onClose;
+
     // Auto-close dialog when transaction succeeds
     useEffect(() => {
         if (transactionFlow.state.currentStep === 'success' && crossChain.status === 'success') {
             // Small delay to show success state before closing
             const timer = setTimeout(() => {
-                closeDialogCallback();
+                setIsOpen(false);
+                if (resetOnClose) {
+                    // Reset form state
+                    setAmount('');
+                    setRecipientAddress('');
+                    setValidationState({
+                        isValid: true,
+                        hasErrors: false,
+                        hasWarnings: false
+                    });
+                    // Call external close handler
+                    stableOnCloseRef.current?.();
+                }
             }, 2000);
             return () => clearTimeout(timer);
         }
         return () => {};
-    }, [transactionFlow.state.currentStep, crossChain.status, closeDialogCallback]);
+    }, [transactionFlow.state.currentStep, crossChain.status, resetOnClose]);
     
+    // Reset transaction state when dialog closes - use refs to prevent infinite loops
+    const stableTransactionResetRef = useRef(transactionFlow.actions.reset);
+    const stableCrossChainResetRef = useRef(crossChain.reset);
+    const stableClearSimulationRef = useRef(clearSimulationCallback);
+
+    // Update refs when dependencies change
+    useEffect(() => {
+        stableTransactionResetRef.current = transactionFlow.actions.reset;
+        stableCrossChainResetRef.current = crossChain.reset;
+        stableClearSimulationRef.current = clearSimulationCallback;
+    }, [transactionFlow.actions.reset, crossChain.reset, clearSimulationCallback]);
+
     // Reset transaction state when dialog closes
     useEffect(() => {
         if (!isOpen && resetOnClose) {
-            transactionFlow.actions.reset();
-            crossChain.reset();
-            clearSimulationCallback();
+            stableTransactionResetRef.current();
+            stableCrossChainResetRef.current();
+            stableClearSimulationRef.current();
         }
-    }, [isOpen, resetOnClose, clearSimulationCallback]); // Remove transactionFlow.actions and crossChain from deps
+    }, [isOpen, resetOnClose]);
     
+    // Memoize stableCallbacks to prevent infinite re-renders
+    const stableCallbacks = useMemo(() => ({
+        setAmount: setAmountCallback,
+        setRecipientAddress: setRecipientAddressCallback,
+        setValidation: setValidationCallback,
+        clearValidation: clearValidationCallback,
+        openDialog: openDialogCallback,
+        closeDialog: closeDialogCallback,
+        runSimulation: runSimulationCallback,
+        clearSimulation: clearSimulationCallback
+    }), [
+        setAmountCallback,
+        setRecipientAddressCallback,
+        setValidationCallback,
+        clearValidationCallback,
+        openDialogCallback,
+        closeDialogCallback,
+        runSimulationCallback,
+        clearSimulationCallback
+    ]);
+
     return {
         state,
         actions,
-        stableCallbacks: {
-            setAmount: setAmountCallback,
-            setRecipientAddress: setRecipientAddressCallback,
-            setValidation: setValidationCallback,
-            clearValidation: clearValidationCallback,
-            openDialog: openDialogCallback,
-            closeDialog: closeDialogCallback,
-            runSimulation: runSimulationCallback,
-            clearSimulation: clearSimulationCallback
-        },
+        stableCallbacks,
         transactionFlow,
         crossChain,
         computed
@@ -363,14 +415,19 @@ export function useSimpleTransactionDialog<T extends TransactionType>(
  */
 export function useDialogCleanup(
     isOpen: boolean,
-    resetFunctions: Array<() => void>,
+    resetFunctions: (() => void)[],
     dependencies: unknown[] = []
 ) {
+    // Use refs to store reset functions to avoid dependency issues
+    const resetFunctionsRef = useRef(resetFunctions);
+    resetFunctionsRef.current = resetFunctions;
+
     useEffect(() => {
         if (!isOpen) {
-            resetFunctions.forEach(fn => fn());
+            resetFunctionsRef.current.forEach(fn => fn());
         }
-    }, [isOpen, ...dependencies]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, ...dependencies]); // Spread dependencies directly instead of including the array
 }
 
 /**
@@ -381,8 +438,8 @@ export function useValidationEffect(
     value: string,
     validationFunction: (value: string) => ValidationResult,
     setValidation: (result: ValidationResult) => void,
-    enabled: boolean = true,
-    debounceMs: number = 300
+    enabled = true,
+    debounceMs = 300
 ) {
     useEffect(() => {
         if (!enabled || !value.trim()) {

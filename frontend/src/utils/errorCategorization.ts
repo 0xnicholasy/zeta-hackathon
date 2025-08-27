@@ -52,7 +52,7 @@ export interface CategorizedError {
 /**
  * Error patterns to match against error messages
  */
-const ERROR_PATTERNS: Array<{
+const ERROR_PATTERNS: {
     pattern: RegExp | string;
     category: ErrorCategory;
     titleTemplate?: string;
@@ -60,7 +60,7 @@ const ERROR_PATTERNS: Array<{
     userAction?: string;
     severity: 'low' | 'medium' | 'high' | 'critical';
     canRetry: boolean;
-}> = [
+}[] = [
     // User rejection patterns
     {
         pattern: /user rejected|user denied|user cancelled|rejected by user/i,
@@ -341,10 +341,10 @@ export function categorizeError(error: Error | string): CategorizedError {
         if (matches) {
             return {
                 category: pattern.category,
-                title: pattern.titleTemplate || DEFAULT_CATEGORY_MESSAGES[pattern.category].title,
-                message: pattern.messageTemplate || DEFAULT_CATEGORY_MESSAGES[pattern.category].message,
-                userAction: pattern.userAction || DEFAULT_CATEGORY_MESSAGES[pattern.category].userAction,
-                technicalDetails: errorStack || errorMessage,
+                title: pattern.titleTemplate ?? DEFAULT_CATEGORY_MESSAGES[pattern.category].title,
+                message: pattern.messageTemplate ?? DEFAULT_CATEGORY_MESSAGES[pattern.category].message,
+                userAction: pattern.userAction ?? DEFAULT_CATEGORY_MESSAGES[pattern.category].userAction,
+                technicalDetails: errorStack ?? errorMessage,
                 severity: pattern.severity,
                 canRetry: pattern.canRetry
             };
@@ -358,7 +358,7 @@ export function categorizeError(error: Error | string): CategorizedError {
         title: defaultError.title,
         message: defaultError.message,
         userAction: defaultError.userAction,
-        technicalDetails: errorStack || errorMessage,
+        technicalDetails: errorStack ?? errorMessage,
         severity: defaultError.severity,
         canRetry: defaultError.canRetry
     };

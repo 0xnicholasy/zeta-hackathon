@@ -29,7 +29,7 @@ export function CategorizedErrorDisplay({
             {/* Error Header */}
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
-                    <span className="text-lg">{severityIcon}</span>
+                    <span className="text-lg" aria-hidden="true">{severityIcon}</span>
                     <div>
                         <div className={`font-medium ${severityClasses.textClass}`}>
                             {categorizedError.title}
@@ -45,6 +45,7 @@ export function CategorizedErrorDisplay({
                         size="sm"
                         onClick={onDismiss}
                         className="h-6 w-6 p-0"
+                        aria-label="Dismiss error"
                     >
                         ✕
                     </Button>
@@ -117,7 +118,7 @@ export function ErrorSummary({ error, className = '' }: ErrorSummaryProps) {
 
     return (
         <div className={`flex items-center gap-2 text-sm p-2 rounded ${severityClasses.bgClass} ${severityClasses.borderClass} border ${className}`}>
-            <span className="text-xs">{severityIcon}</span>
+            <span className="text-xs" aria-hidden="true">{severityIcon}</span>
             <div className={severityClasses.textClass}>
                 <span className="font-medium">{categorizedError.title}: </span>
                 <span>{categorizedError.message}</span>
@@ -155,10 +156,14 @@ export function ErrorToast({
     }, [autoClose, autoCloseDelay, categorizedError.severity, onClose]);
 
     return (
-        <div className={`fixed top-4 right-4 max-w-md p-4 border rounded-lg shadow-lg ${severityClasses.borderClass} ${severityClasses.bgClass} z-50`}>
+        <div
+            className={`fixed top-4 right-4 max-w-md p-4 border rounded-lg shadow-lg ${severityClasses.borderClass} ${severityClasses.bgClass} z-50`}
+            role={categorizedError.severity === 'critical' || categorizedError.severity === 'high' ? 'alert' : 'status'}
+            aria-live={categorizedError.severity === 'critical' || categorizedError.severity === 'high' ? 'assertive' : 'polite'}
+        >
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
-                    <span className="text-lg">{severityIcon}</span>
+                    <span className="text-lg" aria-hidden="true">{severityIcon}</span>
                     <div>
                         <div className={`font-medium ${severityClasses.textClass}`}>
                             {categorizedError.title}
@@ -173,6 +178,7 @@ export function ErrorToast({
                     size="sm"
                     onClick={onClose}
                     className="h-6 w-6 p-0"
+                    aria-label="Close notification"
                 >
                     ✕
                 </Button>

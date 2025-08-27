@@ -3,11 +3,11 @@
 /* eslint-disable */
 import type * as interfaces from "./interfaces";
 export type { interfaces };
+import type * as libraries from "./libraries";
+export type { libraries };
 import type * as mocks from "./mocks";
 export type { mocks };
 export type { DepositContract } from "./DepositContract";
 export type { PriceOracle } from "./PriceOracle";
-export type { SimpleLendingProtocol } from "./SimpleLendingProtocol";
-export type { SimpleLendingProtocolBase } from "./SimpleLendingProtocolBase";
 export type { Universal } from "./Universal";
 export type { UniversalLendingProtocol } from "./UniversalLendingProtocol";

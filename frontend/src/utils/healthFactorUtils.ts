@@ -1,9 +1,104 @@
 /**
  * Utility functions for health factor calculations and display
+ * Provides both legacy Number-based utilities and new precision-safe string-based utilities
  */
+
+import { parseUnits } from 'viem';
+
+/**
+ * Safely parse a decimal string to a 1e18-scaled bigint
+ */
+const parseHealthFactorToBigInt = (value: string): bigint => {
+  return parseUnits(value, 18);
+};
+
+/**
+ * Compare two health factor strings with full precision
+ * @param healthFactorA - First health factor as formatted string
+ * @param healthFactorB - Second health factor as formatted string  
+ * @returns -1 if A < B, 0 if A = B, 1 if A > B
+ */
+export const compareHealthFactors = (healthFactorA: string, healthFactorB: string): number => {
+  // Handle infinity cases
+  const aIsInf = healthFactorA === 'Infinity' || healthFactorA === '∞';
+  const bIsInf = healthFactorB === 'Infinity' || healthFactorB === '∞';
+  if (aIsInf && bIsInf) return 0;
+  if (aIsInf) return 1;
+  if (bIsInf) return -1;
+
+  const a = parseHealthFactorToBigInt(healthFactorA);
+  const b = parseHealthFactorToBigInt(healthFactorB);
+
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+};
+
+/**
+ * Check if health factor is below liquidation threshold (1.2)
+ * @param healthFactor - The health factor as formatted string
+ * @returns true if liquidatable
+ */
+export const isLiquidatable = (healthFactor: string): boolean => {
+  if (healthFactor === 'Infinity' || healthFactor === '∞') {
+    return false;
+  }
+  return compareHealthFactors(healthFactor, '1.2') < 0;
+};
+
+/**
+ * Check if health factor is below recommended threshold (1.5)
+ * @param healthFactor - The health factor as formatted string
+ * @returns true if below recommended
+ */
+export const isBelowRecommended = (healthFactor: string): boolean => {
+  if (healthFactor === 'Infinity' || healthFactor === '∞') {
+    return false;
+  }
+  return compareHealthFactors(healthFactor, '1.5') < 0;
+};
+
+/**
+ * Get health factor color class using string-based health factor
+ * @param healthFactor - The health factor as formatted string
+ * @returns CSS color class string for the health factor
+ */
+export const getHealthFactorColorClassFromString = (healthFactor: string): string => {
+  if (healthFactor === 'Infinity' || healthFactor === '∞') {
+    return 'text-green-600 dark:text-green-400';
+  }
+  if (compareHealthFactors(healthFactor, '1.2') < 0) {
+    return 'text-red-600 dark:text-red-400';
+  } else if (compareHealthFactors(healthFactor, '1.5') < 0) {
+    return 'text-yellow-600 dark:text-yellow-400';
+  } else {
+    return 'text-green-600 dark:text-green-400';
+  }
+};
+
+/**
+ * Format a string health factor for display, handling infinity cases
+ * @param healthFactor - The health factor as formatted string
+ * @returns Formatted string representation of the health factor
+ */
+export const formatHealthFactorFromString = (healthFactor: string): string => {
+  if (healthFactor === 'Infinity' || healthFactor === '∞') {
+    return '∞';
+  }
+  // For display only; rounding is acceptable here
+  const [whole, frac = ''] = healthFactor.split('.');
+  if (!whole || whole.length > 3) {
+    return '∞';
+  }
+  const truncatedFrac = frac.padEnd(2, '0').slice(0, 2);
+  return `${whole}.${truncatedFrac}`;
+};
+
+// Legacy Number-based utilities (deprecated - use string-based versions for precision)
 
 /**
  * Returns the appropriate CSS color class string based on health factor value
+ * @deprecated Use getHealthFactorColorClassFromString for better precision
  * @param healthFactor - The health factor value to evaluate
  * @returns CSS color class string for the health factor
  */
@@ -19,6 +114,7 @@ export const getHealthFactorColorClass = (healthFactor: number): string => {
 
 /**
  * Formats a health factor value for display, handling infinity cases
+ * @deprecated Use formatHealthFactorFromString for better precision
  * @param healthFactor - The health factor value to format
  * @returns Formatted string representation of the health factor
  */

@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle, Clock, TrendingUp, TrendingDown, Shield } from 'lucide-react';
 import { Alert, AlertDescription } from './alert';
 import type { SimulationResult } from '@/utils/transactionSimulation';
+import { isLiquidatable, isBelowRecommended, formatHealthFactorFromString, getHealthFactorColorClassFromString } from '@/utils/healthFactorUtils';
 
 interface TransactionSimulationDisplayProps {
   simulation: {
@@ -79,30 +80,24 @@ export function TransactionSimulationDisplay({
               <span className="text-sm font-medium text-gray-700">Health Factor After</span>
             </div>
             <div className="flex items-center gap-1">
-              {result.healthFactorAfter >= 1.5 ? (
+              {!isBelowRecommended(result.healthFactorAfter) ? (
                 <TrendingUp className="h-4 w-4 text-green-600" />
-              ) : result.healthFactorAfter >= 1.2 ? (
+              ) : !isLiquidatable(result.healthFactorAfter) ? (
                 <AlertTriangle className="h-4 w-4 text-yellow-600" />
               ) : (
                 <TrendingDown className="h-4 w-4 text-red-600" />
               )}
-              <span className={`text-sm font-bold ${
-                result.healthFactorAfter >= 1.5 
-                  ? 'text-green-600' 
-                  : result.healthFactorAfter >= 1.2 
-                    ? 'text-yellow-600' 
-                    : 'text-red-600'
-              }`}>
-                {result.healthFactorAfter.toFixed(2)}x
+              <span className={`text-sm font-bold ${getHealthFactorColorClassFromString(result.healthFactorAfter)}`}>
+                {formatHealthFactorFromString(result.healthFactorAfter)}x
               </span>
             </div>
           </div>
-          
+
           {/* Health factor explanation */}
           <div className="mt-2 text-xs text-gray-600">
-            {result.healthFactorAfter >= 1.5 ? (
+            {!isBelowRecommended(result.healthFactorAfter) ? (
               "✓ Safe - Your position is well collateralized"
-            ) : result.healthFactorAfter >= 1.2 ? (
+            ) : !isLiquidatable(result.healthFactorAfter) ? (
               "⚠ Caution - Your position is approaching liquidation risk"
             ) : (
               "⚠ Risk - Your position may be liquidated"
@@ -112,7 +107,7 @@ export function TransactionSimulationDisplay({
       )}
 
       {/* Gas estimate */}
-      {result.gasEstimate && (
+      {result.gasEstimate && !isNaN(Number(result.gasEstimate)) && (
         <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-blue-700">Estimated Gas</span>

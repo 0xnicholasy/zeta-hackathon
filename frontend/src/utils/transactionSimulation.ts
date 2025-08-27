@@ -1,8 +1,9 @@
-import { createPublicClient, http, type Address, parseUnits, formatUnits } from 'viem';
+import { createPublicClient, http, type Address, parseUnits, formatUnits, encodeFunctionData } from 'viem';
 import { SupportedChain, getUniversalLendingProtocolAddress } from '../contracts/deployments';
 import { UniversalLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/UniversalLendingProtocol__factory';
 import { ERC20__factory } from '../contracts/typechain-types';
-import { getAssetConfig, getAssetPrice } from './directContractCalls';
+import { getAssetConfig, getAssetPrice, getAllSupportedAssets } from './directContractCalls';
+import { isLiquidatable, isBelowRecommended, compareHealthFactors } from './healthFactorUtils';
 
 const ALCHEMY_API_KEY = import.meta.env['VITE_ALCHEMY_API_KEY'] ?? '';
 if (!ALCHEMY_API_KEY) {
@@ -39,8 +40,9 @@ export interface SimulationResult {
   success: boolean;
   error?: string;
   gasEstimate?: bigint;
-  healthFactorAfter?: number;
+  healthFactorAfter?: string; // Changed to string for precision preservation
   warnings?: string[];
+  isEstimate?: boolean; // Flag to indicate if health factor is estimated
 }
 
 export interface SupplySimulationParams {
@@ -72,9 +74,9 @@ export interface RepaySimulationParams {
 }
 
 /**
- * Get user's current health factor
+ * Get user's current health factor as a precise string representation
  */
-async function getUserHealthFactor(userAddress: string): Promise<number> {
+async function getUserHealthFactor(userAddress: string): Promise<string> {
   try {
     const protocolAddress = getUniversalLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
     if (!protocolAddress) {
@@ -88,11 +90,12 @@ async function getUserHealthFactor(userAddress: string): Promise<number> {
       args: [userAddress as Address],
     });
 
-    return Number(formatUnits(result, 18));
+    // Return precise string representation instead of converted Number
+    return formatUnits(result, 18);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Error getting user health factor:', error);
-    return 0;
+    return '0';
   }
 }
 
@@ -191,22 +194,111 @@ async function checkAllowance(userAddress: string, tokenAddress: string, amount:
   }
 }
 
-/**
- * Get ERC20 token decimals
- */
-export async function getTokenDecimals(tokenAddress: string): Promise<number> {
-  try {
-    const result = await zetaTestnetClient.readContract({
-      address: tokenAddress as Address,
-      abi: ERC20__factory.abi,
-      functionName: 'decimals',
-    });
 
-    return result;
+/**
+ * Compute health factor based on all user positions, asset prices, and liquidation thresholds
+ * Returns healthFactor = totalEffectiveCollateral / totalBorrows as precise string
+ */
+async function computeHealthFactor(
+  userAddress: string,
+  simulatedBorrowAsset?: string,
+  simulatedBorrowAmount?: bigint,
+  simulatedSupplyAsset?: string,
+  simulatedSupplyAmount?: bigint,
+  simulatedWithdrawAsset?: string,
+  simulatedWithdrawAmount?: bigint,
+  simulatedRepayAsset?: string,
+  simulatedRepayAmount?: bigint
+): Promise<{ healthFactor: string; isEstimate: boolean; error?: string }> {
+  try {
+    // Get all supported assets
+    const supportedAssets = await getAllSupportedAssets();
+    
+    if (supportedAssets.length === 0) {
+      return { healthFactor: '0', isEstimate: true, error: 'No supported assets found' };
+    }
+
+    let totalEffectiveCollateral = BigInt(0);
+    let totalBorrows = BigInt(0);
+    let hasIncompleteData = false;
+
+    // Process each asset to calculate collateral and borrows
+    for (const assetAddress of supportedAssets) {
+      try {
+        // Get asset configuration, price, and user balances in parallel
+        const [config, price, supplyBalance, borrowBalance] = await Promise.all([
+          getAssetConfig(assetAddress),
+          getAssetPrice(assetAddress),
+          getUserSupplyBalance(userAddress, assetAddress),
+          getUserBorrowBalance(userAddress, assetAddress)
+        ]);
+
+        if (!config || !config.isSupported || price === BigInt(0)) {
+          hasIncompleteData = true;
+          continue;
+        }
+
+        // Apply simulations to balances
+        let adjustedSupplyBalance = supplyBalance;
+        let adjustedBorrowBalance = borrowBalance;
+
+        if (simulatedSupplyAsset === assetAddress && simulatedSupplyAmount) {
+          adjustedSupplyBalance += simulatedSupplyAmount;
+        }
+        if (simulatedWithdrawAsset === assetAddress && simulatedWithdrawAmount) {
+          adjustedSupplyBalance = adjustedSupplyBalance > simulatedWithdrawAmount ? 
+            adjustedSupplyBalance - simulatedWithdrawAmount : BigInt(0);
+        }
+        if (simulatedBorrowAsset === assetAddress && simulatedBorrowAmount) {
+          adjustedBorrowBalance += simulatedBorrowAmount;
+        }
+        if (simulatedRepayAsset === assetAddress && simulatedRepayAmount) {
+          adjustedBorrowBalance = adjustedBorrowBalance > simulatedRepayAmount ?
+            adjustedBorrowBalance - simulatedRepayAmount : BigInt(0);
+        }
+
+        // Calculate collateral value: supplyBalance * price * liquidationThreshold / 1e18
+        // liquidationThreshold is in basis points (e.g., 8000 = 80%)
+        if (adjustedSupplyBalance > BigInt(0)) {
+          const collateralValue = (adjustedSupplyBalance * price * config.liquidationThreshold) / (BigInt(10000) * BigInt(10) ** BigInt(18));
+          totalEffectiveCollateral += collateralValue;
+        }
+
+        // Calculate borrow value: borrowBalance * price
+        if (adjustedBorrowBalance > BigInt(0)) {
+          const borrowValue = (adjustedBorrowBalance * price) / (BigInt(10) ** BigInt(18));
+          totalBorrows += borrowValue;
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.warn(`Error processing asset ${assetAddress}:`, error);
+        hasIncompleteData = true;
+        continue;
+      }
+    }
+
+    // Calculate health factor using BigInt precision
+    if (totalBorrows === BigInt(0)) {
+      // No borrows means infinite health factor
+      return { healthFactor: 'Infinity', isEstimate: hasIncompleteData };
+    }
+
+    // Use BigInt arithmetic for precise calculation: (totalEffectiveCollateral * 1e18) / totalBorrows
+    // This maintains precision by scaling up before division
+    const healthFactorBigInt = (totalEffectiveCollateral * BigInt(10) ** BigInt(18)) / totalBorrows;
+    const healthFactor = formatUnits(healthFactorBigInt, 18);
+    
+    return { 
+      healthFactor, 
+      isEstimate: hasIncompleteData,
+      ...(hasIncompleteData && { error: 'Health factor calculated with incomplete data' })
+    };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error(`Error getting token decimals for ${tokenAddress}:`, error);
-    return 18; // Default to 18 decimals
+    return {
+      healthFactor: '0',
+      isEstimate: true,
+      error: `Failed to compute health factor: ${error instanceof Error ? error.message : 'Unknown error'}`
+    };
   }
 }
 
@@ -264,6 +356,7 @@ export async function simulateSupply(params: SupplySimulationParams): Promise<Si
         gasEstimate,
         healthFactorAfter: currentHealthFactor, // Supply doesn't decrease health factor
         warnings,
+        isEstimate: false, // Current health factor is accurate
       };
     } catch (error) {
       return {
@@ -299,7 +392,7 @@ export async function simulateBorrow(params: BorrowSimulationParams): Promise<Si
 
     // Get current health factor
     const currentHealthFactor = await getUserHealthFactor(userAddress);
-    if (currentHealthFactor < 1.5) {
+    if (isBelowRecommended(currentHealthFactor)) {
       warnings.push('Current health factor is below recommended 1.5x');
     }
 
@@ -317,41 +410,54 @@ export async function simulateBorrow(params: BorrowSimulationParams): Promise<Si
       };
     }
 
-    // Calculate estimated health factor after borrow
-    // This is a simplified calculation - the actual calculation would need to consider
-    // all user positions, asset prices, and collateral factors
-    const assetPrice = await getAssetPrice(assetAddress);
-    const borrowValueUSD = Number(formatUnits(amountBigInt * assetPrice, 36)); // 18 + 18 decimals
+    // Calculate estimated health factor after borrow using proper computation
+    const healthFactorResult = await computeHealthFactor(
+      userAddress,
+      assetAddress,
+      amountBigInt
+    );
     
-    // Simplified health factor calculation (would need more data for accuracy)
-    if (currentHealthFactor > 0 && borrowValueUSD > 0) {
-      // This is a rough estimation - actual calculation would be more complex
-      const estimatedHealthFactorAfter = currentHealthFactor * 0.9; // Rough estimation
-      
-      if (estimatedHealthFactorAfter < 1.2) {
+    if (healthFactorResult.error && !healthFactorResult.isEstimate) {
+      warnings.push(`Health factor calculation warning: ${healthFactorResult.error}`);
+    }
+    
+    if (healthFactorResult.isEstimate) {
+      warnings.push('Health factor is estimated - actual value will be calculated on-chain');
+    }
+    
+    if (healthFactorResult.healthFactor !== '0' && healthFactorResult.healthFactor !== 'Infinity') {
+      if (isLiquidatable(healthFactorResult.healthFactor)) {
         return {
           success: false,
           error: 'Borrowing this amount would put your position at risk of liquidation',
         };
       }
       
-      if (estimatedHealthFactorAfter < 1.5) {
+      if (isBelowRecommended(healthFactorResult.healthFactor)) {
         warnings.push('This borrow will bring your health factor below the recommended 1.5x');
       }
     }
 
     try {
+      const borrowCalldata = encodeFunctionData({
+        abi: UniversalLendingProtocol__factory.abi,
+        functionName: 'borrow',
+        args: [assetAddress as Address, amountBigInt, userAddress as Address],
+      });
+
       const gasEstimate = await zetaTestnetClient.estimateGas({
         account: userAddress as Address,
         to: protocolAddress as Address,
-        data: '0x', // This would be the actual borrow call data
+        data: borrowCalldata,
       });
 
       return {
         success: true,
         gasEstimate,
-        healthFactorAfter: currentHealthFactor * 0.9, // Rough estimation
+        healthFactorAfter: healthFactorResult.healthFactor === 'Infinity' ? 
+          currentHealthFactor : healthFactorResult.healthFactor,
         warnings,
+        isEstimate: healthFactorResult.isEstimate,
       };
     } catch (error) {
       return {
@@ -388,12 +494,38 @@ export async function simulateWithdraw(params: WithdrawSimulationParams): Promis
     // Get current health factor
     const currentHealthFactor = await getUserHealthFactor(userAddress);
     
-    // Check if withdrawal would affect health factor (if user has borrows)
-    if (currentHealthFactor > 0 && currentHealthFactor < 2.0) {
+    // Calculate estimated health factor after withdrawal
+    const healthFactorResult = await computeHealthFactor(
+      userAddress,
+      undefined, undefined, // no borrow simulation
+      undefined, undefined, // no supply simulation  
+      assetAddress, amountBigInt // withdrawal simulation
+    );
+    
+    if (healthFactorResult.error && !healthFactorResult.isEstimate) {
+      warnings.push(`Health factor calculation warning: ${healthFactorResult.error}`);
+    }
+    
+    if (healthFactorResult.isEstimate) {
+      warnings.push('Health factor is estimated - actual value will be calculated on-chain');
+    }
+    
+    // Check if withdrawal would affect health factor (if user has borrows)  
+    if (currentHealthFactor !== '0' && compareHealthFactors(currentHealthFactor, '2.0') < 0) {
       warnings.push('Withdrawing collateral may affect your health factor');
       
-      // Simplified check - actual calculation would be more complex
-      if (currentHealthFactor < 1.5) {
+      if (healthFactorResult.healthFactor !== '0' && healthFactorResult.healthFactor !== 'Infinity') {
+        if (isLiquidatable(healthFactorResult.healthFactor)) {
+          return {
+            success: false,
+            error: 'Withdrawing this amount would put your position at risk of liquidation',
+          };
+        }
+        
+        if (isBelowRecommended(healthFactorResult.healthFactor)) {
+          warnings.push('This withdrawal will bring your health factor below the recommended 1.5x');
+        }
+      } else if (isBelowRecommended(currentHealthFactor)) {
         warnings.push('Your health factor is already below recommended levels');
       }
     }
@@ -404,17 +536,25 @@ export async function simulateWithdraw(params: WithdrawSimulationParams): Promis
         throw new Error('UniversalLendingProtocol address not found');
       }
 
+      const withdrawCalldata = encodeFunctionData({
+        abi: UniversalLendingProtocol__factory.abi,
+        functionName: 'withdraw',
+        args: [assetAddress as Address, amountBigInt, userAddress as Address],
+      });
+
       const gasEstimate = await zetaTestnetClient.estimateGas({
         account: userAddress as Address,
         to: protocolAddress as Address,
-        data: '0x', // This would be the actual withdraw call data
+        data: withdrawCalldata,
       });
 
       return {
         success: true,
         gasEstimate,
-        healthFactorAfter: currentHealthFactor, // Simplified - would need actual calculation
+        healthFactorAfter: healthFactorResult.healthFactor === 'Infinity' ? 
+          currentHealthFactor : healthFactorResult.healthFactor,
         warnings,
+        isEstimate: healthFactorResult.isEstimate,
       };
     } catch (error) {
       return {
@@ -468,8 +608,22 @@ export async function simulateRepay(params: RepaySimulationParams): Promise<Simu
       warnings.push('Token approval required before repay');
     }
 
-    // Get current health factor
-    const currentHealthFactor = await getUserHealthFactor(userAddress);
+    // Calculate estimated health factor after repay
+    const healthFactorResult = await computeHealthFactor(
+      userAddress,
+      undefined, undefined, // no borrow simulation
+      undefined, undefined, // no supply simulation
+      undefined, undefined, // no withdrawal simulation  
+      assetAddress, amountBigInt // repay simulation
+    );
+    
+    if (healthFactorResult.error && !healthFactorResult.isEstimate) {
+      warnings.push(`Health factor calculation warning: ${healthFactorResult.error}`);
+    }
+    
+    if (healthFactorResult.isEstimate) {
+      warnings.push('Health factor is estimated - actual value will be calculated on-chain');
+    }
 
     try {
       const protocolAddress = getUniversalLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
@@ -477,17 +631,25 @@ export async function simulateRepay(params: RepaySimulationParams): Promise<Simu
         throw new Error('UniversalLendingProtocol address not found');
       }
 
+      const repayCalldata = encodeFunctionData({
+        abi: UniversalLendingProtocol__factory.abi,
+        functionName: 'repay',
+        args: [assetAddress as Address, amountBigInt, userAddress as Address],
+      });
+
       const gasEstimate = await zetaTestnetClient.estimateGas({
         account: userAddress as Address,
         to: protocolAddress as Address,
-        data: '0x', // This would be the actual repay call data
+        data: repayCalldata,
       });
 
       return {
         success: true,
         gasEstimate,
-        healthFactorAfter: currentHealthFactor, // Repay improves health factor
+        healthFactorAfter: healthFactorResult.healthFactor === 'Infinity' ? 
+          await getUserHealthFactor(userAddress) : healthFactorResult.healthFactor,
         warnings,
+        isEstimate: healthFactorResult.isEstimate,
       };
     } catch (error) {
       return {

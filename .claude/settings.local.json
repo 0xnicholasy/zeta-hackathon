@@ -56,7 +56,8 @@
       "WebSearch",
       "Bash(git log:*)",
       "WebFetch(domain:zetachain.blockpi.network)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(bun lint:*)"
     ],
     "deny": []
   }

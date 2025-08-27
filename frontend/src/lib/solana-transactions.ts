@@ -11,7 +11,7 @@ import {
   getAssociatedTokenAddress
 } from '@solana/spl-token';
 import { createHash } from 'crypto';
-import { encodeAbiParameters, parseAbiParameters } from 'viem';
+import { encodeAbiParameters, parseAbiParameters, getAddress, type Address } from 'viem';
 import { getUniversalLendingProtocolAddress, SupportedChain } from '@/contracts/deployments';
 
 export interface SolanaTransactionParams {
@@ -26,6 +26,9 @@ export interface SolanaTransactionParams {
 const GATEWAY_PROGRAM_ID = new PublicKey('ZETAjseVjuFsxdRxo6MmTCvqFwb3ZHUx56Co3vCmGis');
 const UNIVERSAL_LENDING_PROTOCOL_ADDRESS = getUniversalLendingProtocolAddress(SupportedChain.ZETA_TESTNET);
 
+// ABI parameters parsed once at module level for reuse
+const SUPPLY_ABI_PARAMS = parseAbiParameters('string, address');
+
 // Function to calculate Anchor discriminator
 function calculateDiscriminator(functionName: string): Buffer {
   const hash = createHash('sha256').update(`global:${functionName}`).digest();
@@ -34,10 +37,19 @@ function calculateDiscriminator(functionName: string): Buffer {
 
 // Function to encode message for UniversalLendingProtocol.onCall()
 function encodeSupplyMessage(onBehalfOf: string): Buffer {
+  let validatedAddress: Address;
+  
+  try {
+    // Normalize and validate the address with viem's getAddress (returns checksummed address)
+    validatedAddress = getAddress(onBehalfOf);
+  } catch (error) {
+    throw new Error(`Invalid EVM address: ${onBehalfOf}. ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+  
   // ABI encode ("supply", onBehalfOf) - matches Solidity abi.encode("supply", onBehalfOf)
   const encoded = encodeAbiParameters(
-    parseAbiParameters('string, address'),
-    ["supply", onBehalfOf as `0x${string}`]
+    SUPPLY_ABI_PARAMS,
+    ["supply", validatedAddress]
   );
   
   // Convert hex string to buffer - this should be exactly what abi.decode expects

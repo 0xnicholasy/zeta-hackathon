@@ -314,7 +314,7 @@ export interface MockZRC20 extends BaseContract {
     ): Promise<ContractTransaction>;
 
     withdraw(
-      to: PromiseOrValue<BytesLike>,
+      arg0: PromiseOrValue<BytesLike>,
       amount: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
@@ -398,7 +398,7 @@ export interface MockZRC20 extends BaseContract {
   ): Promise<ContractTransaction>;
 
   withdraw(
-    to: PromiseOrValue<BytesLike>,
+    arg0: PromiseOrValue<BytesLike>,
     amount: PromiseOrValue<BigNumberish>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
@@ -482,7 +482,7 @@ export interface MockZRC20 extends BaseContract {
     ): Promise<boolean>;
 
     withdraw(
-      to: PromiseOrValue<BytesLike>,
+      arg0: PromiseOrValue<BytesLike>,
       amount: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<boolean>;
@@ -591,7 +591,7 @@ export interface MockZRC20 extends BaseContract {
     ): Promise<BigNumber>;
 
     withdraw(
-      to: PromiseOrValue<BytesLike>,
+      arg0: PromiseOrValue<BytesLike>,
       amount: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
@@ -676,7 +676,7 @@ export interface MockZRC20 extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     withdraw(
-      to: PromiseOrValue<BytesLike>,
+      arg0: PromiseOrValue<BytesLike>,
       amount: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;

@@ -51,7 +51,7 @@ const _abi = [
     inputs: [
       {
         internalType: "address",
-        name: "gasTokenAddress",
+        name: "gasToken",
         type: "address",
       },
       {
@@ -273,13 +273,13 @@ const _abi = [
       {
         indexed: false,
         internalType: "uint256",
-        name: "repaidDebt",
+        name: "repayAmount",
         type: "uint256",
       },
       {
         indexed: false,
         internalType: "uint256",
-        name: "seizedCollateral",
+        name: "liquidatedCollateral",
         type: "uint256",
       },
     ],
@@ -393,19 +393,6 @@ const _abi = [
         name: "asset",
         type: "address",
       },
-    ],
-    name: "addAsset",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "asset",
-        type: "address",
-      },
       {
         internalType: "uint256",
         name: "collateralFactor",
@@ -446,34 +433,6 @@ const _abi = [
       },
     ],
     name: "borrow",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "asset",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "destinationChain",
-        type: "uint256",
-      },
-      {
-        internalType: "bytes",
-        name: "recipient",
-        type: "bytes",
-      },
-    ],
-    name: "borrowCrossChain",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -553,52 +512,45 @@ const _abi = [
             name: "isSupported",
             type: "bool",
           },
+          {
+            internalType: "uint256",
+            name: "collateralFactor",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "liquidationThreshold",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "liquidationBonus",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "borrowRate",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "supplyRate",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "totalSupply",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "totalBorrow",
+            type: "uint256",
+          },
         ],
-        internalType: "struct ISimpleLendingProtocol.Asset",
+        internalType: "struct IUniversalLendingProtocol.AssetConfig",
         name: "",
         type: "tuple",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "asset",
-        type: "address",
-      },
-    ],
-    name: "getAssetPrice",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getAssetsAndPrices",
-    outputs: [
-      {
-        internalType: "address[]",
-        name: "assetAddresses",
-        type: "address[]",
-      },
-      {
-        internalType: "uint256[]",
-        name: "prices",
-        type: "uint256[]",
-      },
-      {
-        internalType: "uint256[]",
-        name: "borrowableAmounts",
-        type: "uint256[]",
       },
     ],
     stateMutability: "view",
@@ -717,7 +669,7 @@ const _abi = [
     outputs: [
       {
         internalType: "uint256",
-        name: "newHealthFactor",
+        name: "",
         type: "uint256",
       },
     ],
@@ -746,7 +698,7 @@ const _abi = [
     outputs: [
       {
         internalType: "uint256",
-        name: "newHealthFactor",
+        name: "",
         type: "uint256",
       },
     ],
@@ -775,7 +727,7 @@ const _abi = [
     outputs: [
       {
         internalType: "uint256",
-        name: "newHealthFactor",
+        name: "",
         type: "uint256",
       },
     ],
@@ -835,38 +787,6 @@ const _abi = [
       },
     ],
     name: "getSupplyBalance",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "index",
-        type: "uint256",
-      },
-    ],
-    name: "getSupportedAsset",
-    outputs: [
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getSupportedAssetsCount",
     outputs: [
       {
         internalType: "uint256",
@@ -1026,30 +946,6 @@ const _abi = [
   {
     inputs: [
       {
-        internalType: "address",
-        name: "asset",
-        type: "address",
-      },
-    ],
-    name: "getWithdrawGasFee",
-    outputs: [
-      {
-        internalType: "address",
-        name: "gasToken",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "gasFee",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
         internalType: "uint256",
         name: "chainId",
         type: "uint256",
@@ -1158,25 +1054,6 @@ const _abi = [
     name: "mapZRC20Asset",
     outputs: [],
     stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "asset",
-        type: "address",
-      },
-    ],
-    name: "maxAvailableAmount",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
     type: "function",
   },
   {
@@ -1318,34 +1195,6 @@ const _abi = [
       },
     ],
     name: "withdraw",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "asset",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "destinationChain",
-        type: "uint256",
-      },
-      {
-        internalType: "bytes",
-        name: "recipient",
-        type: "bytes",
-      },
-    ],
-    name: "withdrawCrossChain",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",

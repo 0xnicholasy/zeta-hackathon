@@ -189,10 +189,6 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IPriceOracle__factory>;
     getContractFactory(
-      name: "ISimpleLendingProtocol",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.ISimpleLendingProtocol__factory>;
-    getContractFactory(
       name: "IUniversalLendingProtocol",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IUniversalLendingProtocol__factory>;
@@ -200,6 +196,10 @@ declare module "hardhat/types/runtime" {
       name: "IZRC20",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IZRC20__factory>;
+    getContractFactory(
+      name: "CrossChainOperations",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.CrossChainOperations__factory>;
     getContractFactory(
       name: "MockPriceOracle",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -212,14 +212,6 @@ declare module "hardhat/types/runtime" {
       name: "PriceOracle",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.PriceOracle__factory>;
-    getContractFactory(
-      name: "SimpleLendingProtocol",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.SimpleLendingProtocol__factory>;
-    getContractFactory(
-      name: "SimpleLendingProtocolBase",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.SimpleLendingProtocolBase__factory>;
     getContractFactory(
       name: "Universal",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -450,11 +442,6 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.IPriceOracle>;
     getContractAt(
-      name: "ISimpleLendingProtocol",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.ISimpleLendingProtocol>;
-    getContractAt(
       name: "IUniversalLendingProtocol",
       address: string,
       signer?: ethers.Signer
@@ -464,6 +451,11 @@ declare module "hardhat/types/runtime" {
       address: string,
       signer?: ethers.Signer
     ): Promise<Contracts.IZRC20>;
+    getContractAt(
+      name: "CrossChainOperations",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.CrossChainOperations>;
     getContractAt(
       name: "MockPriceOracle",
       address: string,
@@ -479,16 +471,6 @@ declare module "hardhat/types/runtime" {
       address: string,
       signer?: ethers.Signer
     ): Promise<Contracts.PriceOracle>;
-    getContractAt(
-      name: "SimpleLendingProtocol",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.SimpleLendingProtocol>;
-    getContractAt(
-      name: "SimpleLendingProtocolBase",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.SimpleLendingProtocolBase>;
     getContractAt(
       name: "Universal",
       address: string,

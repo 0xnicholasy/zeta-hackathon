@@ -116,10 +116,51 @@ export function BorrowDialog({
         }
     }, [recipientAddress, isDestinationSolana]);
 
+    // Proceed borrow shared logic (validates recipient, handles approvals, sets submitting, and writes contract)
+    const proceedBorrow = useCallback((skipApprovalCheck = false) => {
+        if (!amount || !selectedAsset || !amountBigInt || !universalLendingProtocol) return;
+
+        // Gate on valid recipient
+        if (!isValidRecipient) {
+            txActions.setCurrentStep('input');
+            txActions.setIsSubmitting(false);
+            return;
+        }
+
+        // Set submitting before any writeContract to avoid duplicate submissions
+        txActions.setIsSubmitting(true);
+
+        // Check if gas token approval is needed first
+        if (!skipApprovalCheck && gasApproval.needsApproval && gasApproval.gasTokenAddress) {
+            txActions.setCurrentStep('approve');
+            const approvalCall = getGasTokenApprovalContractCall(
+                gasApproval.gasTokenAddress,
+                safeEVMAddressOrZeroAddress(universalLendingProtocol)
+            );
+            txActions.writeContract(approvalCall);
+            return;
+        }
+
+        // No approval needed, proceed with borrow
+        txActions.setCurrentStep('borrow');
+        txActions.writeContract({
+            address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
+            abi: lendingProtocolAbi,
+            functionName: 'borrowCrossChain',
+            args: [
+                selectedAsset.address,
+                amountBigInt,
+                BigInt(selectedAsset.externalChainId),
+                getRecipientBytes(),
+            ],
+        });
+    }, [amount, selectedAsset, amountBigInt, universalLendingProtocol, isValidRecipient, txActions, gasApproval, getRecipientBytes]);
+
     // Main submit handler
     const handleSubmit = useCallback(async () => {
         if (!amount || !selectedAsset || !amountBigInt || !universalLendingProtocol) return;
 
+        // Prepare submitting state and clear previous contract state
         txActions.setIsSubmitting(true);
         txActions.resetContract();
 
@@ -130,36 +171,14 @@ export function BorrowDialog({
                 return; // Exit here, the network switch will trigger a re-render
             }
 
-            // Check if gas token approval is needed
-            if (gasApproval.needsApproval && gasApproval.gasTokenAddress) {
-                txActions.setCurrentStep('approve');
-                const approvalCall = getGasTokenApprovalContractCall(
-                    gasApproval.gasTokenAddress,
-                    safeEVMAddressOrZeroAddress(universalLendingProtocol)
-                );
-                txActions.writeContract(approvalCall);
-                return; // Exit here, approval success will trigger borrow transaction
-            }
-
-            // Proceed with borrow transaction
-            txActions.setCurrentStep('borrow');
-            txActions.writeContract({
-                address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
-                abi: lendingProtocolAbi,
-                functionName: 'borrowCrossChain',
-                args: [
-                    selectedAsset.address,
-                    amountBigInt,
-                    BigInt(selectedAsset.externalChainId),
-                    getRecipientBytes(),
-                ],
-            });
+            // Proceed via shared logic
+            proceedBorrow();
         } catch (error) {
             console.error('Error borrowing', error);
             txActions.setIsSubmitting(false);
             txActions.setCurrentStep('input');
         }
-    }, [amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, isOnZetaChain, handleSwitchToZeta, gasApproval, getRecipientBytes]);
+    }, [amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, isOnZetaChain, handleSwitchToZeta, proceedBorrow]);
 
     // Handle max click
     const handleMaxClick = useCallback(() => {
@@ -273,24 +292,12 @@ export function BorrowDialog({
         }
     }, [contractState.error, txState.currentStep, txActions]);
 
-    // Handle approval success - proceed with borrow transaction
+    // Handle approval success - proceed with borrow transaction via shared logic
     useEffect(() => {
         if (contractState.isApprovalSuccess && txState.currentStep === 'approving' && amount && selectedAsset && amountBigInt && universalLendingProtocol) {
-            // Approval successful, proceed with borrow transaction
-            txActions.setCurrentStep('borrow');
-            txActions.writeContract({
-                address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
-                abi: lendingProtocolAbi,
-                functionName: 'borrowCrossChain',
-                args: [
-                    selectedAsset.address,
-                    amountBigInt,
-                    BigInt(selectedAsset.externalChainId),
-                    getRecipientBytes(),
-                ],
-            });
+            proceedBorrow(true);
         }
-    }, [contractState.isApprovalSuccess, txState.currentStep, amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, getRecipientBytes]);
+    }, [contractState.isApprovalSuccess, txState.currentStep, amount, selectedAsset, amountBigInt, universalLendingProtocol, proceedBorrow]);
 
     // Handle successful network switch to ZetaChain
     useEffect(() => {
@@ -299,34 +306,12 @@ export function BorrowDialog({
             txActions.setCurrentStep('input');
             txActions.setIsSubmitting(false);
 
-            // Auto-proceed with the borrow transaction immediately
-            if (amount && selectedAsset && amountBigInt && universalLendingProtocol) {
-                // Check if approval is needed first
-                if (gasApproval.needsApproval && gasApproval.gasTokenAddress) {
-                    txActions.setCurrentStep('approve');
-                    const approvalCall = getGasTokenApprovalContractCall(
-                        gasApproval.gasTokenAddress,
-                        safeEVMAddressOrZeroAddress(universalLendingProtocol)
-                    );
-                    txActions.writeContract(approvalCall);
-                } else {
-                    // No approval needed, proceed with borrow
-                    txActions.setCurrentStep('borrow');
-                    txActions.writeContract({
-                        address: safeEVMAddressOrZeroAddress(universalLendingProtocol),
-                        abi: lendingProtocolAbi,
-                        functionName: 'borrowCrossChain',
-                        args: [
-                            selectedAsset.address,
-                            amountBigInt,
-                            BigInt(selectedAsset.externalChainId),
-                            getRecipientBytes(),
-                        ],
-                    });
-                }
+            // Auto-proceed with the borrow transaction immediately via shared logic
+            if (amount && selectedAsset && amountBigInt && universalLendingProtocol && isValidRecipient) {
+                proceedBorrow();
             }
         }
-    }, [txState.currentStep, isOnZetaChain, amount, selectedAsset, amountBigInt, universalLendingProtocol, txActions, gasApproval, getRecipientBytes]);
+    }, [txState.currentStep, isOnZetaChain, amount, selectedAsset, amountBigInt, universalLendingProtocol, isValidRecipient, proceedBorrow, txActions]);
 
     // Early return after all hooks
     if (!selectedAsset || !universalLendingProtocol) return null;

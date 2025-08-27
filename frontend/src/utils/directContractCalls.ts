@@ -1,5 +1,6 @@
 import { createPublicClient, http, formatUnits, type Address } from 'viem';
-import { SupportedChain, getUniversalLendingProtocolAddress, getTokenAddress, getPriceOracleAddress } from '../contracts/deployments';
+import { SupportedChain, getUniversalLendingProtocolAddress, getTokenAddress, getPriceOracleAddress, getTokenDecimals as getTokenDecimalsFromDeployments } from '../contracts/deployments';
+import type { EVMAddress } from '../types/address';
 import { CHAIN_TOKEN_MAPPINGS } from './chainUtils';
 import { UniversalLendingProtocol__factory } from '../contracts/typechain-types/factories/contracts/UniversalLendingProtocol__factory';
 import { ERC20__factory, IPriceOracle__factory } from '../contracts/typechain-types';
@@ -148,10 +149,11 @@ export async function getAssetConfig(assetAddress: string): Promise<AssetConfig 
     const result = await zetaTestnetClient.readContract({
       address: protocolAddress as Address,
       abi: UniversalLendingProtocol__factory.abi,
-      functionName: 'enhancedAssets',
+      functionName: 'assets',
       args: [assetAddress as Address],
     });
-
+    
+    // Extract values from the result tuple
     return {
       isSupported: result[0],
       collateralFactor: result[1],
@@ -221,22 +223,11 @@ export async function getAssetPrice(assetAddress: string): Promise<bigint> {
 }
 
 /**
- * Get ERC20 token decimals
+ * Get ERC20 token decimals using deployment configuration
+ * This avoids blockchain calls and potential errors that could disrupt token math
  */
-export async function getTokenDecimals(tokenAddress: string): Promise<number> {
-  try {
-    const result = await zetaTestnetClient.readContract({
-      address: tokenAddress as Address,
-      abi: ERC20__factory.abi,
-      functionName: 'decimals',
-    });
-
-    return result;
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error(`Error getting token decimals for ${tokenAddress}:`, error);
-    return 18; // Default to 18 decimals
-  }
+export function getTokenDecimals(tokenAddress: string): number {
+  return getTokenDecimalsFromDeployments(tokenAddress as EVMAddress);
 }
 
 /**
@@ -333,11 +324,13 @@ export async function getProtocolAssetData(): Promise<AssetData[]> {
       if (!assetMeta) continue;
 
       // Get additional asset data in parallel
-      const [config, balance, decimals] = await Promise.all([
+      const [config, balance] = await Promise.all([
         getAssetConfig(address),
         getTokenBalance(address, protocolAddress),
-        getTokenDecimals(address),
       ]);
+      
+      // Get decimals from deployment config (synchronous)
+      const decimals = getTokenDecimals(address);
 
       // Calculate values
       // Convert balance to normalized amount (18 decimals)
@@ -492,11 +485,11 @@ export async function getBorrowableAssets(): Promise<BorrowableAssetData[]> {
       const assetMeta = allAssets.find(asset => asset.address?.toLowerCase() === address.toLowerCase());
       if (!assetMeta) continue;
 
-      // Get additional asset data in parallel
-      const [config, decimals] = await Promise.all([
-        getAssetConfig(address),
-        getTokenDecimals(address),
-      ]);
+      // Get asset config
+      const config = await getAssetConfig(address);
+      
+      // Get decimals from deployment config (synchronous)
+      const decimals = getTokenDecimals(address);
 
       // Format available amount for display
       const formattedMaxAvailable = Number(formatUnits(maxAvailable, decimals));

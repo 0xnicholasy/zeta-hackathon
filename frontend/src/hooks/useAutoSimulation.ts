@@ -23,7 +23,11 @@ export function useAutoSimulation({
   runSimulation
 }: UseAutoSimulationOptions) {
   const { address: userAddress } = useAccount();
-  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const runSimulationRef = useRef(runSimulation);
+
+  // Update the ref when runSimulation changes
+  runSimulationRef.current = runSimulation;
 
   const triggerSimulation = useCallback(() => {
     if (!enabled || !userAddress || !assetAddress || !amount.trim()) {
@@ -42,10 +46,12 @@ export function useAutoSimulation({
     }
 
     // Set new timeout for debounced simulation
+    const delayMs = Math.max(0, debounceMs ?? 0);
     timeoutRef.current = setTimeout(() => {
-      void runSimulation(userAddress, assetAddress, decimals);
-    }, debounceMs);
-  }, [enabled, userAddress, assetAddress, decimals, amount, debounceMs, runSimulation]);
+      // Swallow errors or route to a logger if available
+      runSimulationRef.current(userAddress, assetAddress, decimals).catch(() => { });
+    }, delayMs);
+  }, [enabled, userAddress, assetAddress, decimals, amount, debounceMs]);
 
   // Trigger simulation when dependencies change
   useEffect(() => {

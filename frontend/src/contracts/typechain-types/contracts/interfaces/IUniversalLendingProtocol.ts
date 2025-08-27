@@ -27,23 +27,46 @@ import type {
   PromiseOrValue,
 } from "../../common";
 
-export declare namespace ISimpleLendingProtocol {
-  export type AssetStruct = { isSupported: PromiseOrValue<boolean> };
+export declare namespace IUniversalLendingProtocol {
+  export type AssetConfigStruct = {
+    isSupported: PromiseOrValue<boolean>;
+    collateralFactor: PromiseOrValue<BigNumberish>;
+    liquidationThreshold: PromiseOrValue<BigNumberish>;
+    liquidationBonus: PromiseOrValue<BigNumberish>;
+    borrowRate: PromiseOrValue<BigNumberish>;
+    supplyRate: PromiseOrValue<BigNumberish>;
+    totalSupply: PromiseOrValue<BigNumberish>;
+    totalBorrow: PromiseOrValue<BigNumberish>;
+  };
 
-  export type AssetStructOutput = [boolean] & { isSupported: boolean };
+  export type AssetConfigStructOutput = [
+    boolean,
+    BigNumber,
+    BigNumber,
+    BigNumber,
+    BigNumber,
+    BigNumber,
+    BigNumber,
+    BigNumber
+  ] & {
+    isSupported: boolean;
+    collateralFactor: BigNumber;
+    liquidationThreshold: BigNumber;
+    liquidationBonus: BigNumber;
+    borrowRate: BigNumber;
+    supplyRate: BigNumber;
+    totalSupply: BigNumber;
+    totalBorrow: BigNumber;
+  };
 }
 
 export interface IUniversalLendingProtocolInterface extends utils.Interface {
   functions: {
-    "addAsset(address)": FunctionFragment;
     "addAsset(address,uint256,uint256,uint256)": FunctionFragment;
     "borrow(address,uint256,address)": FunctionFragment;
-    "borrowCrossChain(address,uint256,uint256,bytes)": FunctionFragment;
     "canBorrow(address,address,uint256)": FunctionFragment;
     "canWithdraw(address,address,uint256)": FunctionFragment;
     "getAssetConfig(address)": FunctionFragment;
-    "getAssetPrice(address)": FunctionFragment;
-    "getAssetsAndPrices()": FunctionFragment;
     "getBorrowBalance(address,address)": FunctionFragment;
     "getCollateralValue(address,address)": FunctionFragment;
     "getDebtValue(address,address)": FunctionFragment;
@@ -53,19 +76,15 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
     "getHealthFactorAfterWithdraw(address,address,uint256)": FunctionFragment;
     "getMaxLiquidation(address,address,address)": FunctionFragment;
     "getSupplyBalance(address,address)": FunctionFragment;
-    "getSupportedAsset(uint256)": FunctionFragment;
-    "getSupportedAssetsCount()": FunctionFragment;
     "getTotalCollateralValue(address)": FunctionFragment;
     "getTotalDebtValue(address)": FunctionFragment;
     "getUserAccountData(address)": FunctionFragment;
     "getUserPositionData(address)": FunctionFragment;
-    "getWithdrawGasFee(address)": FunctionFragment;
     "getZRC20ByChainAndSymbol(uint256,string)": FunctionFragment;
     "isChainAllowed(uint256)": FunctionFragment;
     "isLiquidatable(address)": FunctionFragment;
     "liquidate(address,address,address,uint256)": FunctionFragment;
     "mapZRC20Asset(address,uint256,string)": FunctionFragment;
-    "maxAvailableAmount(address)": FunctionFragment;
     "maxAvailableBorrows(address,address)": FunctionFragment;
     "maxAvailableBorrowsInUsd(address)": FunctionFragment;
     "repay(address,uint256,address)": FunctionFragment;
@@ -73,20 +92,15 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
     "setPriceOracle(address)": FunctionFragment;
     "supply(address,uint256,address)": FunctionFragment;
     "withdraw(address,uint256,address)": FunctionFragment;
-    "withdrawCrossChain(address,uint256,uint256,bytes)": FunctionFragment;
   };
 
   getFunction(
     nameOrSignatureOrTopic:
-      | "addAsset(address)"
-      | "addAsset(address,uint256,uint256,uint256)"
+      | "addAsset"
       | "borrow"
-      | "borrowCrossChain"
       | "canBorrow"
       | "canWithdraw"
       | "getAssetConfig"
-      | "getAssetPrice"
-      | "getAssetsAndPrices"
       | "getBorrowBalance"
       | "getCollateralValue"
       | "getDebtValue"
@@ -96,19 +110,15 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
       | "getHealthFactorAfterWithdraw"
       | "getMaxLiquidation"
       | "getSupplyBalance"
-      | "getSupportedAsset"
-      | "getSupportedAssetsCount"
       | "getTotalCollateralValue"
       | "getTotalDebtValue"
       | "getUserAccountData"
       | "getUserPositionData"
-      | "getWithdrawGasFee"
       | "getZRC20ByChainAndSymbol"
       | "isChainAllowed"
       | "isLiquidatable"
       | "liquidate"
       | "mapZRC20Asset"
-      | "maxAvailableAmount"
       | "maxAvailableBorrows"
       | "maxAvailableBorrowsInUsd"
       | "repay"
@@ -116,15 +126,10 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
       | "setPriceOracle"
       | "supply"
       | "withdraw"
-      | "withdrawCrossChain"
   ): FunctionFragment;
 
   encodeFunctionData(
-    functionFragment: "addAsset(address)",
-    values: [PromiseOrValue<string>]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "addAsset(address,uint256,uint256,uint256)",
+    functionFragment: "addAsset",
     values: [
       PromiseOrValue<string>,
       PromiseOrValue<BigNumberish>,
@@ -138,15 +143,6 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
       PromiseOrValue<string>,
       PromiseOrValue<BigNumberish>,
       PromiseOrValue<string>
-    ]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "borrowCrossChain",
-    values: [
-      PromiseOrValue<string>,
-      PromiseOrValue<BigNumberish>,
-      PromiseOrValue<BigNumberish>,
-      PromiseOrValue<BytesLike>
     ]
   ): string;
   encodeFunctionData(
@@ -168,14 +164,6 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
   encodeFunctionData(
     functionFragment: "getAssetConfig",
     values: [PromiseOrValue<string>]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "getAssetPrice",
-    values: [PromiseOrValue<string>]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "getAssetsAndPrices",
-    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "getBorrowBalance",
@@ -230,14 +218,6 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
     values: [PromiseOrValue<string>, PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
-    functionFragment: "getSupportedAsset",
-    values: [PromiseOrValue<BigNumberish>]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "getSupportedAssetsCount",
-    values?: undefined
-  ): string;
-  encodeFunctionData(
     functionFragment: "getTotalCollateralValue",
     values: [PromiseOrValue<string>]
   ): string;
@@ -251,10 +231,6 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "getUserPositionData",
-    values: [PromiseOrValue<string>]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "getWithdrawGasFee",
     values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
@@ -285,10 +261,6 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
       PromiseOrValue<BigNumberish>,
       PromiseOrValue<string>
     ]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "maxAvailableAmount",
-    values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
     functionFragment: "maxAvailableBorrows",
@@ -330,29 +302,9 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
       PromiseOrValue<string>
     ]
   ): string;
-  encodeFunctionData(
-    functionFragment: "withdrawCrossChain",
-    values: [
-      PromiseOrValue<string>,
-      PromiseOrValue<BigNumberish>,
-      PromiseOrValue<BigNumberish>,
-      PromiseOrValue<BytesLike>
-    ]
-  ): string;
 
-  decodeFunctionResult(
-    functionFragment: "addAsset(address)",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "addAsset(address,uint256,uint256,uint256)",
-    data: BytesLike
-  ): Result;
+  decodeFunctionResult(functionFragment: "addAsset", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "borrow", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "borrowCrossChain",
-    data: BytesLike
-  ): Result;
   decodeFunctionResult(functionFragment: "canBorrow", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "canWithdraw",
@@ -360,14 +312,6 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "getAssetConfig",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "getAssetPrice",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "getAssetsAndPrices",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -407,14 +351,6 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "getSupportedAsset",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "getSupportedAssetsCount",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "getTotalCollateralValue",
     data: BytesLike
   ): Result;
@@ -428,10 +364,6 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "getUserPositionData",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "getWithdrawGasFee",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -449,10 +381,6 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
   decodeFunctionResult(functionFragment: "liquidate", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "mapZRC20Asset",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "maxAvailableAmount",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -474,10 +402,6 @@ export interface IUniversalLendingProtocolInterface extends utils.Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "supply", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "withdraw", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "withdrawCrossChain",
-    data: BytesLike
-  ): Result;
 
   events: {
     "AllowedChainUpdated(uint256,bool)": EventFragment;
@@ -577,8 +501,8 @@ export interface LiquidateEventObject {
   user: string;
   collateralAsset: string;
   debtAsset: string;
-  repaidDebt: BigNumber;
-  seizedCollateral: BigNumber;
+  repayAmount: BigNumber;
+  liquidatedCollateral: BigNumber;
 }
 export type LiquidateEvent = TypedEvent<
   [string, string, string, string, BigNumber, BigNumber],
@@ -663,12 +587,7 @@ export interface IUniversalLendingProtocol extends BaseContract {
   removeListener: OnEvent<this>;
 
   functions: {
-    "addAsset(address)"(
-      asset: PromiseOrValue<string>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<ContractTransaction>;
-
-    "addAsset(address,uint256,uint256,uint256)"(
+    addAsset(
       asset: PromiseOrValue<string>,
       collateralFactor: PromiseOrValue<BigNumberish>,
       liquidationThreshold: PromiseOrValue<BigNumberish>,
@@ -680,14 +599,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       to: PromiseOrValue<string>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<ContractTransaction>;
-
-    borrowCrossChain(
-      asset: PromiseOrValue<string>,
-      amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<BytesLike>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
@@ -708,22 +619,7 @@ export interface IUniversalLendingProtocol extends BaseContract {
     getAssetConfig(
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
-    ): Promise<[ISimpleLendingProtocol.AssetStructOutput]>;
-
-    getAssetPrice(
-      asset: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<[BigNumber]>;
-
-    getAssetsAndPrices(
-      overrides?: CallOverrides
-    ): Promise<
-      [string[], BigNumber[], BigNumber[]] & {
-        assetAddresses: string[];
-        prices: BigNumber[];
-        borrowableAmounts: BigNumber[];
-      }
-    >;
+    ): Promise<[IUniversalLendingProtocol.AssetConfigStructOutput]>;
 
     getBorrowBalance(
       user: PromiseOrValue<string>,
@@ -753,21 +649,21 @@ export interface IUniversalLendingProtocol extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
-    ): Promise<[BigNumber] & { newHealthFactor: BigNumber }>;
+    ): Promise<[BigNumber]>;
 
     getHealthFactorAfterRepay(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
-    ): Promise<[BigNumber] & { newHealthFactor: BigNumber }>;
+    ): Promise<[BigNumber]>;
 
     getHealthFactorAfterWithdraw(
       user: PromiseOrValue<string>,
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
-    ): Promise<[BigNumber] & { newHealthFactor: BigNumber }>;
+    ): Promise<[BigNumber]>;
 
     getMaxLiquidation(
       user: PromiseOrValue<string>,
@@ -787,13 +683,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<[BigNumber]>;
-
-    getSupportedAsset(
-      index: PromiseOrValue<BigNumberish>,
-      overrides?: CallOverrides
-    ): Promise<[string]>;
-
-    getSupportedAssetsCount(overrides?: CallOverrides): Promise<[BigNumber]>;
 
     getTotalCollateralValue(
       user: PromiseOrValue<string>,
@@ -849,11 +738,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       }
     >;
 
-    getWithdrawGasFee(
-      asset: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<[string, BigNumber] & { gasToken: string; gasFee: BigNumber }>;
-
     getZRC20ByChainAndSymbol(
       chainId: PromiseOrValue<BigNumberish>,
       symbol: PromiseOrValue<string>,
@@ -884,11 +768,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       symbol: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
-
-    maxAvailableAmount(
-      asset: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<[BigNumber]>;
 
     maxAvailableBorrows(
       user: PromiseOrValue<string>,
@@ -932,22 +811,9 @@ export interface IUniversalLendingProtocol extends BaseContract {
       to: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
-
-    withdrawCrossChain(
-      asset: PromiseOrValue<string>,
-      amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<BytesLike>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<ContractTransaction>;
   };
 
-  "addAsset(address)"(
-    asset: PromiseOrValue<string>,
-    overrides?: Overrides & { from?: PromiseOrValue<string> }
-  ): Promise<ContractTransaction>;
-
-  "addAsset(address,uint256,uint256,uint256)"(
+  addAsset(
     asset: PromiseOrValue<string>,
     collateralFactor: PromiseOrValue<BigNumberish>,
     liquidationThreshold: PromiseOrValue<BigNumberish>,
@@ -959,14 +825,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
     asset: PromiseOrValue<string>,
     amount: PromiseOrValue<BigNumberish>,
     to: PromiseOrValue<string>,
-    overrides?: Overrides & { from?: PromiseOrValue<string> }
-  ): Promise<ContractTransaction>;
-
-  borrowCrossChain(
-    asset: PromiseOrValue<string>,
-    amount: PromiseOrValue<BigNumberish>,
-    destinationChain: PromiseOrValue<BigNumberish>,
-    recipient: PromiseOrValue<BytesLike>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
@@ -987,22 +845,7 @@ export interface IUniversalLendingProtocol extends BaseContract {
   getAssetConfig(
     asset: PromiseOrValue<string>,
     overrides?: CallOverrides
-  ): Promise<ISimpleLendingProtocol.AssetStructOutput>;
-
-  getAssetPrice(
-    asset: PromiseOrValue<string>,
-    overrides?: CallOverrides
-  ): Promise<BigNumber>;
-
-  getAssetsAndPrices(
-    overrides?: CallOverrides
-  ): Promise<
-    [string[], BigNumber[], BigNumber[]] & {
-      assetAddresses: string[];
-      prices: BigNumber[];
-      borrowableAmounts: BigNumber[];
-    }
-  >;
+  ): Promise<IUniversalLendingProtocol.AssetConfigStructOutput>;
 
   getBorrowBalance(
     user: PromiseOrValue<string>,
@@ -1067,13 +910,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
     overrides?: CallOverrides
   ): Promise<BigNumber>;
 
-  getSupportedAsset(
-    index: PromiseOrValue<BigNumberish>,
-    overrides?: CallOverrides
-  ): Promise<string>;
-
-  getSupportedAssetsCount(overrides?: CallOverrides): Promise<BigNumber>;
-
   getTotalCollateralValue(
     user: PromiseOrValue<string>,
     overrides?: CallOverrides
@@ -1128,11 +964,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
     }
   >;
 
-  getWithdrawGasFee(
-    asset: PromiseOrValue<string>,
-    overrides?: CallOverrides
-  ): Promise<[string, BigNumber] & { gasToken: string; gasFee: BigNumber }>;
-
   getZRC20ByChainAndSymbol(
     chainId: PromiseOrValue<BigNumberish>,
     symbol: PromiseOrValue<string>,
@@ -1163,11 +994,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
     symbol: PromiseOrValue<string>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
-
-  maxAvailableAmount(
-    asset: PromiseOrValue<string>,
-    overrides?: CallOverrides
-  ): Promise<BigNumber>;
 
   maxAvailableBorrows(
     user: PromiseOrValue<string>,
@@ -1212,21 +1038,8 @@ export interface IUniversalLendingProtocol extends BaseContract {
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
-  withdrawCrossChain(
-    asset: PromiseOrValue<string>,
-    amount: PromiseOrValue<BigNumberish>,
-    destinationChain: PromiseOrValue<BigNumberish>,
-    recipient: PromiseOrValue<BytesLike>,
-    overrides?: Overrides & { from?: PromiseOrValue<string> }
-  ): Promise<ContractTransaction>;
-
   callStatic: {
-    "addAsset(address)"(
-      asset: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<void>;
-
-    "addAsset(address,uint256,uint256,uint256)"(
+    addAsset(
       asset: PromiseOrValue<string>,
       collateralFactor: PromiseOrValue<BigNumberish>,
       liquidationThreshold: PromiseOrValue<BigNumberish>,
@@ -1238,14 +1051,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       to: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<void>;
-
-    borrowCrossChain(
-      asset: PromiseOrValue<string>,
-      amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<BytesLike>,
       overrides?: CallOverrides
     ): Promise<void>;
 
@@ -1266,22 +1071,7 @@ export interface IUniversalLendingProtocol extends BaseContract {
     getAssetConfig(
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
-    ): Promise<ISimpleLendingProtocol.AssetStructOutput>;
-
-    getAssetPrice(
-      asset: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<BigNumber>;
-
-    getAssetsAndPrices(
-      overrides?: CallOverrides
-    ): Promise<
-      [string[], BigNumber[], BigNumber[]] & {
-        assetAddresses: string[];
-        prices: BigNumber[];
-        borrowableAmounts: BigNumber[];
-      }
-    >;
+    ): Promise<IUniversalLendingProtocol.AssetConfigStructOutput>;
 
     getBorrowBalance(
       user: PromiseOrValue<string>,
@@ -1346,13 +1136,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
-    getSupportedAsset(
-      index: PromiseOrValue<BigNumberish>,
-      overrides?: CallOverrides
-    ): Promise<string>;
-
-    getSupportedAssetsCount(overrides?: CallOverrides): Promise<BigNumber>;
-
     getTotalCollateralValue(
       user: PromiseOrValue<string>,
       overrides?: CallOverrides
@@ -1407,11 +1190,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       }
     >;
 
-    getWithdrawGasFee(
-      asset: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<[string, BigNumber] & { gasToken: string; gasFee: BigNumber }>;
-
     getZRC20ByChainAndSymbol(
       chainId: PromiseOrValue<BigNumberish>,
       symbol: PromiseOrValue<string>,
@@ -1442,11 +1220,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       symbol: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<void>;
-
-    maxAvailableAmount(
-      asset: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<BigNumber>;
 
     maxAvailableBorrows(
       user: PromiseOrValue<string>,
@@ -1488,14 +1261,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       to: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<void>;
-
-    withdrawCrossChain(
-      asset: PromiseOrValue<string>,
-      amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<BytesLike>,
       overrides?: CallOverrides
     ): Promise<void>;
   };
@@ -1571,16 +1336,16 @@ export interface IUniversalLendingProtocol extends BaseContract {
       user?: PromiseOrValue<string> | null,
       collateralAsset?: PromiseOrValue<string> | null,
       debtAsset?: null,
-      repaidDebt?: null,
-      seizedCollateral?: null
+      repayAmount?: null,
+      liquidatedCollateral?: null
     ): LiquidateEventFilter;
     Liquidate(
       liquidator?: PromiseOrValue<string> | null,
       user?: PromiseOrValue<string> | null,
       collateralAsset?: PromiseOrValue<string> | null,
       debtAsset?: null,
-      repaidDebt?: null,
-      seizedCollateral?: null
+      repayAmount?: null,
+      liquidatedCollateral?: null
     ): LiquidateEventFilter;
 
     "Repay(address,address,uint256)"(
@@ -1629,12 +1394,7 @@ export interface IUniversalLendingProtocol extends BaseContract {
   };
 
   estimateGas: {
-    "addAsset(address)"(
-      asset: PromiseOrValue<string>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<BigNumber>;
-
-    "addAsset(address,uint256,uint256,uint256)"(
+    addAsset(
       asset: PromiseOrValue<string>,
       collateralFactor: PromiseOrValue<BigNumberish>,
       liquidationThreshold: PromiseOrValue<BigNumberish>,
@@ -1646,14 +1406,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       to: PromiseOrValue<string>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<BigNumber>;
-
-    borrowCrossChain(
-      asset: PromiseOrValue<string>,
-      amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<BytesLike>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
@@ -1675,13 +1427,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       asset: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
-
-    getAssetPrice(
-      asset: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<BigNumber>;
-
-    getAssetsAndPrices(overrides?: CallOverrides): Promise<BigNumber>;
 
     getBorrowBalance(
       user: PromiseOrValue<string>,
@@ -1740,13 +1485,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
-    getSupportedAsset(
-      index: PromiseOrValue<BigNumberish>,
-      overrides?: CallOverrides
-    ): Promise<BigNumber>;
-
-    getSupportedAssetsCount(overrides?: CallOverrides): Promise<BigNumber>;
-
     getTotalCollateralValue(
       user: PromiseOrValue<string>,
       overrides?: CallOverrides
@@ -1764,11 +1502,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
 
     getUserPositionData(
       user: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<BigNumber>;
-
-    getWithdrawGasFee(
-      asset: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
@@ -1801,11 +1534,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       chainId: PromiseOrValue<BigNumberish>,
       symbol: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<BigNumber>;
-
-    maxAvailableAmount(
-      asset: PromiseOrValue<string>,
-      overrides?: CallOverrides
     ): Promise<BigNumber>;
 
     maxAvailableBorrows(
@@ -1848,25 +1576,12 @@ export interface IUniversalLendingProtocol extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       to: PromiseOrValue<string>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<BigNumber>;
-
-    withdrawCrossChain(
-      asset: PromiseOrValue<string>,
-      amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<BytesLike>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
   };
 
   populateTransaction: {
-    "addAsset(address)"(
-      asset: PromiseOrValue<string>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<PopulatedTransaction>;
-
-    "addAsset(address,uint256,uint256,uint256)"(
+    addAsset(
       asset: PromiseOrValue<string>,
       collateralFactor: PromiseOrValue<BigNumberish>,
       liquidationThreshold: PromiseOrValue<BigNumberish>,
@@ -1878,14 +1593,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       to: PromiseOrValue<string>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<PopulatedTransaction>;
-
-    borrowCrossChain(
-      asset: PromiseOrValue<string>,
-      amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<BytesLike>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 
@@ -1905,15 +1612,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
 
     getAssetConfig(
       asset: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<PopulatedTransaction>;
-
-    getAssetPrice(
-      asset: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<PopulatedTransaction>;
-
-    getAssetsAndPrices(
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
@@ -1974,15 +1672,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
-    getSupportedAsset(
-      index: PromiseOrValue<BigNumberish>,
-      overrides?: CallOverrides
-    ): Promise<PopulatedTransaction>;
-
-    getSupportedAssetsCount(
-      overrides?: CallOverrides
-    ): Promise<PopulatedTransaction>;
-
     getTotalCollateralValue(
       user: PromiseOrValue<string>,
       overrides?: CallOverrides
@@ -2000,11 +1689,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
 
     getUserPositionData(
       user: PromiseOrValue<string>,
-      overrides?: CallOverrides
-    ): Promise<PopulatedTransaction>;
-
-    getWithdrawGasFee(
-      asset: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
@@ -2037,11 +1721,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       chainId: PromiseOrValue<BigNumberish>,
       symbol: PromiseOrValue<string>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<PopulatedTransaction>;
-
-    maxAvailableAmount(
-      asset: PromiseOrValue<string>,
-      overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
     maxAvailableBorrows(
@@ -2084,14 +1763,6 @@ export interface IUniversalLendingProtocol extends BaseContract {
       asset: PromiseOrValue<string>,
       amount: PromiseOrValue<BigNumberish>,
       to: PromiseOrValue<string>,
-      overrides?: Overrides & { from?: PromiseOrValue<string> }
-    ): Promise<PopulatedTransaction>;
-
-    withdrawCrossChain(
-      asset: PromiseOrValue<string>,
-      amount: PromiseOrValue<BigNumberish>,
-      destinationChain: PromiseOrValue<BigNumberish>,
-      recipient: PromiseOrValue<BytesLike>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
   };

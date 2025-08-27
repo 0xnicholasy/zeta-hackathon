@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAccount, useSwitchChain, useChainId } from 'wagmi';
 import { parseUnits } from 'viem';
 import { isAddress } from 'viem';
@@ -65,7 +65,7 @@ export function BorrowDialogRefactored({
     const isOnZetaChain = currentChainId === SupportedChain.ZETA_TESTNET;
 
     // Convert BorrowableAssetData to UserAssetData for validation hook
-    const userAssetData = {
+    const userAssetData = useMemo(() => ({
         address: validateEVMAddress(selectedAsset.address),
         symbol: selectedAsset.symbol,
         unit: selectedAsset.unit,
@@ -82,7 +82,7 @@ export function BorrowDialogRefactored({
         formattedExternalBalance: selectedAsset.formattedBalance,
         externalChainId: selectedAsset.externalChainId,
         decimals: selectedAsset.decimals,
-    };
+    }), [selectedAsset]);
 
     // Validation hook
     const validation = useBorrowValidation({
@@ -94,8 +94,15 @@ export function BorrowDialogRefactored({
     });
 
     // Computed values
-    const amountBigInt = state.amount && selectedAsset ? parseUnits(state.amount, selectedAsset.decimals) : BigInt(0);
-
+    const amountBigInt = useMemo(() => {
+        if (!state.amount || !selectedAsset) return BigInt(0);
+        try {
+            return parseUnits(state.amount, selectedAsset.decimals);
+        } catch (error) {
+            console.error('Error parsing amount:', error);
+            return BigInt(0);
+        }
+    }, [state.amount, selectedAsset]);
     // Gas token approval hook
     const gasApproval = useGasTokenApproval({
         selectedAsset: userAssetData,
@@ -135,7 +142,7 @@ export function BorrowDialogRefactored({
 
         try {
             txActions.setCurrentStep('switchNetwork');
-            void switchChain({ chainId: SupportedChain.ZETA_TESTNET });
+            switchChain({ chainId: SupportedChain.ZETA_TESTNET });
         } catch (error) {
             console.error('Error switching to ZetaChain:', error);
             txActions.setCurrentStep('input');
@@ -145,12 +152,17 @@ export function BorrowDialogRefactored({
 
     // Convert recipient address to bytes for contract call
     const getRecipientBytes = useCallback((): `0x${string}` => {
-        if (isDestinationSolana) {
-            // For Solana addresses, convert to UTF-8 bytes
-            return solanaAddressToHexBytes(state.recipientAddress);
-        } else {
-            // For EVM addresses, use as hex directly
-            return addressToHexBytes(state.recipientAddress);
+        try {
+            if (isDestinationSolana) {
+                // For Solana addresses, convert to UTF-8 bytes
+                return solanaAddressToHexBytes(state.recipientAddress);
+            } else {
+                // For EVM addresses, use as hex directly
+                return addressToHexBytes(state.recipientAddress);
+            }
+        } catch (error) {
+            console.error('Error converting recipient address to bytes:', error);
+            return '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`;
         }
     }, [state.recipientAddress, isDestinationSolana]);
 
@@ -258,14 +270,22 @@ export function BorrowDialogRefactored({
         }
     }, [contractState.isTransactionSuccess, txState.currentStep, txState.transactionHash, crossChain, txActions]);
 
-    // Sync dialog state with prop
+    // Prevent circular dialog synchronization - only sync when prop changes, not internal state
+    const prevIsOpenRef = useRef(isOpen);
+
     useEffect(() => {
-        if (isOpen && !state.isOpen) {
-            stableCallbacks.openDialog();
-        } else if (!isOpen && state.isOpen) {
-            stableCallbacks.closeDialog();
+        // Only sync when the prop actually changes (external control)
+        if (prevIsOpenRef.current !== isOpen) {
+            prevIsOpenRef.current = isOpen;
+
+            if (isOpen && !state.isOpen) {
+                stableCallbacks.openDialog();
+            } else if (!isOpen && state.isOpen) {
+                stableCallbacks.closeDialog();
+            }
         }
-    }, [isOpen, state.isOpen, stableCallbacks.openDialog, stableCallbacks.closeDialog, stableCallbacks]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, state.isOpen]); // Don't include stableCallbacks to avoid infinite loops
 
     // Get step text
     const getStepText = useCallback(() => {
@@ -355,14 +375,13 @@ export function BorrowDialogRefactored({
                     )}
 
                     {/* Health Factor Section */}
-                    {isOnZetaChain && validation.currentHealthFactor > 0 && (
+                    {isOnZetaChain && validation.currentHealthFactor !== null && validation.currentHealthFactor > 0 && (
                         <BorrowHealthFactorSection
                             currentHealthFactor={validation.currentHealthFactor}
                             projectedHealthFactor={validation.estimatedHealthFactor}
                             showProjection={Boolean(state.amount && !validation.error)}
                         />
                     )}
-
                     {/* Transaction Simulation */}
                     {isOnZetaChain && (
                         <TransactionSimulationDisplay

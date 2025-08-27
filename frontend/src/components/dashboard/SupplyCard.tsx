@@ -357,18 +357,22 @@ export function SupplyCard({ userAssets, selectedChain, walletChainId, externalB
                 </TransactionErrorBoundary>
             )}
 
-            {selectedAssetForZetaWithdraw && (
+            {isZetaWithdrawDialogOpen && selectedAssetForZetaWithdraw && (
                 <TransactionErrorBoundary
                     fallbackTitle="Zeta Withdraw Transaction Error"
-                    onClose={() => setIsZetaWithdrawDialogOpen(false)}
-                    onRetry={() => {
+                    onClose={() => {
                         setIsZetaWithdrawDialogOpen(false);
+                        setSelectedAssetForZetaWithdraw(null);
+                    }}
+                    onRetry={() => {
+                        // Keep dialog open to allow retry; boundary resets its error state.
                     }}
                 >
                     <ZetaWithdrawDialog
                         isOpen={isZetaWithdrawDialogOpen}
                         onClose={() => setIsZetaWithdrawDialogOpen(false)}
                         selectedAsset={selectedAssetForZetaWithdraw}
+                        {...(refetchUserData && { refetchUserData })}
                     />
                 </TransactionErrorBoundary>
             )}

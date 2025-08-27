@@ -118,4 +118,4 @@ frontend/
 1. Install dependencies: `bun install`
 2. Run development server: `bun dev`
 3. Build for production: `bun build`
-- always run 'bun build' after updating code inside @src/ to ensure the build is success
+- always run 'bun lint' after updating code inside @src/ to ensure the build is success

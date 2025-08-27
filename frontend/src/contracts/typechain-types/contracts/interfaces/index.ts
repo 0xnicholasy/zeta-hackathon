@@ -2,6 +2,5 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { IPriceOracle } from "./IPriceOracle";
-export type { ISimpleLendingProtocol } from "./ISimpleLendingProtocol";
 export type { IUniversalLendingProtocol } from "./IUniversalLendingProtocol";
 export type { IZRC20 } from "./IZRC20";

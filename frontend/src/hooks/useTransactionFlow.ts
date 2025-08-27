@@ -85,14 +85,14 @@ export function useTransactionFlow<T extends TransactionType>(initialStep: Steps
         },
     });
 
-    // Reset function
+    // Reset function with proper dependencies
     const reset = useCallback(() => {
         setCurrentStep('input' as StepsForTransactionType<T>);
         setIsSubmitting(false);
         setApprovalHash(null);
         setTransactionHash(null);
         resetContract();
-    }, []); // Remove resetContract from dependencies to prevent infinite loop
+    }, [resetContract]); // Include resetContract in dependencies
 
     // Update current hash when writeContract returns new hash
     useEffect(() => {

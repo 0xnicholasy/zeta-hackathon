@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Polyfills for Solana and crypto libraries
 import { Buffer } from 'buffer';
 (globalThis as any).Buffer = Buffer;

@@ -48,15 +48,24 @@ export function validateAmountInput(
     const trimmedInput = input.trim();
 
     // Check for invalid characters
+    // Option 1: Keep simple format, explicitly reject scientific notation
     if (!/^[0-9]*\.?[0-9]*$/.test(trimmedInput)) {
         return {
             isValid: false,
             error: 'Amount must contain only numbers and decimal point'
         };
     }
+    
+    // Later, after parseFloat:
+    if (trimmedInput.toLowerCase().includes('e')) {
+        return {
+            isValid: false,
+            error: 'Scientific notation is not allowed'
+        };
+    }
 
     // Check for multiple decimal points
-    if ((trimmedInput.match(/\./g) || []).length > 1) {
+    if ((trimmedInput.match(/\./g) ?? []).length > 1) {
         return {
             isValid: false,
             error: 'Amount cannot have multiple decimal points'
@@ -101,7 +110,7 @@ export function validateAmountInput(
     // Check decimal places
     const decimalPart = trimmedInput.split('.')[1];
     const actualDecimalPlaces = decimalPart ? decimalPart.length : 0;
-    const maxAllowedDecimals = maxDecimalPlaces || decimals;
+    const maxAllowedDecimals = maxDecimalPlaces ?? decimals;
 
     if (actualDecimalPlaces > maxAllowedDecimals) {
         return {
@@ -111,22 +120,48 @@ export function validateAmountInput(
     }
 
     // Check minimum amount
-    const minAmountNum = parseFloat(minAmount);
-    if (numericValue < minAmountNum) {
-        return {
-            isValid: false,
-            error: `Amount must be at least ${minAmount} ${tokenSymbol}`
-        };
+    if (minAmount && minAmount !== '0') {
+        try {
+            const inputWei = parseUnits(trimmedInput, decimals);
+            const minWei = parseUnits(minAmount, decimals);
+            if (inputWei < minWei) {
+                return {
+                    isValid: false,
+                    error: `Amount must be at least ${minAmount} ${tokenSymbol}`
+                };
+            }
+        } catch {
+            // Fallback to float comparison if parseUnits fails
+            const minAmountNum = parseFloat(minAmount);
+            if (numericValue < minAmountNum) {
+                return {
+                    isValid: false,
+                    error: `Amount must be at least ${minAmount} ${tokenSymbol}`
+                };
+            }
+        }
     }
 
     // Check maximum amount (balance check)
     if (maxAmount) {
-        const maxAmountNum = parseFloat(maxAmount);
-        if (numericValue > maxAmountNum) {
-            return {
-                isValid: false,
-                error: `Amount cannot exceed ${maxAmount} ${tokenSymbol} (available balance)`
-            };
+        try {
+            const inputWei = parseUnits(trimmedInput, decimals);
+            const maxWei = parseUnits(maxAmount, decimals);
+            if (inputWei > maxWei) {
+                return {
+                    isValid: false,
+                    error: `Amount cannot exceed ${maxAmount} ${tokenSymbol} (available balance)`
+                };
+            }
+        } catch {
+            // Fallback to float comparison
+            const maxAmountNum = parseFloat(maxAmount);
+            if (numericValue > maxAmountNum) {
+                return {
+                    isValid: false,
+                    error: `Amount cannot exceed ${maxAmount} ${tokenSymbol} (available balance)`
+                };
+            }
         }
     }
 
@@ -139,7 +174,7 @@ export function validateAmountInput(
         // Check if the reformatted value differs significantly (precision loss)
         const originalNum = parseFloat(trimmedInput);
         const reformattedNum = parseFloat(reformatted);
-        const precisionDiff = Math.abs(originalNum - reformattedNum) / originalNum;
+        const precisionDiff = originalNum === 0 ? 0 : Math.abs(originalNum - reformattedNum) / originalNum;
         
         if (precisionDiff > 0.0001) { // 0.01% difference threshold
             warnings.push('Amount may lose precision due to token decimals');
@@ -150,7 +185,7 @@ export function validateAmountInput(
             warnings.push('Very small amount may not be economical due to gas costs');
         }
 
-    } catch (error) {
+    } catch {
         return {
             isValid: false,
             error: 'Amount is too large or precise to handle'
@@ -172,7 +207,7 @@ export function validateHealthFactorRequirement(
     currentHealthFactor: number,
     newHealthFactor: number,
     operation: 'borrow' | 'withdraw',
-    minimumHealthFactor: number = 1.5
+    minimumHealthFactor = 1.5
 ): ValidationResult {
     if (newHealthFactor < minimumHealthFactor) {
         const operationText = operation === 'borrow' ? 'borrowing' : 'withdrawing';

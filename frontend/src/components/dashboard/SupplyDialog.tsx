@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { parseUnits } from 'viem';
 import { Button } from '../ui/button';
@@ -68,7 +68,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
     });
 
     stableCallbacks.setValidation(validation);
-  }, [state.amount, selectedToken, stableCallbacks.clearValidation, stableCallbacks.setValidation]);
+  }, [selectedToken, state.amount, stableCallbacks]);
 
   // Validate on amount change
   useEffect(() => {
@@ -114,7 +114,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
     if (selectedToken) {
       stableCallbacks.setAmount(selectedToken.formattedBalance);
     }
-  }, [selectedToken, stableCallbacks.setAmount]);
+  }, [selectedToken, stableCallbacks]);
 
   // Handle submit
   const handleSubmit = useCallback(async () => {
@@ -188,7 +188,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
   // Handle amount change - use standardized action
   const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     stableCallbacks.setAmount(e.target.value);
-  }, [stableCallbacks.setAmount]);
+  }, [stableCallbacks]);
 
   // Handle retry after failure
   const handleRetry = useCallback(() => {
@@ -214,17 +214,24 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
     }
   }, [contractState.isTransactionSuccess, txState.currentStep, txState.transactionHash, crossChain, txActions]);
 
+  // Prevent circular dialog synchronization - only sync when prop changes, not internal state
+  const prevIsOpenRef = useRef(isOpen);
+  
+  useEffect(() => {
+    // Only sync when the prop actually changes (external control)
+    if (prevIsOpenRef.current !== isOpen) {
+      prevIsOpenRef.current = isOpen;
+      
+      if (isOpen && !state.isOpen) {
+        stableCallbacks.openDialog();
+      } else if (!isOpen && state.isOpen) {
+        stableCallbacks.closeDialog();
+      }
+    }
+  }, [isOpen, state.isOpen]); // Don't include stableCallbacks to avoid infinite loops
+
   // Early return AFTER all hooks have been called
   if (!selectedToken || !depositContract) return null;
-
-  // Sync dialog state with prop
-  useEffect(() => {
-    if (isOpen && !state.isOpen) {
-      stableCallbacks.openDialog();
-    } else if (!isOpen && state.isOpen) {
-      stableCallbacks.closeDialog();
-    }
-  }, [isOpen, state.isOpen, stableCallbacks.openDialog, stableCallbacks.closeDialog]);
 
   return (
     <BaseTransactionDialog
