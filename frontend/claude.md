@@ -373,7 +373,9 @@ frontend/
 7. Run: `bun lint` before commits
 8. Type check: `bun type-check`
 9. Update documentation if adding new patterns
-
+10. When writing test cases, your test elements should strictly follow the layout style of its implementation.
+11. When fixing tests errors, do not change the layout implementation (styles of components).
+12. Note that you should never produce new errors in implementation files when writing tests, always run 'bun lint' to verify your updates doesn't do so
 ---
 
 ## Final Notes

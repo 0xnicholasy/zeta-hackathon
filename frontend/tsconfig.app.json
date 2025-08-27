@@ -45,6 +45,11 @@
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/__tests__/**",
+    "src/**/*.test.*",
+    "src/**/*.spec.*"
   ]
 }

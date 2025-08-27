@@ -16,6 +16,7 @@ import { validateAmountInput } from '@/utils/inputValidation';
 import { CategorizedErrorDisplay } from '../ui/categorized-error-display';
 import { TransactionSimulationDisplay } from '../ui/transaction-simulation-display';
 import { useAutoSimulation } from '@/hooks/useAutoSimulation';
+import { categorizeError } from '@/utils/errorCategorization';
 
 interface SupplyDialogProps {
   isOpen: boolean;
@@ -331,7 +332,7 @@ export function SupplyDialog({ isOpen, onClose, selectedToken, chainId }: Supply
           {/* Error Display */}
           {contractState.error && (
             <CategorizedErrorDisplay
-              error={contractState.error}
+              error={categorizeError(contractState.error)}
               onRetry={handleRetry}
               showTechnicalDetails={process.env['NODE_ENV'] === 'development'}
               className="text-sm"

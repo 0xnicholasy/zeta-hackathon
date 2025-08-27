@@ -324,7 +324,7 @@ const DEFAULT_CATEGORY_MESSAGES: Record<ErrorCategory, {
 /**
  * Categorize an error and return structured information
  */
-export function categorizeError(error: Error | string | null | undefined): CategorizedError {
+export function categorizeError(error: unknown): CategorizedError {
     if (!error) {
         const defaultError = DEFAULT_CATEGORY_MESSAGES[ErrorCategory.UNKNOWN_ERROR];
         return {
@@ -338,8 +338,25 @@ export function categorizeError(error: Error | string | null | undefined): Categ
         };
     }
 
-    const errorMessage = typeof error === 'string' ? error : error.message || 'Unknown error';
-    const errorStack = typeof error === 'string' ? undefined : error.stack;
+    const isErrorObject = error instanceof Error;
+    const isObjectWithMessageStack = (e: unknown): e is { message?: unknown; stack?: unknown } =>
+        typeof e === 'object' && e !== null;
+
+    const errorMessage = typeof error === 'string'
+        ? error
+        : isErrorObject
+            ? error.message
+            : isObjectWithMessageStack(error) && typeof error.message === 'string'
+                ? error.message
+                : 'Unknown error';
+
+    const errorStack = typeof error === 'string'
+        ? undefined
+        : isErrorObject
+            ? error.stack
+            : isObjectWithMessageStack(error) && typeof error.stack === 'string'
+                ? error.stack
+                : undefined;
 
     // Try to match against known patterns
     for (const pattern of ERROR_PATTERNS) {
@@ -358,7 +375,7 @@ export function categorizeError(error: Error | string | null | undefined): Categ
             if (pattern.category === ErrorCategory.CONTRACT_REVERT) {
                 const revertMatch = errorMessage.match(/execution reverted: (.+)/);
                 if (revertMatch) {
-                    message = revertMatch[1];
+                    message = revertMatch[1] ?? message;
                 }
             }
             
@@ -390,16 +407,41 @@ export function categorizeError(error: Error | string | null | undefined): Categ
 /**
  * Get color classes for different error severities
  */
-export function getSeverityClasses(severity: 'info' | 'warning' | 'error'): string {
+export function getSeverityClasses(severity: 'info' | 'warning' | 'error'): {
+    bgClass: string;
+    borderClass: string;
+    textClass: string;
+    combined: string;
+} {
     switch (severity) {
         case 'info':
-            return 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200';
+            return {
+                bgClass: 'bg-blue-50 dark:bg-blue-900/20',
+                borderClass: 'border-blue-200 dark:border-blue-800',
+                textClass: 'text-blue-800 dark:text-blue-200',
+                combined: 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200'
+            };
         case 'warning':
-            return 'border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200';
+            return {
+                bgClass: 'bg-yellow-50 dark:bg-yellow-900/20',
+                borderClass: 'border-yellow-200 dark:border-yellow-800',
+                textClass: 'text-yellow-800 dark:text-yellow-200',
+                combined: 'border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200'
+            };
         case 'error':
-            return 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200';
+            return {
+                bgClass: 'bg-red-50 dark:bg-red-900/20',
+                borderClass: 'border-red-500 dark:border-red-800',
+                textClass: 'text-red-800 dark:text-red-200',
+                combined: 'border-red-500 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200'
+            };
         default:
-            return 'border-gray-200 bg-gray-50 text-gray-800 dark:border-gray-800 dark:bg-gray-900/20 dark:text-gray-200';
+            return {
+                bgClass: 'bg-gray-50 dark:bg-gray-900/20',
+                borderClass: 'border-gray-200 dark:border-gray-800',
+                textClass: 'text-gray-800 dark:text-gray-200',
+                combined: 'border-gray-200 bg-gray-50 text-gray-800 dark:border-gray-800 dark:bg-gray-900/20 dark:text-gray-200'
+            };
     }
 }
 

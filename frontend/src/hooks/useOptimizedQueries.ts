@@ -91,7 +91,7 @@ export function useOptimizedQueries() {
         ['assetPrices', 'assetPrice'].includes(q.queryKey[0] as string)
       ).length,
       staleQueries: queries.filter(q => q.isStale()).length,
-      fetchingQueries: queries.filter(q => q.isFetching()).length,
+      fetchingQueries: queries.filter(q => q.state.fetchStatus === 'fetching').length,
     };
 
     return stats;

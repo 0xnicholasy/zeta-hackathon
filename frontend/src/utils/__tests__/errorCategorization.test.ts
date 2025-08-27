@@ -101,14 +101,33 @@ describe('errorCategorization', () => {
 
   describe('getSeverityClasses', () => {
     it('should return correct classes for each severity', () => {
-      expect(getSeverityClasses('error')).toContain('border-red');
-      expect(getSeverityClasses('warning')).toContain('border-yellow');
-      expect(getSeverityClasses('info')).toContain('border-blue');
+      const errorClasses = getSeverityClasses('error');
+      const warningClasses = getSeverityClasses('warning');
+      const infoClasses = getSeverityClasses('info');
+      
+      expect(errorClasses.borderClass).toContain('border-red');
+      expect(errorClasses.bgClass).toContain('bg-red');
+      expect(errorClasses.textClass).toContain('text-red');
+      expect(errorClasses.combined).toContain('border-red');
+      
+      expect(warningClasses.borderClass).toContain('border-yellow');
+      expect(warningClasses.bgClass).toContain('bg-yellow');
+      expect(warningClasses.textClass).toContain('text-yellow');
+      expect(warningClasses.combined).toContain('border-yellow');
+      
+      expect(infoClasses.borderClass).toContain('border-blue');
+      expect(infoClasses.bgClass).toContain('bg-blue');
+      expect(infoClasses.textClass).toContain('text-blue');
+      expect(infoClasses.combined).toContain('border-blue');
     });
 
     it('should handle unknown severity gracefully', () => {
       const classes = getSeverityClasses('unknown' as never);
-      expect(typeof classes).toBe('string');
+      expect(typeof classes).toBe('object');
+      expect(classes).toHaveProperty('bgClass');
+      expect(classes).toHaveProperty('borderClass');
+      expect(classes).toHaveProperty('textClass');
+      expect(classes).toHaveProperty('combined');
     });
   });
 

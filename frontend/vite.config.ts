@@ -46,6 +46,10 @@ export default defineConfig({
     //   },
     // },
     rollupOptions: {
+      // Exclude test files from build input
+      input: {
+        main: path.resolve(__dirname, 'index.html')
+      },
       // Suppress non-critical warnings to reduce memory usage
       onwarn(warning, warn) {
         // Only show critical warnings

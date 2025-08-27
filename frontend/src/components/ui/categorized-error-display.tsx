@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from './button';
-import { categorizeError, getSeverityClasses, getSeverityIcon } from '@/utils/errorCategorization';
+import { categorizeError, getSeverityClasses, getSeverityIcon, type CategorizedError } from '@/utils/errorCategorization';
 
 interface CategorizedErrorDisplayProps {
-    error: Error | string;
+    error: CategorizedError;
     onRetry?: () => void;
     onDismiss?: () => void;
     className?: string;
@@ -20,22 +20,22 @@ export function CategorizedErrorDisplay({
     className = '',
     showTechnicalDetails = false
 }: CategorizedErrorDisplayProps) {
-    const categorizedError = categorizeError(error);
-    const severityClasses = getSeverityClasses(categorizedError.severity);
-    const severityIcon = getSeverityIcon(categorizedError.severity);
+    const [showTechnical, setShowTechnical] = useState(false);
+    const severityClasses = getSeverityClasses(error.severity);
+    const severityIcon = getSeverityIcon(error.severity);
 
     return (
-        <div className={`p-4 border rounded-lg ${severityClasses.borderClass} ${severityClasses.bgClass} ${className}`}>
+        <div className={`p-4 border rounded-lg ${severityClasses.combined} ${className}`}>
             {/* Error Header */}
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
                     <span className="text-lg" aria-hidden="true">{severityIcon}</span>
                     <div>
-                        <div className={`font-medium ${severityClasses.textClass}`}>
-                            {categorizedError.title}
+                        <div className="font-medium">
+                            {error.title}
                         </div>
-                        <div className={`text-sm mt-1 ${severityClasses.textClass}`}>
-                            {categorizedError.message}
+                        <div className="text-sm mt-1">
+                            {error.message}
                         </div>
                     </div>
                 </div>
@@ -53,32 +53,39 @@ export function CategorizedErrorDisplay({
             </div>
 
             {/* User Action Guidance */}
-            {categorizedError.userAction && (
-                <div className={`text-sm mt-3 p-2 rounded ${severityClasses.bgClass} border ${severityClasses.borderClass}`}>
-                    <strong className={severityClasses.textClass}>What to do: </strong>
-                    <span className={severityClasses.textClass}>
-                        {categorizedError.userAction}
+            {error.userAction && (
+                <div className="text-sm mt-3 p-2 rounded border">
+                    <strong>What to do: </strong>
+                    <span>
+                        {error.userAction}
                     </span>
                 </div>
             )}
 
             {/* Technical Details (Collapsible) */}
-            {showTechnicalDetails && categorizedError.technicalDetails && (
-                <details className="mt-3">
-                    <summary className={`cursor-pointer text-xs ${severityClasses.textClass} hover:opacity-80`}>
-                        Technical Details
-                    </summary>
-                    <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs font-mono overflow-auto max-h-32">
-                        <pre className="whitespace-pre-wrap break-all">
-                            {categorizedError.technicalDetails}
-                        </pre>
-                    </div>
-                </details>
+            {showTechnicalDetails && error.technicalDetails && (
+                <div className="mt-3">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowTechnical(!showTechnical)}
+                        className="text-xs p-0 h-auto underline"
+                    >
+                        {showTechnical ? 'Hide Technical Details' : 'Show Technical Details'}
+                    </Button>
+                    {showTechnical && (
+                        <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs font-mono overflow-auto max-h-32">
+                            <pre className="whitespace-pre-wrap break-all">
+                                {error.technicalDetails}
+                            </pre>
+                        </div>
+                    )}
+                </div>
             )}
 
             {/* Action Buttons */}
             <div className="flex gap-2 mt-4">
-                {categorizedError.canRetry && onRetry && (
+                {error.canRetry && onRetry && (
                     <Button
                         variant="outline"
                         size="sm"
@@ -148,7 +155,7 @@ export function ErrorToast({
     const severityIcon = getSeverityIcon(categorizedError.severity);
 
     useEffect(() => {
-        if (autoClose && categorizedError.severity !== 'critical') {
+        if (autoClose && categorizedError.severity !== 'error') {
             const timer = setTimeout(onClose, autoCloseDelay);
             return () => clearTimeout(timer);
         }
@@ -158,8 +165,8 @@ export function ErrorToast({
     return (
         <div
             className={`fixed top-4 right-4 max-w-md p-4 border rounded-lg shadow-lg ${severityClasses.borderClass} ${severityClasses.bgClass} z-50`}
-            role={categorizedError.severity === 'critical' || categorizedError.severity === 'high' ? 'alert' : 'status'}
-            aria-live={categorizedError.severity === 'critical' || categorizedError.severity === 'high' ? 'assertive' : 'polite'}
+            role={categorizedError.severity === 'error' ? 'alert' : 'status'}
+            aria-live={categorizedError.severity === 'error' ? 'assertive' : 'polite'}
         >
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">

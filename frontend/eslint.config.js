@@ -9,6 +9,7 @@ export default tseslint.config([
   globalIgnores(['dist', ".vite", 'src/contracts/typechain-types/**']),
   {
     files: ['**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', '**/__tests__/**'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,

@@ -58,7 +58,8 @@
       "WebFetch(domain:zetachain.blockpi.network)",
       "Bash(sed:*)",
       "Bash(bun lint:*)",
-      "Bash(bun test:*)"
+      "Bash(bun test:*)",
+      "Bash(npx vitest run:*)"
     ],
     "deny": []
   }

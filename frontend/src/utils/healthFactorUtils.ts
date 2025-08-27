@@ -52,7 +52,7 @@ export const isLiquidatable = (healthFactor: string): boolean => {
  * @param recommendedThreshold - The recommended threshold as formatted string (default 2.0)
  * @returns true if below recommended
  */
-export const isBelowRecommended = (healthFactor: string, recommendedThreshold: string = '2.0'): boolean => {
+export const isBelowRecommended = (healthFactor: string, recommendedThreshold = '2.0'): boolean => {
   if (healthFactor === 'Infinity' || healthFactor === '∞') {
     return false;
   }

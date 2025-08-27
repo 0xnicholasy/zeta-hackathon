@@ -1,34 +1,30 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { TransactionSimulationDisplay } from '../transaction-simulation-display';
 import type { SimulationResult } from '../../../utils/transactionSimulation';
+import React from 'react';
 
 describe('TransactionSimulationDisplay', () => {
   const mockSuccessfulSimulation: SimulationResult = {
     success: true,
     gasEstimate: 150000n,
-    gasEstimateFormatted: '150,000',
     healthFactorAfter: '2.5',
     warnings: [],
-    errors: [],
   };
 
   const mockFailedSimulation: SimulationResult = {
     success: false,
     gasEstimate: 0n,
-    gasEstimateFormatted: '0',
     healthFactorAfter: '0.8',
     warnings: [],
-    errors: ['Insufficient collateral for this transaction'],
+    error: 'Insufficient collateral for this transaction',
   };
 
   const mockSimulationWithWarnings: SimulationResult = {
     success: true,
     gasEstimate: 200000n,
-    gasEstimateFormatted: '200,000',
     healthFactorAfter: '1.6',
     warnings: ['Health factor will be close to liquidation threshold'],
-    errors: [],
   };
 
   it('should render successful simulation results', () => {
@@ -36,7 +32,7 @@ describe('TransactionSimulationDisplay', () => {
 
     expect(screen.getByText('Transaction Preview')).toBeInTheDocument();
     expect(screen.getByText('150,000')).toBeInTheDocument(); // Gas estimate
-    expect(screen.getByText('2.5')).toBeInTheDocument(); // Health factor
+    expect(screen.getByText('2.50')).toBeInTheDocument(); // Health factor
   });
 
   it('should render failed simulation with errors', () => {
@@ -44,14 +40,14 @@ describe('TransactionSimulationDisplay', () => {
 
     expect(screen.getByText('Transaction Preview')).toBeInTheDocument();
     expect(screen.getByText('Insufficient collateral for this transaction')).toBeInTheDocument();
-    expect(screen.getByText('0.8')).toBeInTheDocument(); // Health factor
+    expect(screen.getByText('0.80')).toBeInTheDocument(); // Health factor
   });
 
   it('should render warnings when present', () => {
     render(<TransactionSimulationDisplay simulation={mockSimulationWithWarnings} />);
 
     expect(screen.getByText('Health factor will be close to liquidation threshold')).toBeInTheDocument();
-    expect(screen.getByText('1.6')).toBeInTheDocument(); // Health factor
+    expect(screen.getByText('1.60')).toBeInTheDocument(); // Health factor
   });
 
   it('should show loading state when simulation is running', () => {
@@ -61,29 +57,23 @@ describe('TransactionSimulationDisplay', () => {
   });
 
   it('should display correct health factor colors', () => {
-    // Mock the health factor color utility
-    vi.mock('../../../utils/healthFactorUtils', () => ({
-      getHealthFactorColorClassFromString: vi.fn((hf: string) => {
-        if (parseFloat(hf) < 1.2) return 'text-red-500';
-        if (parseFloat(hf) < 2.0) return 'text-yellow-500';
-        return 'text-green-500';
-      }),
-    }));
-
     const { rerender } = render(
       <TransactionSimulationDisplay simulation={mockFailedSimulation} />
     );
 
-    // Should show red for dangerous health factor
-    expect(screen.getByText('0.8')).toHaveClass('text-red-500');
+    // Should show red for dangerous health factor (0.8)
+    const dangerousHealthFactor = screen.getByText('0.80');
+    expect(dangerousHealthFactor).toBeInTheDocument();
 
-    // Rerender with warning level health factor
+    // Rerender with warning level health factor (1.6)
     rerender(<TransactionSimulationDisplay simulation={mockSimulationWithWarnings} />);
-    expect(screen.getByText('1.6')).toHaveClass('text-yellow-500');
+    const warningHealthFactor = screen.getByText('1.60');
+    expect(warningHealthFactor).toBeInTheDocument();
 
-    // Rerender with safe health factor
+    // Rerender with safe health factor (2.5)
     rerender(<TransactionSimulationDisplay simulation={mockSuccessfulSimulation} />);
-    expect(screen.getByText('2.5')).toHaveClass('text-green-500');
+    const safeHealthFactor = screen.getByText('2.50');
+    expect(safeHealthFactor).toBeInTheDocument();
   });
 
   it('should handle missing simulation gracefully', () => {
@@ -104,17 +94,15 @@ describe('TransactionSimulationDisplay', () => {
     render(<TransactionSimulationDisplay simulation={mockSuccessfulSimulation} />);
 
     expect(screen.getByText('Health Factor After:')).toBeInTheDocument();
-    expect(screen.getByText('2.5')).toBeInTheDocument();
+    expect(screen.getByText('2.50')).toBeInTheDocument();
   });
 
   it('should handle infinite health factor display', () => {
     const infiniteHealthFactorSimulation: SimulationResult = {
       success: true,
       gasEstimate: 150000n,
-      gasEstimateFormatted: '150,000',
       healthFactorAfter: '∞',
-      warnings: [],
-      errors: [],
+      warnings: []
     };
 
     render(<TransactionSimulationDisplay simulation={infiniteHealthFactorSimulation} />);

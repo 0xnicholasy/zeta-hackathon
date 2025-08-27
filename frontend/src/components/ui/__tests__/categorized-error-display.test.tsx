@@ -2,13 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CategorizedErrorDisplay } from '../categorized-error-display';
 import type { CategorizedError } from '../../../utils/errorCategorization';
-
-// Mock the error categorization utility
-vi.mock('../../../utils/errorCategorization', () => ({
-  categorizeError: vi.fn(),
-  getSeverityClasses: vi.fn(() => 'border-red-500 bg-red-50'),
-  getSeverityIcon: vi.fn(() => '⚠️'),
-}));
+import React from 'react';
 
 describe('CategorizedErrorDisplay', () => {
   const mockError: CategorizedError = {
@@ -92,11 +86,12 @@ describe('CategorizedErrorDisplay', () => {
   });
 
   it('should handle error without technical details gracefully', () => {
-    const errorWithoutTechnical = { ...mockError, technicalDetails: undefined };
+    const { technicalDetails, ...errorWithoutTechnical } = mockError;
 
     render(<CategorizedErrorDisplay error={errorWithoutTechnical} showTechnicalDetails />);
 
     expect(screen.queryByText('Show Technical Details')).not.toBeInTheDocument();
+    expect(technicalDetails).not.toBeUndefined();
   });
 
   it('should apply correct styling classes based on severity', () => {

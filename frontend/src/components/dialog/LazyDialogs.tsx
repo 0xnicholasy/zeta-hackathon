@@ -7,18 +7,18 @@ import { Spinner } from '../ui/spinner';
  */
 
 // Lazy load transaction dialogs
-const BorrowDialog = React.lazy(() => import('../dashboard/BorrowDialog'));
-const SupplyDialog = React.lazy(() => import('../dashboard/SupplyDialog'));
-const RepayDialog = React.lazy(() => import('../dashboard/RepayDialog'));
-const WithdrawDialog = React.lazy(() => import('../dashboard/WithdrawDialog'));
-const ZetaBorrowDialog = React.lazy(() => import('../dashboard/ZetaBorrowDialog'));
-const ZetaSupplyDialog = React.lazy(() => import('../dashboard/ZetaSupplyDialog'));
-const ZetaRepayDialog = React.lazy(() => import('../dashboard/ZetaRepayDialog'));
-const ZetaWithdrawDialog = React.lazy(() => import('../dashboard/ZetaWithdrawDialog'));
-const LiquidationDialog = React.lazy(() => import('../liquidation/LiquidationDialog'));
+const BorrowDialog = React.lazy(() => import('../dashboard/BorrowDialog').then(m => ({ default: m.BorrowDialog })));
+const SupplyDialog = React.lazy(() => import('../dashboard/SupplyDialog').then(m => ({ default: m.SupplyDialog })));
+const RepayDialog = React.lazy(() => import('../dashboard/RepayDialog').then(m => ({ default: m.RepayDialog })));
+const WithdrawDialog = React.lazy(() => import('../dashboard/WithdrawDialog').then(m => ({ default: m.WithdrawDialog })));
+const ZetaBorrowDialog = React.lazy(() => import('../dashboard/ZetaBorrowDialog').then(m => ({ default: m.ZetaBorrowDialog })));
+const ZetaSupplyDialog = React.lazy(() => import('../dashboard/ZetaSupplyDialog').then(m => ({ default: m.ZetaSupplyDialog })));
+const ZetaRepayDialog = React.lazy(() => import('../dashboard/ZetaRepayDialog').then(m => ({ default: m.ZetaRepayDialog })));
+const ZetaWithdrawDialog = React.lazy(() => import('../dashboard/ZetaWithdrawDialog').then(m => ({ default: m.ZetaWithdrawDialog })));
+const LiquidationDialog = React.lazy(() => import('../liquidation/LiquidationDialog').then(m => ({ default: m.LiquidationDialog })));
 
 // Lazy load Solana dialogs
-const SolanaSupplyDialog = React.lazy(() => import('../dashboard/solana/SolanaSupplyDialog'));
+const SolanaSupplyDialog = React.lazy(() => import('../dashboard/solana/SolanaSupplyDialog').then(m => ({ default: m.SolanaSupplyDialog })));
 
 // Loading fallback component
 function DialogLoadingFallback() {
