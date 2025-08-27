@@ -25,7 +25,7 @@ interface SimpleTransactionSimulationDisplayProps {
  */
 export function TransactionSimulationDisplay(props: TransactionSimulationDisplayProps | SimpleTransactionSimulationDisplayProps): JSX.Element | null {
   // Handle simple interface (for tests)
-  if ('isLoading' in props || !('currentAmount' in props)) {
+  if (!('currentAmount' in props)) {
     const { simulation, isLoading = false, className = '' } = props;
     return (
       <SimpleTransactionSimulationDisplayComponent
@@ -204,11 +204,11 @@ function SimpleTransactionSimulationDisplayComponent({
         <h3 className="text-sm font-medium text-gray-700 mb-3">Transaction Preview</h3>
 
         {/* Gas estimate */}
-        {simulation.gasEstimate && (
+        {simulation.gasEstimate !== undefined && !isNaN(Number(simulation.gasEstimate)) && (
           <div className="mb-2">
             <span className="text-sm text-gray-600">Estimated Gas: </span>
             <span className="text-sm font-medium">
-              {Number(simulation.gasEstimate).toLocaleString()}
+              {`${Number(simulation.gasEstimate).toLocaleString()} gas units`}
             </span>
           </div>
         )}

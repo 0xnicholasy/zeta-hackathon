@@ -52,7 +52,8 @@ export function validateAmountInput(
         maxAmount: finalMaxAmount,
         minAmount: finalMinAmount = '0',
         maxDecimalPlaces,
-        allowZero = false    } = options;
+        allowZero = false
+        } = options;
 
     // Handle empty input
     if (!input || input.trim() === '') {

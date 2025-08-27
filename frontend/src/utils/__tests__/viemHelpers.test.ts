@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   stringToHexBytes,
   valueToHex,
@@ -382,12 +382,11 @@ describe('viemHelpers', () => {
     });
 
     it('should handle string with all possible characters', () => {
-      const allChars = '';
-      for (let i = 32; i <= 126; i++) { // Printable ASCII
-        allChars.concat(String.fromCharCode(i));
-      }
-      const result = stringToHexBytes('ABCabc123!@#');
+    it('should handle string with all printable ASCII characters', () => {
+      const allChars = Array.from({ length: 126 - 32 + 1 }, (_, i) => String.fromCharCode(32 + i)).join('');
+      const result = stringToHexBytes(allChars);
       expect(result).toMatch(/^0x[0-9a-fA-F]+$/);
+      expect(result.length).toBe(2 + allChars.length * 2); // '0x' + 2 hex chars per byte
     });
   });
 
@@ -426,4 +425,5 @@ describe('viemHelpers', () => {
       expect(result2).toBe(result3);
     });
   });
+})
 });

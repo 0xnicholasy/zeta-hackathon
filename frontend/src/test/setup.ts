@@ -68,14 +68,26 @@ beforeAll(() => {
         // Check if it's a numeric string first
         const num = parseFloat(value);
         if (!isNaN(num) && isFinite(num)) {
-          return '0x' + Math.floor(num).toString(16);
+          // Use BigInt for large numbers to avoid precision loss
+          return '0x' + BigInt(Math.trunc(num)).toString(16);
         }
         // Otherwise treat as hex string
         return '0x' + Buffer.from(value, 'utf8').toString('hex');
       }
-      if (typeof value === 'number') return '0x' + Math.abs(value).toString(16);
-      if (typeof value === 'bigint') return '0x' + value.toString(16);
-      if (value instanceof Uint8Array) return '0x' + Array.from(value).map(b => b.toString(16).padStart(2, '0')).join('');
+      if (typeof value === 'number') {
+        if (value < 0) throw new Error('Cannot convert negative number to hex');
+        return '0x' + Math.floor(value).toString(16);
+      }
+      if (typeof value === 'bigint') {
+        if (value < 0n) throw new Error('Cannot convert negative bigint to hex');
+        return '0x' + value.toString(16);
+      }
+      if (value instanceof Uint8Array) {
+        return '0x' + Array
+          .from(value)
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+      }
       return '0x0';
     }),
     encodeFunctionData: vi.fn(() => '0x'),

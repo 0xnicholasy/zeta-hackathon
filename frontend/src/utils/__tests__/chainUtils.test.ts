@@ -149,8 +149,7 @@ describe('chainUtils', () => {
       expect(getGasTokenSymbol('ethereum')).toBe('ETH.ETH');
       expect(getGasTokenSymbol('ethereum sepolia')).toBe('ETH.ETH');
       expect(getGasTokenSymbol('base')).toBe('ETH.BASE');
-      // This test fails because 'sepolia' contains 'pol' which is checked before 'base'
-      expect(getGasTokenSymbol('base sepolia')).toBe('POL.POL'); // Actual behavior due to order
+      expect(getGasTokenSymbol('base sepolia')).toBe('ETH.BASE');
     });
 
     it('should return correct gas token symbols for non-EVM chains', () => {
@@ -376,8 +375,10 @@ describe('chainUtils', () => {
   describe('getSupportedTokensForChain', () => {
     it('should return all ZRC-20 tokens for ZetaChain', () => {
       const tokens = getSupportedTokensForChain(SupportedChain.ZETA_TESTNET);
-      expect(tokens).toEqual(Object.values(TOKEN_SYMBOLS));
-      expect(tokens.length).toBeGreaterThan(0);
+-      expect(tokens).toEqual(Object.values(TOKEN_SYMBOLS));
+      const allZrc20 = Object.values(TOKEN_SYMBOLS);
+      expect(tokens).toEqual(expect.arrayContaining(allZrc20));
+      expect(tokens).toHaveLength(allZrc20.length);
     });
 
     it('should return native token and USDC for external chains', () => {

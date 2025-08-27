@@ -3,7 +3,9 @@
     "allow": [
       "Bash(bun lint:*)",
       "Bash(bun run lint:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(node:*)",
+      "Bash(bun run test:*)"
     ],
     "deny": [],
     "ask": []

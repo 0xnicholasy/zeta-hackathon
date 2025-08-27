@@ -23,7 +23,7 @@ export const getChainIdFromSourceChain = (sourceChain: string): number => {
         case 'bsc testnet':
             return SupportedChain.BSC_TESTNET;
         default:
-            return SupportedChain.ARBITRUM_SEPOLIA; // Default fallback
+            throw new Error(`getChainIdFromSourceChain: Unknown chain string: ${sourceChain}`);
     }
 };
 
@@ -49,7 +49,7 @@ export const getChainDisplayName = (sourceChain: string): string => {
         case 'bsc testnet':
             return 'BSC Testnet';
         default:
-            return sourceChain;
+            throw new Error(`getChainDisplayName: Unknown chain string: ${sourceChain}`);
     }
 };
 
@@ -71,27 +71,29 @@ export const getChainDisplayNameFromId = (chainId: number): string => {
             case SupportedChain.SOLANA_DEVNET:
                 return 'Solana Devnet';
             default:
-                return 'Unknown Chain';
+                throw new Error(`getChainDisplayNameFromId: Unknown chain ID: ${chainId}`);
         }
 };
 
 // Helper function to get gas token symbol based on destination chain
 export const getGasTokenSymbol = (sourceChain: string): string => {
     sourceChain = sourceChain.toLowerCase();
-    if (sourceChain.includes('arb')) {
+    if (sourceChain.startsWith('arb')) {
         return 'ETH.ARBI';
-    } else if (sourceChain.includes('eth')) {
+    } else if (sourceChain.startsWith('eth')) {
         return 'ETH.ETH';
-    } else if (sourceChain.includes('pol') || sourceChain.includes('polygon')) {
+    } else if (sourceChain.startsWith('pol')) {
         return 'POL.POL';
-    } else if (sourceChain.includes('base')) {
+    } else if (sourceChain.startsWith('base')) {
         return 'ETH.BASE';
-    } else if (sourceChain.includes('bsc')) {
+    } else if (sourceChain.startsWith('bsc')) {
         return 'BNB.BSC';
-    } else if (sourceChain.includes('zeta')) {
+    } else if (sourceChain.startsWith('zeta')) {
         return 'ZETA';
+    } else if (sourceChain.startsWith('sol')) {
+        return 'SOL.SOL';
     } else {
-        return 'Unsupported Network';
+        throw new Error(`getGasTokenSymbol: Unknown chain string: ${sourceChain}`);
     }
 };
 
@@ -182,7 +184,7 @@ export const getZetaTokenSymbol = (tokenSymbol: string, chainId: number): string
     // Find the chain mapping
     const chainMapping = CHAIN_TOKEN_MAPPINGS.find(mapping => mapping.chainId === chainId);
     if (!chainMapping) {
-        return '';
+        throw new Error(`getZetaTokenSymbol: Unknown chain ID: ${chainId}`);
     }
 
     // Map the token symbol to its ZRC-20 equivalent
@@ -193,7 +195,7 @@ export const getZetaTokenSymbol = (tokenSymbol: string, chainId: number): string
         return chainMapping.usdcTokenSymbol;
     }
 
-    return '';
+    throw new Error(`getZetaTokenSymbol: Unknown token symbol: ${tokenSymbol}`);
 };
 
 /**
@@ -202,7 +204,7 @@ export const getZetaTokenSymbol = (tokenSymbol: string, chainId: number): string
 export const getZetaTokenAddress = (tokenSymbol: string, chainId: number): EVMAddress | null => {
     const zetaTokenSymbol = getZetaTokenSymbol(tokenSymbol, chainId);
     if (!zetaTokenSymbol) {
-        return null;
+        throw new Error(`getZetaTokenAddress: Unknown token symbol: ${tokenSymbol}`);
     }
 
     return getTokenAddress(zetaTokenSymbol, SupportedChain.ZETA_TESTNET);
@@ -222,7 +224,7 @@ export interface TokenInfo {
 export const getTokenInfo = (tokenSymbol: string, chainId: number): TokenInfo | null => {
     const zetaTokenSymbol = getZetaTokenSymbol(tokenSymbol, chainId);
     if (!zetaTokenSymbol) {
-        return null;
+        throw new Error(`getTokenInfo: Unknown token symbol: ${tokenSymbol}`);
     }
 
     const chainMapping = CHAIN_TOKEN_MAPPINGS.find(mapping => mapping.chainId === chainId);
@@ -257,7 +259,7 @@ export const getSupportedTokensForChain = (chainId: number): string[] => {
 
     const chainMapping = CHAIN_TOKEN_MAPPINGS.find(mapping => mapping.chainId === chainId);
     if (!chainMapping) {
-        return [];
+        throw new Error(`getSupportedTokensForChain: Unknown chain ID: ${chainId}`);
     }
 
     return [chainMapping.nativeToken, 'USDC'];

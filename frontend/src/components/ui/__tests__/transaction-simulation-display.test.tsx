@@ -31,7 +31,7 @@ describe('TransactionSimulationDisplay', () => {
     render(<TransactionSimulationDisplay simulation={mockSuccessfulSimulation} />);
 
     expect(screen.getByText('Transaction Preview')).toBeInTheDocument();
-    expect(screen.getByText('150,000')).toBeInTheDocument(); // Gas estimate
+    expect(screen.getByText('150,000 gas units')).toBeInTheDocument(); // Gas estimate
     expect(screen.getByText('2.50')).toBeInTheDocument(); // Health factor
   });
 
@@ -87,7 +87,7 @@ describe('TransactionSimulationDisplay', () => {
     render(<TransactionSimulationDisplay simulation={mockSuccessfulSimulation} />);
 
     expect(screen.getByText('Estimated Gas:')).toBeInTheDocument();
-    expect(screen.getByText('150,000')).toBeInTheDocument();
+    expect(screen.getByText('150,000 gas units')).toBeInTheDocument();
   });
 
   it('should show health factor after transaction', () => {
