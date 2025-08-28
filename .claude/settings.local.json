@@ -60,7 +60,8 @@
       "Bash(bun lint:*)",
       "Bash(bun test:*)",
       "Bash(npx vitest run:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": []
   }

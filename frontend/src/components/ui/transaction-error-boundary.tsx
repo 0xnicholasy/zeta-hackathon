@@ -80,7 +80,7 @@ export class TransactionErrorBoundary extends Component<
      * Get user-friendly error message based on error type
      */
     private getUserFriendlyMessage(error: Error): string {
-        const message = error.message.toLowerCase();
+        const message = error.message?.toLowerCase() || '';
 
         // Web3/Transaction specific errors
         if (message.includes('user rejected') || message.includes('user denied')) {
