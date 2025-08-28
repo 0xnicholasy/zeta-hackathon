@@ -381,14 +381,12 @@ describe('viemHelpers', () => {
       expect(result).toBe('0x2a');
     });
 
-    it('should handle string with all possible characters', () => {
     it('should handle string with all printable ASCII characters', () => {
       const allChars = Array.from({ length: 126 - 32 + 1 }, (_, i) => String.fromCharCode(32 + i)).join('');
       const result = stringToHexBytes(allChars);
       expect(result).toMatch(/^0x[0-9a-fA-F]+$/);
       expect(result.length).toBe(2 + allChars.length * 2); // '0x' + 2 hex chars per byte
     });
-  });
 
   describe('Type Safety and Integration', () => {
     it('should return proper hex string format for all functions', () => {

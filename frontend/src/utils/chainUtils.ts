@@ -272,8 +272,7 @@ export const isTokenSupportedOnChain = (tokenSymbol: string, chainId: number): b
     try {
         const supportedTokens = getSupportedTokensForChain(chainId);
         return supportedTokens.includes(tokenSymbol);
-    } catch (error) {
-        console.log(`isTokenSupportedOnChain: ${error}`);
+    } catch {
         return false;
     }
 };

@@ -59,7 +59,8 @@
       "Bash(sed:*)",
       "Bash(bun lint:*)",
       "Bash(bun test:*)",
-      "Bash(npx vitest run:*)"
+      "Bash(npx vitest run:*)",
+      "Bash(npx vitest:*)"
     ],
     "deny": []
   }

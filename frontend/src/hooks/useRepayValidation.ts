@@ -137,11 +137,7 @@ export function useRepayValidation({
         }
 
         // Check if data is still loading
-        if (userPositionData === undefined || borrowBalance === undefined || assetPrice === undefined || !tokenBalance) {
-            console.log({
-                selectedAsset,
-                tokenBalance,
-            });
+        if (userPositionData === undefined || borrowBalance === undefined || assetPrice === undefined || !tokenBalance?.value) {
             setValidationResult({
                 ...DEFAULT_VALIDATION_FAILED_RESULT,
                 error: 'Loading data...',

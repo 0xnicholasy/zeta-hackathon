@@ -14,6 +14,7 @@ beforeAll(() => {
     useSwitchChain: vi.fn(),
     useWaitForTransactionReceipt: vi.fn(),
     useConfig: vi.fn(),
+    useBalance: vi.fn(),
   }));
 
   // Mock @rainbow-me/rainbowkit

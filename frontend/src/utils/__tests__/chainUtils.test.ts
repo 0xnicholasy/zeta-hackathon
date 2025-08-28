@@ -423,9 +423,9 @@ describe('chainUtils', () => {
     });
 
     it('should return false for unsupported chains', () => {
-      expect(isTokenSupportedOnChain('ETH', 999999)).toThrow("getSupportedTokensForChain: Unknown chain ID: 999999");
-      expect(isTokenSupportedOnChain('USDC', 0)).toThrow("getSupportedTokensForChain: Unknown chain ID: 0");
-      expect(isTokenSupportedOnChain('BTC', -1)).toThrow("getSupportedTokensForChain: Unknown chain ID: -1");
+      expect(isTokenSupportedOnChain('ETH', 999999)).toBe(false);
+      expect(isTokenSupportedOnChain('USDC', 0)).toBe(false);
+      expect(isTokenSupportedOnChain('BTC', -1)).toBe(false);
     });
 
     it('should return true for all ZRC-20 tokens on ZetaChain', () => {
@@ -449,8 +449,8 @@ describe('chainUtils', () => {
     it('should handle null/undefined inputs gracefully', () => {
       expect(() => getSupportedTokensForChain(null as any)).toThrow();
       expect(() => getSupportedTokensForChain(undefined as any)).toThrow();
-      expect(() => isTokenSupportedOnChain('ETH', null as any)).toThrow();
-      expect(() => isTokenSupportedOnChain('ETH', undefined as any)).toThrow();
+      expect(isTokenSupportedOnChain('ETH', null as any)).toBe(false);
+      expect(isTokenSupportedOnChain('ETH', undefined as any)).toBe(false);
     });
 
     it('should be case insensitive where appropriate', () => {
