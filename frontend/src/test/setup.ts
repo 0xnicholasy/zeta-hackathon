@@ -92,6 +92,8 @@ beforeAll(() => {
       return '0x0';
     }),
     encodeFunctionData: vi.fn(() => '0x'),
+    encodeAbiParameters: vi.fn(() => '0x' + '0'.repeat(256)), // 128 bytes in hex
+    parseAbiParameters: vi.fn(() => ['string', 'address']),
   }));
 
   // Mock browser APIs
@@ -128,4 +130,85 @@ beforeAll(() => {
 
   // Mock setInterval and clearInterval for proper cleanup
   global.clearInterval = vi.fn();
+
+  // Mock crypto module
+  vi.mock('crypto', () => ({
+    default: {
+      createHash: vi.fn(() => ({
+        update: vi.fn().mockReturnThis(),
+        digest: vi.fn(() => Buffer.alloc(32, 0x42))
+      }))
+    },
+    createHash: vi.fn(() => ({
+      update: vi.fn().mockReturnThis(),
+      digest: vi.fn(() => Buffer.alloc(32, 0x42))
+    }))
+  }));
+
+  // Mock contracts deployments
+  vi.mock('@/contracts/deployments', () => ({
+    getUniversalLendingProtocolAddress: vi.fn(() => '0x1234567890123456789012345678901234567890'),
+    SupportedChain: {
+      ZETA_TESTNET: 7001,
+      ARBITRUM_SEPOLIA: 421614,
+      ETHEREUM_SEPOLIA: 11155111,
+      POLYGON_AMOY: 80002,
+      BASE_SEPOLIA: 84532,
+      BSC_TESTNET: 97,
+      SOLANA_DEVNET: 900001
+    },
+    TOKEN_SYMBOLS: {
+      ETH_ARBI: 'ETH.ARBI',
+      USDC_ARBI: 'USDC.ARBI',
+      ETH_ETH: 'ETH.ETH',
+      USDC_ETH: 'USDC.ETH',
+      USDC_POL: 'USDC.POL',
+      POL_POL: 'POL.POL',
+      USDC_BSC: 'USDC.BSC',
+      BNB_BSC: 'BNB.BSC',
+      ETH_BASE: 'ETH.BASE',
+      USDC_BASE: 'USDC.BASE',
+      POL: 'POL',
+      BNB: 'BNB',
+      SOL_SOL: 'SOL.SOL',
+      USDC_SOL: 'USDC.SOL'
+    },
+    getTokenAddress: vi.fn((symbol: string, chainId: number) => `0x${symbol.replace('.', '').toLowerCase()}token${chainId}`),
+    getSupportedChainIds: vi.fn(() => [421614, 11155111, 80002, 84532, 97]),
+    getNetworkConfig: vi.fn((chainId: number) => ({
+      name: `Test Network ${chainId}`,
+      chainId,
+      type: 'testnet',
+      contracts: {},
+      tokens: {}
+    })),
+    SupportedChainId: {
+      ARBITRUM_SEPOLIA: 421614,
+      ETHEREUM_SEPOLIA: 11155111,
+      POLYGON_AMOY: 80002,
+      BASE_SEPOLIA: 84532,
+      BSC_TESTNET: 97,
+      ZETA_TESTNET: 7001,
+      SOLANA_DEVNET: 900001
+    }
+  }));
+
+  // Mock Solana web3.js
+  vi.mock('@solana/web3.js', () => ({
+    Connection: vi.fn(),
+    PublicKey: vi.fn(),
+    Transaction: vi.fn(),
+    SystemProgram: {
+      programId: 'SystemProgram'
+    },
+    LAMPORTS_PER_SOL: 1000000000,
+    TransactionInstruction: vi.fn()
+  }));
+
+  // Mock Solana SPL Token
+  vi.mock('@solana/spl-token', () => ({
+    TOKEN_PROGRAM_ID: 'TokenProgramId',
+    getAssociatedTokenAddress: vi.fn(),
+    getAccount: vi.fn()
+  }));
 });
